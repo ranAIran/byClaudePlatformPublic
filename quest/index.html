@@ -61,6 +61,7 @@ button{font:inherit;color:inherit}
 .hud-btn{padding:7px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--paper);cursor:pointer;box-shadow:0 3px 0 var(--ink);font-weight:500}
 #hint{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(32,40,58,.78);color:var(--paper);
   padding:7px 14px;border-radius:999px;font-size:13px;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+#version{position:fixed;inset-inline-end:max(10px,env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:500 10px var(--mono);color:rgba(32,40,58,.55);pointer-events:none;direction:ltr;z-index:5}
 #backend{position:fixed;inset-inline-start:max(14px,env(safe-area-inset-left,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font:500 11px var(--mono);color:rgba(32,40,58,.7);pointer-events:none}
 
 #labels{position:fixed;inset:0;pointer-events:none}
@@ -209,6 +210,7 @@ button{font:inherit;color:inherit}
 </div>
 <div id="hint" hidden></div>
 <div id="backend"></div>
+<div id="version" aria-label="Version"></div>
 <button type="button" id="talkBtn" hidden></button>
 <div id="dialog" class="card" hidden role="dialog" aria-live="polite"></div>
 <div id="toast" hidden role="status"></div>

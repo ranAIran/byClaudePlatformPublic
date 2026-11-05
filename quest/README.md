@@ -67,9 +67,10 @@ A puzzle type can add its own narration text by calling `setSpeech(text)`, as `q
 
 ## Deploying
 
-The site is fully static.
+The site is fully static. Bump `CONFIG.version` in `content.js` on every release; it's shown in the bottom corner, so you can confirm which version is live.
 
 - **GitHub Pages:** serve the branch from `/ (root)`. The game is at `/quest/`.
 - **Vercel:** Framework "Other", no build command, Root Directory `./`.
+- **Caching:** GitHub Pages caches files for about 10 minutes. If the corner still shows the old version, hard-refresh (Ctrl/Cmd+Shift+R).
 
 three.js is MIT-licensed; its license is in `vendor/three-LICENSE`.

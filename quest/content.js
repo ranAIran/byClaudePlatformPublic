@@ -9,6 +9,7 @@
 
 export const CONFIG = {
   title: "Latent Archipelago",
+  version: "1.2.0",          // shown in the screen corner; bump on every deploy
   defaultLang: "he",          // "he" | "en"
   saveKey: "latent-archipelago-v1",
   camera: { zoom: 23, minZoom: 12, maxZoom: 40, minWidth: 15, follow: 4, panMargin: 10, panReturn: 1.2 },

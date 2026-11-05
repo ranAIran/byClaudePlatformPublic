@@ -211,6 +211,7 @@ function applyLang() {
   $("langBtn2").textContent = u.langBtn;
   $("talkBtn").textContent = u.talk;
   $("backend").textContent = `${u.renderer}: ${backendName}`;
+  $("version").textContent = `v${CONFIG.version}`;
   $("recenterBtn").title = u.recenter; $("recenterBtn").setAttribute("aria-label", u.recenter);
   $("introSay").replaceChildren(sayBtn(() => u.intro));
   renderAudioBtn();
