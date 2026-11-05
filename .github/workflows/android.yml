@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write   # needed to publish the APK as a GitHub Release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,3 +32,22 @@ jobs:
         with:
           name: math6-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+
+      - name: Rename APK
+        if: github.event_name != 'pull_request'
+        run: cp app/build/outputs/apk/debug/app-debug.apk math6.apk
+
+      # Each build becomes a Release; the newest one is always at
+      # https://github.com/<owner>/<repo>/releases/latest/download/math6.apk
+      - name: Publish release
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: "מתמטיקה ו׳ – גרסה 1.0.${{ github.run_number }}"
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          body: |
+            הורדה: math6.apk (למטה, תחת Assets). בטלפון יש לאשר "התקנה ממקורות לא ידועים".
+            Built from ${{ github.sha }} on branch ${{ github.ref_name }}.
+          files: math6.apk

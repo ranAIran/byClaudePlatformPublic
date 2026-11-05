@@ -49,6 +49,9 @@ Every push runs `.github/workflows/android.yml`, which runs the tests and upload
 `math6-debug-apk` artifact – download it from the Actions run and install it on the phone
 (allow "install unknown apps").
 
+Every push also publishes a GitHub Release. Permanent link to the newest APK:
+https://github.com/ranAIran/byClaudePlatformPublic/releases/latest/download/math6.apk
+
 ## Claude API key
 
 Settings → paste an Anthropic API key (from console.anthropic.com). The default model is
