@@ -51,7 +51,7 @@ Serve the folder over HTTP, because ES modules don't load from `file://`. For ex
 python3 -m http.server 8000
 ```
 
-Then open `http://localhost:8000/quest/`. Add `?shot` for a frozen frame with no title screen, which is handy for thumbnails.
+Then open `http://localhost:8000/quest/`. Add `?shot` for a frozen frame with no title screen, which is handy for thumbnails. Add `?webgl` to force the WebGL2 backend if a device has trouble with WebGPU.
 
 - **Saved progress:** stored in `localStorage` under `latent-archipelago-v1`. "Start over" on the title screen clears it.
 - **Controls:** tap or click to walk, tap a keeper (or press `E`) to talk, WASD or arrow keys to move, `Esc` to close panels.

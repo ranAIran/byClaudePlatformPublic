@@ -31,7 +31,8 @@ const tr = (x) => (x == null ? "" : typeof x === "string" ? x : (x[S.lang] ?? x.
 // ---------- Renderer ----------
 let renderer;
 try {
-  renderer = new THREE.WebGPURenderer({ antialias: true });
+  // ?webgl forces the WebGL2 backend, a fallback if a device has WebGPU trouble.
+  renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: new URLSearchParams(location.search).has("webgl") });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MOBILE ? CONFIG.mobileQuality?.pixelRatio || 1.5 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
@@ -582,6 +583,6 @@ performance.mark("q:world");
 applyProgress(false);
 applyLang();
 if (SHOT) { $("title").hidden = true; $("labels").hidden = false; }
-try { await renderer.compileAsync?.(scene, cam); } catch (e) { /* compile lazily instead */ }
+// (compileAsync before the first frame left the scene blank under the post-processing pass, so shaders compile on first render.)
 renderer.setAnimationLoop(tick);
 window.__quest = { S, isl, player, walkable, openPuzzle, openDialog, backendName };
