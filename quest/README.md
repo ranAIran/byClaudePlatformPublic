@@ -65,6 +65,16 @@ Narration uses the browser's built-in voices (Web Speech API) in the selected la
 
 A puzzle type can add its own narration text by calling `setSpeech(text)`, as `quiz`, `rag` and `agent` do.
 
+## Look
+
+`CONFIG.world.style` picks the island look: `"lush"` (organic coastline, hills, grass tufts, shallow water and foam) or `"classic"` (the original faceted islands). Sky gradient, sun, water, shallow-water opacity and grass density are all in `CONFIG.world`. Characters are built in `world.js` (`makeCharacter`), and each keeper picks a hat (`wizard`, `straw`, `cap`, `hood`, `goggles`, `crown`, `none`) and hair colour in `content.js`. `preview.html` shows one island in both styles side by side (`?island=embeddings`, `?close`, `?walk`).
+
+## Install as an app (PWA)
+
+The game is a Progressive Web App. On Android and desktop Chrome or Edge an "Install as an app" button appears on the title screen. On iPhone the title screen explains Share → Add to Home Screen. After the first visit it also works offline.
+
+`sw.js` caches every game file under a cache named after `CONFIG.version`. Bumping the version installs a fresh copy and removes the old cache. If you add a new file to the game, add it to `FILES` in `sw.js` too.
+
 ## Deploying
 
 The site is fully static. Bump `CONFIG.version` in `content.js` on every release; it's shown in the bottom corner, so you can confirm which version is live.

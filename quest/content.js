@@ -9,19 +9,24 @@
 
 export const CONFIG = {
   title: "Latent Archipelago",
-  version: "1.2.0",          // shown in the screen corner; bump on every deploy
+  version: "1.3.0",          // shown in the screen corner; bump on every deploy
   defaultLang: "he",          // "he" | "en"
   saveKey: "latent-archipelago-v1",
   camera: { zoom: 23, minZoom: 12, maxZoom: 40, minWidth: 15, follow: 4, panMargin: 10, panReturn: 1.2 },
   player: { speed: 5.2 },
   world: {
-    islandTop: 0.6,           // walkable height
-    sky: "#9fc7e8",
-    fog: { color: "#bcd7ee", near: 75, far: 140 },
-    water: { color: "#2b8fb3", size: 260, segments: 90, waveHeight: 0.14 },
-    sun: { color: "#fff1d6", intensity: 2.6 },
-    hemi: { sky: "#cfe6ff", ground: "#6b5a3e", intensity: 1.3 },
+    style: "lush",            // "lush" (organic islands, grass, foam) | "classic" (original faceted look)
+    islandTop: 0.6,           // walkable height at the island centre
+    sky: "#a9d4f2",
+    skyGradient: { top: "#5b9fd6", mid: "#a9d4f2", horizon: "#ffe6c7" },
+    fog: { color: "#cfe4f3", near: 80, far: 160 },
+    water: { color: "#2e9ec0", size: 260, segments: 90, waveHeight: 0.08 },
+    shallow: { opacity: 0.13, inner: 0.24 },
+    grassPerIsland: 600,
+    sun: { color: "#ffe0b0", intensity: 3.2, offset: [-10, 18, 14] },
+    hemi: { sky: "#cfe8ff", ground: "#8a6d4a", intensity: 1.15 },
   },
+  playerLook: { colors: ["#2f6f8f", "#f1cfae", "#c9a227"], hat: "straw", hair: "#5a3a22" },
   bloom: { enabled: true, strength: 0.55, radius: 0.35, threshold: 0.82 },
   fireflies: 140,
   narration: { autoReadDefault: false },
@@ -42,6 +47,10 @@ export const UI = {
     noVoice: "לא נמצא קול עברי במכשיר. ההקראה תשתמש בקול ברירת המחדל.",
     noSpeech: "הדפדפן הזה לא תומך בהקראה.",
     recenter: "חזרה לדמות",
+    install: "התקינו כאפליקציה",
+    installIos: "להתקנה באייפון: לחצו על כפתור השיתוף ואז \"הוספה למסך הבית\".",
+    installed: "המשחק הותקן. אפשר לפתוח אותו ממסך הבית.",
+    updated: "גרסה חדשה הותקנה. היא תיטען בפתיחה הבאה.",
     talk: "דברו",
     next: "המשך",
     challenge: "קבלו את האתגר",
@@ -80,6 +89,10 @@ export const UI = {
     noVoice: "No English voice found on this device. Narration will use the default voice.",
     noSpeech: "This browser doesn't support narration.",
     recenter: "Back to my character",
+    install: "Install as an app",
+    installIos: "To install on iPhone: tap the Share button, then \"Add to Home Screen\".",
+    installed: "Installed. You can open it from your home screen.",
+    updated: "A new version was installed. It loads next time you open the game.",
     talk: "Talk",
     next: "Next",
     challenge: "Take the challenge",
@@ -114,7 +127,7 @@ export const ISLANDS = [
     pos: [0, 0], radius: 6,
     theme: { grass: "#7fbf6a", sand: "#e8d29a", accent: "#ffb347" },
     props: "docks",
-    keeper: { name: "Byte", role: { he: "מנהל המזח", en: "Dockmaster" }, colors: ["#3d6fb6", "#f4d6b0", "#1f2d4a"] },
+    keeper: { name: "Byte", hat: "cap", hair: "#2b2b2b", role: { he: "מנהל המזח", en: "Dockmaster" }, colors: ["#3d6fb6", "#f4d6b0", "#1f2d4a"] },
     dialogue: {
       he: [
         "ברוכים הבאים ל-Tokenizer Docks! אני Byte, מנהל המזח.",
@@ -158,7 +171,7 @@ export const ISLANDS = [
     pos: [15, -5], radius: 6.2,
     theme: { grass: "#8ccf70", sand: "#e9d7a6", accent: "#ff7eb6" },
     props: "garden",
-    keeper: { name: "Vec", role: { he: "הגנן", en: "Gardener" }, colors: ["#5b9e48", "#e8c39e", "#7a4a2a"] },
+    keeper: { name: "Vec", hat: "straw", hair: "#6b4423", role: { he: "הגנן", en: "Gardener" }, colors: ["#5b9e48", "#e8c39e", "#7a4a2a"] },
     dialogue: {
       he: [
         "אני Vec, הגנן. בגן הזה כל מילה היא פרח, והמקום שבו הוא גדל הוא המשמעות שלו.",
@@ -208,7 +221,7 @@ export const ISLANDS = [
     pos: [29, 3], radius: 5.6,
     theme: { grass: "#9cc46e", sand: "#ecd9a8", accent: "#ffe066" },
     props: "lighthouse",
-    keeper: { name: "Lumen", role: { he: "שומרת המגדלור", en: "Lighthouse keeper" }, colors: ["#d94f45", "#f1d2b6", "#f5f5f5"] },
+    keeper: { name: "Lumen", hat: "hood", hair: "#8a2b22", role: { he: "שומרת המגדלור", en: "Lighthouse keeper" }, colors: ["#d94f45", "#f1d2b6", "#f5f5f5"] },
     dialogue: {
       he: [
         "אני Lumen, שומרת המגדלור. הקרן שלי מאירה את מה שחשוב.",
@@ -252,7 +265,7 @@ export const ISLANDS = [
     pos: [27, 18], radius: 5.8,
     theme: { grass: "#a3b86a", sand: "#d9c493", accent: "#ff6a2b" },
     props: "forge",
-    keeper: { name: "Grad", role: { he: "הנפח", en: "Blacksmith" }, colors: ["#5a3b2a", "#d9a982", "#2b2b2b"] },
+    keeper: { name: "Grad", hat: "none", hair: "#1e1e1e", role: { he: "הנפח", en: "Blacksmith" }, colors: ["#5a3b2a", "#d9a982", "#2b2b2b"] },
     dialogue: {
       he: [
         "אני Grad, הנפח. כאן מחשלים מודלים, צעד אחרי צעד.",
@@ -293,7 +306,7 @@ export const ISLANDS = [
     pos: [13, 25], radius: 6,
     theme: { grass: "#86b77a", sand: "#e3d1a0", accent: "#7ad1ff" },
     props: "library",
-    keeper: { name: "Rho", role: { he: "הארכיבאית", en: "Archivist" }, colors: ["#3f6e8c", "#e7c7a5", "#c9a227"] },
+    keeper: { name: "Rho", hat: "wizard", hair: "#e8e2d0", role: { he: "הארכיבאית", en: "Archivist" }, colors: ["#3f6e8c", "#e7c7a5", "#c9a227"] },
     dialogue: {
       he: [
         "אני Rho, הארכיבאית. מודל זוכר רק את מה שלמד באימון, ולפעמים הוא פשוט ממציא.",
@@ -344,7 +357,7 @@ export const ISLANDS = [
     pos: [-2, 22], radius: 5.8,
     theme: { grass: "#93bd78", sand: "#e5d3a2", accent: "#b48cff" },
     props: "workshop",
-    keeper: { name: "Tinker", role: { he: "בעלת הסדנה", en: "Workshop owner" }, colors: ["#7b5cc4", "#efc9a6", "#3a3a3a"] },
+    keeper: { name: "Tinker", hat: "goggles", hair: "#d9772b", role: { he: "בעלת הסדנה", en: "Workshop owner" }, colors: ["#7b5cc4", "#efc9a6", "#3a3a3a"] },
     dialogue: {
       he: [
         "אני Tinker. בסדנה שלי המודלים לא רק מדברים, הם גם עושים.",
@@ -401,7 +414,7 @@ export const ISLANDS = [
     theme: { grass: "#a6c98a", sand: "#eadcb0", accent: "#ffffff" },
     props: "gate",
     requires: "all",
-    keeper: { name: "Warden", role: { he: "שומרת השער", en: "Gatekeeper" }, colors: ["#e9e4d8", "#e9c9a8", "#c9a227"] },
+    keeper: { name: "Warden", hat: "crown", hair: "#f2efe6", role: { he: "שומרת השער", en: "Gatekeeper" }, colors: ["#e9e4d8", "#e9c9a8", "#c9a227"] },
     dialogue: {
       he: [
         "אני ה-Warden. רסיסי ידע לבד לא מספיקים, צריך גם ערכים.",

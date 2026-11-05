@@ -50,6 +50,9 @@ Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, n
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
 scene.add(hemi, sun, sun.target);
+const SUN_OFF = new THREE.Vector3(...(CONFIG.world.sun.offset || [14, 26, 8]));
+const sky = CONFIG.world.style === "classic" ? null : W.makeSky(CONFIG);
+if (sky) scene.add(sky);
 
 // ---------- Camera ----------
 const cam = new THREE.OrthographicCamera(-10, 10, 10, -10, 0.1, 200);
@@ -80,9 +83,9 @@ scene.add(water);
 const isl = ISLANDS.map((data, i) => {
   const group = W.makeIsland(data, CONFIG);
   scene.add(group);
-  const npc = W.makeCharacter(data.keeper.colors, { hat: true });
+  const npc = W.makeCharacter(data.keeper.colors, { hat: data.keeper.hat || "wizard", hair: data.keeper.hair });
   const off = data.props === "gate" ? [0, 1.4] : [-0.6, 1.6];
-  npc.position.set(data.pos[0] + off[0], TOP, data.pos[1] + off[1]);
+  npc.position.set(data.pos[0] + off[0], group.userData.heightAt(off[0], off[1]), data.pos[1] + off[1]);
   npc.rotation.y = Math.PI / 4;
   scene.add(npc);
   const marker = W.makeMarker(data.theme.accent === "#ffffff" ? "#fff6c8" : data.theme.accent);
@@ -115,7 +118,8 @@ scene.add(ffMesh);
 const dummy = new THREE.Object3D();
 
 // Player.
-const player = W.makeCharacter(["#2f6f8f", "#f1cfae", "#c9a227"], { hat: true, lanternColor: "#ffe08a" });
+const look = CONFIG.playerLook || { colors: ["#2f6f8f", "#f1cfae", "#c9a227"], hat: "straw" };
+const player = W.makeCharacter(look.colors, { hat: look.hat, hair: look.hair, lanternColor: "#ffe08a" });
 const start = ISLANDS[0];
 player.position.set(start.pos[0] + 1.2, TOP, start.pos[1] + 2.8);
 scene.add(player);
@@ -127,8 +131,18 @@ const ring = new THREE.Mesh(new THREE.RingGeometry(0.25, 0.36, 24), new THREE.Me
 ring.rotation.x = -Math.PI / 2; scene.add(ring);
 
 // ---------- Walkable area ----------
+// Inside an island's coastline, scaled by k (1 = shoreline).
+function onIsland(o, x, z, k) {
+  const dx = x - o.data.pos[0], dz = z - o.data.pos[1];
+  const lim = o.data.radius * o.group.userData.coast(Math.atan2(dz, dx)) * k;
+  return dx * dx + dz * dz < lim * lim;
+}
+function groundY(x, z) {
+  for (const o of isl) if (onIsland(o, x, z, 0.92)) return o.group.userData.heightAt(x - o.data.pos[0], z - o.data.pos[1]);
+  return TOP;
+}
 function walkable(x, z) {
-  for (const d of ISLANDS) { const dx = x - d.pos[0], dz = z - d.pos[1]; if (dx * dx + dz * dz < (d.radius - 0.45) ** 2) return true; }
+  for (const o of isl) { if (onIsland(o, x, z, 0.84)) return true; }
   for (const b of bridges) {
     if (!b.open) continue;
     const { start: a, end: e } = b.mesh.userData;
@@ -216,6 +230,7 @@ function applyLang() {
   $("introSay").replaceChildren(sayBtn(() => u.intro));
   renderAudioBtn();
   speech.stop();
+  if (typeof renderInstall === "function") renderInstall();
   if (S.dialog) renderDialog();
   if (S.puzzle) openPuzzle(S.puzzle.o);
   if (!$("codex").hidden) renderCodex();
@@ -446,9 +461,8 @@ function tick() {
   if (S.mode === "play" || S.mode === "dialog" || S.mode === "puzzle") S.elapsed += dt;
 
   const walking = S.mode === "play" ? movePlayer(dt) : false;
-  const bob = walking ? Math.abs(Math.sin(P.walkT * 10)) * 0.08 : Math.sin(T * 2) * 0.015;
-  player.position.y = TOP + bob;
-  if (player.userData.lantern) player.userData.lantern.position.y = 0.6 + Math.sin(T * 3) * 0.04;
+  player.position.y += (groundY(player.position.x, player.position.z) - player.position.y) * Math.min(1, dt * 12);
+  player.userData.animate(T, dt, { walking });
 
   // Camera follows the player.
   camTarget.lerp(player.position, 1 - Math.exp(-dt * CONFIG.camera.follow));
@@ -460,14 +474,16 @@ function tick() {
   pan.copy(view).sub(camTarget);
   $("recenterBtn").classList.toggle("active", pan.lengthSq() > 4);
   cam.position.copy(view).add(ISO); cam.lookAt(view);
-  sun.position.copy(view).add(new THREE.Vector3(14, 26, 8)); sun.target.position.copy(view);
+  sun.position.copy(view).add(SUN_OFF); sun.target.position.copy(view);
+  if (sky) sky.position.copy(view);
 
   water.userData.update(T);
   isl.forEach((o) => {
-    o.group.userData.update?.(T, dt);
+    const near = Math.hypot(o.data.pos[0] - view.x, o.data.pos[1] - view.z) < o.data.radius + zoom * 0.9;
+    o.group.userData.update?.(T, dt, near);
+    o.npc.userData.animate(T, dt, { wave: nearNpc === o && S.mode === "play" });
     o.marker.position.y = TOP + 2.0 + Math.sin(T * 2 + o.index) * 0.12;
     o.marker.rotation.y = T * 1.5;
-    o.npc.position.y = TOP + Math.sin(T * 1.6 + o.index) * 0.02;
   });
   bridges.forEach((b) => {
     if (!b.open || b.t >= 1.0001) return;
@@ -513,6 +529,34 @@ function tick() {
   }
 
   if (post) post.render(); else renderer.render(scene, cam);
+}
+
+// ---------- PWA: install + offline ----------
+let installEvt = null;
+const standalone = window.matchMedia?.("(display-mode: standalone)").matches || navigator.standalone === true;
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+function renderInstall() {
+  const u = ui();
+  $("installBtn").textContent = u.install;
+  $("installBtn").hidden = standalone || !installEvt;
+  $("installHint").textContent = u.installIos;
+  $("installHint").hidden = standalone || !isIos || !!installEvt;
+}
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; renderInstall(); });
+window.addEventListener("appinstalled", () => { installEvt = null; renderInstall(); toast(ui().installed); });
+$("installBtn").addEventListener("click", async () => {
+  if (!installEvt) return;
+  installEvt.prompt();
+  try { await installEvt.userChoice; } catch (e) { /* dismissed */ }
+  installEvt = null; renderInstall();
+});
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(CONFIG.version)}`, { scope: "./" }).catch((e) => console.warn("Service worker:", e));
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (!hadController) return;
+    if (S.mode === "title") location.reload(); else toast(ui().updated);
+  });
 }
 
 applyProgress(false);

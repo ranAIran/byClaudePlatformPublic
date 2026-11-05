@@ -49,13 +49,25 @@ export function makeWater(cfg) {
 }
 
 // ---------- Islands ----------
+// Two looks, picked with CONFIG.world.style: "lush" (default: organic coast, hills, grass,
+// shallow water and foam) or "classic" (the original faceted cylinders).
+// Every island exposes userData.heightAt(localX, localZ) and userData.coast(angle) so the
+// game can keep characters on the ground and know where the shore is.
 export function makeIsland(isl, cfg) {
+  const g = cfg.world.style === "classic" ? makeIslandClassic(isl, cfg) : makeIslandLush(isl, cfg);
+  const builder = PROPS[isl.props];
+  const anim = builder ? builder(g, isl, cfg, rng(hashStr(isl.id) + 1)) : null;
+  const own = g.userData.update;
+  g.userData.update = (t, dt, near) => { own?.(t, dt, near); anim?.(t, dt); };
+  return g;
+}
+
+function makeIslandClassic(isl, cfg) {
   const top = cfg.world.islandTop;
   const r = rng(hashStr(isl.id));
   const g = new THREE.Group();
   g.position.set(isl.pos[0], 0, isl.pos[1]);
   const R = isl.radius;
-  // Sand rim, grass top and a rocky base that sinks under the water.
   const sand = mesh(jitter(new THREE.CylinderGeometry(R + 0.9, R + 1.4, 0.7, 14, 1), 0.35, r), mat(isl.theme.sand), { receive: true });
   sand.position.y = top - 0.55;
   const grass = mesh(jitter(new THREE.CylinderGeometry(R, R + 0.3, 0.5, 14, 1), 0.25, r, 0), mat(isl.theme.grass), { receive: true });
@@ -63,36 +75,153 @@ export function makeIsland(isl, cfg) {
   const rock = mesh(jitter(new THREE.CylinderGeometry(R + 1.2, R * 0.6, 3, 12, 2), 0.6, r), mat("#7d7468"), { cast: false });
   rock.position.y = -1.6;
   g.add(rock, sand, grass);
-  // Scattered rocks and bushes near the rim, kept clear of the middle where props stand.
-  for (let i = 0; i < 9; i++) {
-    const a = r() * Math.PI * 2, d = R * (0.7 + r() * 0.25);
+  scatterRocks(g, isl, top, r, () => top);
+  g.userData.heightAt = () => top;
+  g.userData.coast = () => 1;
+  return g;
+}
+
+function scatterRocks(g, isl, top, r, heightAt, count = 9) {
+  const R = isl.radius;
+  for (let i = 0; i < count; i++) {
+    const a = r() * Math.PI * 2, d = R * (0.66 + r() * 0.16);
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (r() < 0.5) {
-      const s = 0.25 + r() * 0.35;
-      const st = mesh(jitter(new THREE.DodecahedronGeometry(s, 0), 0.1, r), mat("#9a9184"));
-      st.position.set(x, top + s * 0.4, z); g.add(st);
+    if (r() < 0.55) {
+      const s = 0.2 + r() * 0.3;
+      const st = mesh(jitter(new THREE.DodecahedronGeometry(s, 1), 0.08, r), mat("#a39a8c", { flatShading: false }));
+      st.scale.y = 0.7; st.position.set(x, heightAt(x, z) + s * 0.25, z); g.add(st);
     } else {
-      const s = 0.35 + r() * 0.3;
-      const b = mesh(jitter(new THREE.IcosahedronGeometry(s, 0), 0.12, r), mat(shade(isl.theme.grass, -0.18)));
-      b.position.set(x, top + s * 0.6, z); g.add(b);
+      const s = 0.3 + r() * 0.25;
+      const b = mesh(new THREE.IcosahedronGeometry(s, 1), mat(shade(isl.theme.grass, -0.16), { flatShading: false }));
+      b.scale.y = 0.75; b.position.set(x, heightAt(x, z) + s * 0.45, z); g.add(b);
     }
   }
-  const builder = PROPS[isl.props];
-  const anim = builder ? builder(g, isl, cfg, r) : null;
-  g.userData.update = anim || null;
+}
+
+export function coastNoise(seed) {
+  const r = rng(seed); const a1 = r() * 6, a2 = r() * 6, a3 = r() * 6;
+  return (ang) => 1 + 0.07 * Math.sin(3 * ang + a1) + 0.045 * Math.sin(5 * ang + a2) + 0.025 * Math.sin(11 * ang + a3);
+}
+const lerpC = (a, b, t) => new THREE.Color(a).lerp(new THREE.Color(b), Math.max(0, Math.min(1, t)));
+const smooth = (x, a, b) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+function makeIslandLush(isl, cfg) {
+  const TOP = cfg.world.islandTop, R = isl.radius, seed = hashStr(isl.id);
+  const g = new THREE.Group(); g.position.set(isl.pos[0], 0, isl.pos[1]);
+  const coast = coastNoise(seed), r = rng(seed);
+  const p1 = r() * 6, p2 = r() * 6;
+  // Gentle hills, flattened in the middle so props and keepers stand level.
+  const hill = (x, z) => {
+    const d = Math.hypot(x, z) / R;
+    return (0.12 * Math.sin(x * 0.65 + p1) * Math.cos(z * 0.55 + p2) + 0.05 * Math.sin(x * 1.6 + z * 1.2 + p1)) * smooth(d, 0.3, 0.6);
+  };
+  const heightAt = (x, z) => {
+    const ang = Math.atan2(z, x), k = Math.hypot(x, z) / (R * coast(ang));
+    const beach = smooth(k, 0.8, 1.0);
+    return TOP + hill(x, z) * (1 - beach) - beach * 0.42;
+  };
+  // Top surface: a dense disk with vertex-colour gradients from grass to wet sand.
+  const rings = 16, segs = 72, pos = [], col = [], idx = [];
+  const grassLo = new THREE.Color(isl.theme.grass).offsetHSL(0, 0.05, -0.08), grassHi = new THREE.Color(isl.theme.grass).offsetHSL(-0.02, 0.08, 0.07);
+  const sand = new THREE.Color(isl.theme.sand), wet = new THREE.Color(isl.theme.sand).offsetHSL(0, -0.05, -0.12);
+  pos.push(0, heightAt(0, 0), 0); col.push(...lerpC(grassLo, grassHi, 0.5).toArray());
+  for (let i = 1; i <= rings; i++) for (let j = 0; j < segs; j++) {
+    const ang = (j / segs) * Math.PI * 2, k = i / rings, rr = R * k * coast(ang);
+    const x = Math.cos(ang) * rr, z = Math.sin(ang) * rr;
+    pos.push(x, heightAt(x, z), z);
+    const c = lerpC(grassLo, grassHi, hill(x, z) / 0.17 * 0.5 + 0.5).lerp(sand, smooth(k, 0.8, 0.9)).lerp(wet, smooth(k, 0.95, 1.0));
+    col.push(c.r, c.g, c.b);
+  }
+  for (let j = 0; j < segs; j++) idx.push(0, 1 + ((j + 1) % segs), 1 + j);
+  for (let i = 1; i < rings; i++) for (let j = 0; j < segs; j++) {
+    const a = 1 + (i - 1) * segs + j, b = 1 + (i - 1) * segs + ((j + 1) % segs);
+    idx.push(a, b, b + segs, a, b + segs, a + segs);
+  }
+  const topGeo = new THREE.BufferGeometry();
+  topGeo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+  topGeo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+  topGeo.setIndex(idx); topGeo.computeVertexNormals();
+  const topMesh = new THREE.Mesh(topGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 }));
+  topMesh.receiveShadow = true; g.add(topMesh);
+  // Cliff: a lathe profile bent to the same coastline, with layered rock colours.
+  const prof = [[1.0, TOP - 0.42], [1.02, TOP - 0.7], [0.97, -0.3], [0.9, -1.2], [0.7, -2.6]].map(([k, y]) => new THREE.Vector2(R * k, y));
+  const cliffGeo = new THREE.LatheGeometry(prof, segs);
+  const cp = cliffGeo.attributes.position, cc = [];
+  const strata = ["#c9b48a", "#a88f6c", "#8c7a63", "#76685a", "#5f5850"];
+  for (let i = 0; i < cp.count; i++) {
+    const x = cp.getX(i), z = cp.getZ(i), y = cp.getY(i), ang = Math.atan2(z, x), sc = coast(ang);
+    cp.setX(i, x * sc); cp.setZ(i, z * sc);
+    const t = Math.max(0, Math.min(strata.length - 1.001, ((TOP - 0.4 - y) / 3.2) * strata.length + Math.sin(ang * 9) * 0.3));
+    const c = lerpC(strata[Math.floor(t)], strata[Math.floor(t) + 1], t % 1);
+    cc.push(c.r, c.g, c.b);
+  }
+  cliffGeo.setAttribute("color", new THREE.Float32BufferAttribute(cc, 3)); cliffGeo.computeVertexNormals();
+  const cliff = new THREE.Mesh(cliffGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true }));
+  cliff.castShadow = true; g.add(cliff);
+  // Shallow water and a breathing foam line that follow the coastline.
+  const ringMesh = (inner, outer, color, opacity, y) => {
+    const geo = new THREE.RingGeometry(inner, outer, segs, 1); geo.rotateX(-Math.PI / 2);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) { const x = p.getX(i), z = p.getZ(i), sc = coast(Math.atan2(z, x)); p.setX(i, x * sc); p.setZ(i, z * sc); }
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false }));
+    m.position.y = y; m.renderOrder = 2; return m;
+  };
+  const sh = cfg.world.shallow || { opacity: 0.13, inner: 0.24 };
+  const foam = ringMesh(R * 0.97, R * 1.06, "#ffffff", 0.7, 0.18);
+  g.add(ringMesh(R * 0.98, R * 1.6, "#7fe3df", sh.opacity, 0.16), ringMesh(R * 0.98, R * 1.25, "#a8f0e6", sh.inner, 0.17), foam);
+  // Grass tufts: instanced, with colour variation and a gentle sway near the camera.
+  const N = cfg.world.grassPerIsland ?? 600;
+  const tuft = new THREE.InstancedMesh(new THREE.ConeGeometry(0.045, 0.3, 3), new THREE.MeshStandardMaterial({ roughness: 1 }), N);
+  const dummy = new THREE.Object3D(), base = [];
+  for (let i = 0; i < N; i++) {
+    const ang = r() * Math.PI * 2, k = Math.sqrt(r()) * 0.78, rr = R * k * coast(ang);
+    const x = Math.cos(ang) * rr, z = Math.sin(ang) * rr;
+    base.push([x, heightAt(x, z) + 0.12, z, r() * 6, 0.7 + r() * 0.7]);
+    tuft.setColorAt(i, new THREE.Color(isl.theme.grass).offsetHSL((r() - 0.5) * 0.05, 0.1, -0.12 + r() * 0.14));
+  }
+  const place = (t) => {
+    for (let i = 0; i < N; i++) {
+      const [x, y, z, o, sc] = base[i];
+      dummy.position.set(x, y, z); dummy.rotation.set(Math.sin(t * 1.8 + o + x) * 0.18, o, Math.cos(t * 1.5 + o + z) * 0.18);
+      dummy.scale.setScalar(sc); dummy.updateMatrix(); tuft.setMatrixAt(i, dummy.matrix);
+    }
+    tuft.instanceMatrix.needsUpdate = true;
+  };
+  place(0);
+  tuft.receiveShadow = true; g.add(tuft);
+  scatterRocks(g, isl, TOP, r, heightAt, 7);
+  g.userData.heightAt = heightAt;
+  g.userData.coast = coast;
+  g.userData.update = (t, dt, near) => {
+    foam.material.opacity = 0.45 + Math.sin(t * 1.6) * 0.25;
+    foam.scale.setScalar(1 + Math.sin(t * 1.6) * 0.012);
+    if (near) place(t);
+  };
   return g;
+}
+
+export function makeSky(cfg) {
+  const s = cfg.world.skyGradient || { top: "#5b9fd6", mid: "#a9d4f2", horizon: "#ffe6c7" };
+  const geo = new THREE.SphereGeometry(180, 32, 16), p = geo.attributes.position, c = [];
+  for (let i = 0; i < p.count; i++) {
+    const y = p.getY(i) / 180;
+    const col = y > 0.15 ? lerpC(s.mid, s.top, (y - 0.15) / 0.85) : lerpC(s.horizon, s.mid, (y + 0.2) / 0.35);
+    c.push(col.r, col.g, col.b);
+  }
+  geo.setAttribute("color", new THREE.Float32BufferAttribute(c, 3));
+  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
 }
 
 function shade(hex, amt) { const c = new THREE.Color(hex); const hsl = {}; c.getHSL(hsl); c.setHSL(hsl.h, hsl.s, Math.max(0, Math.min(1, hsl.l + amt))); return "#" + c.getHexString(); }
 
-function tree(r, scale = 1, leaf = "#4f9a4a") {
+// Round two-tone tree.
+function tree(r, scale = 1, leaf = "#5aa252") {
   const t = new THREE.Group();
-  const trunk = mesh(new THREE.CylinderGeometry(0.09 * scale, 0.14 * scale, 0.8 * scale, 5), mat("#7a5232"));
-  trunk.position.y = 0.4 * scale; t.add(trunk);
-  for (let i = 0; i < 3; i++) {
-    const c = mesh(new THREE.ConeGeometry((0.75 - i * 0.18) * scale, 0.8 * scale, 7), mat(shade(leaf, i * 0.04)));
-    c.position.y = (0.95 + i * 0.42) * scale; c.rotation.y = r() * 3; t.add(c);
-  }
+  const trunk = mesh(new THREE.CylinderGeometry(0.1 * scale, 0.16 * scale, 1.0 * scale, 6), mat("#7a5232"));
+  trunk.position.y = 0.5 * scale; t.add(trunk);
+  const c1 = mesh(new THREE.IcosahedronGeometry(0.75 * scale, 1), mat(leaf)); c1.position.y = 1.35 * scale;
+  const c2 = mesh(new THREE.IcosahedronGeometry(0.5 * scale, 1), mat(shade(leaf, 0.08))); c2.position.set(0.25 * scale, 1.75 * scale, 0.15 * scale);
+  c1.rotation.y = r() * 3; t.add(c1, c2);
   return t;
 }
 function lantern(color = "#ffcf6b") {
@@ -108,9 +237,9 @@ export const PROPS = {
     const top = cfg.world.islandTop;
     const wood = mat("#9b6b43"), dark = mat("#6e4a2c");
     const pier = new THREE.Group();
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 12; i++) {
       const p = mesh(new THREE.BoxGeometry(1.8, 0.14, 0.42), i % 2 ? wood : mat("#a8774c"), { receive: true });
-      p.position.set(0, top - 0.05, -isl.radius + 0.2 - i * 0.48); pier.add(p);
+      p.position.set(0, top - 0.12, -isl.radius + 1.6 - i * 0.48); pier.add(p);
     }
     for (const sx of [-0.85, 0.85]) for (let i = 0; i < 3; i++) {
       const post = mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 5), dark);
@@ -260,24 +389,93 @@ export const PROPS = {
 };
 
 // ---------- Characters ----------
-export function makeCharacter(colors, { hat = true, lanternColor = null } = {}) {
+// Chibi-style characters: big head with eyes and cheeks, bell-shaped robe, arms and boots,
+// and a hat per keeper. userData.animate(t, dt, state) drives walking, idling and waving.
+// state: { walking: bool, wave: bool }
+const soft = (color, o = {}) => mat(color, { flatShading: false, roughness: 0.75, ...o });
+const HATS = {
+  wizard(c, d) { const g = new THREE.Group(); const brim = mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.04, 20), soft(d)); const cone = mesh(new THREE.ConeGeometry(0.25, 0.5, 16), soft(d)); cone.position.y = 0.26; cone.rotation.z = 0.12; g.add(brim, cone); return g; },
+  straw(c, d) { const g = new THREE.Group(); const brim = mesh(new THREE.CylinderGeometry(0.4, 0.42, 0.035, 22), soft("#e4c06a")); const crown = mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.2, 18), soft("#e4c06a")); crown.position.y = 0.11; const band = mesh(new THREE.CylinderGeometry(0.265, 0.265, 0.06, 18), soft(d)); band.position.y = 0.05; g.add(brim, crown, band); return g; },
+  cap(c, d) { const g = new THREE.Group(); const dome = mesh(new THREE.SphereGeometry(0.285, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), soft(d)); const visor = mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.03, 16, 1, false, -Math.PI / 2, Math.PI), soft(d)); visor.position.set(0, 0.01, 0.16); visor.scale.set(1.1, 1, 1.4); g.add(dome, visor); return g; },
+  hood(c) { const g = new THREE.Group(); const hood = mesh(new THREE.SphereGeometry(0.33, 20, 14, 0, Math.PI * 2, 0, Math.PI * 0.62), soft(c)); hood.position.y = -0.1; hood.rotation.x = -0.35; g.add(hood); return g; },
+  goggles(c, d) { const g = new THREE.Group(); const band = mesh(new THREE.TorusGeometry(0.28, 0.035, 8, 24), soft("#3a3a3a")); band.rotation.x = Math.PI / 2; band.position.y = -0.04;
+    for (const sx of [-0.1, 0.1]) { const lens = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.06, 14), soft("#c9a227", { metalness: 0.6, roughness: 0.3 })); lens.rotation.x = Math.PI / 2; lens.position.set(sx, 0.02, 0.25); const glass = mesh(new THREE.CircleGeometry(0.055, 14), glow("#7ad1ff", 1.2)); glass.position.set(sx, 0.02, 0.281); g.add(lens, glass); }
+    g.add(band); return g; },
+  crown(c, d) { const g = new THREE.Group(); const ring = mesh(new THREE.CylinderGeometry(0.2, 0.22, 0.12, 16, 1, true), soft("#e0b83a", { metalness: 0.7, roughness: 0.3, side: THREE.DoubleSide })); ring.position.y = 0.04; g.add(ring);
+    for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const sp = mesh(new THREE.ConeGeometry(0.035, 0.1, 6), soft("#e0b83a", { metalness: 0.7, roughness: 0.3 })); sp.position.set(Math.cos(a) * 0.2, 0.15, Math.sin(a) * 0.2); g.add(sp); }
+    const gem = mesh(new THREE.OctahedronGeometry(0.04, 0), glow("#ffffff", 2)); gem.position.set(0, 0.06, 0.215); g.add(gem); return g; },
+  none() { return new THREE.Group(); },
+};
+
+export function makeCharacter(colors, { hat = "wizard", hair = "#3b2a20", lanternColor = null, scale = 1.15 } = {}) {
   const [cloak, skin, detail] = colors;
   const c = new THREE.Group();
-  const body = mesh(new THREE.CylinderGeometry(0.22, 0.36, 0.8, 7), mat(cloak)); body.position.y = 0.45;
-  const head = mesh(new THREE.IcosahedronGeometry(0.24, 1), mat(skin)); head.position.y = 1.07;
-  const belt = mesh(new THREE.CylinderGeometry(0.29, 0.3, 0.08, 7), mat(detail)); belt.position.y = 0.42;
-  c.add(body, head, belt);
-  if (hat) {
-    const brim = mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.04, 10), mat(detail)); brim.position.y = 1.24;
-    const crown = mesh(new THREE.ConeGeometry(0.22, 0.38, 8), mat(detail)); crown.position.y = 1.44;
-    c.add(brim, crown);
+  const rig = new THREE.Group(); c.add(rig);
+  // Robe: smooth bell shape.
+  const robeProf = [[0.0, 0.08], [0.36, 0.1], [0.34, 0.3], [0.27, 0.55], [0.2, 0.74], [0.0, 0.78]].map(([x, y]) => new THREE.Vector2(x, y));
+  const robe = mesh(new THREE.LatheGeometry(robeProf, 20), soft(cloak)); rig.add(robe);
+  const hem = mesh(new THREE.TorusGeometry(0.35, 0.03, 6, 24), soft(detail)); hem.rotation.x = Math.PI / 2; hem.position.y = 0.11; rig.add(hem);
+  const belt = mesh(new THREE.TorusGeometry(0.255, 0.035, 6, 20), soft(detail)); belt.rotation.x = Math.PI / 2; belt.position.y = 0.5; rig.add(belt);
+  const buckle = mesh(new THREE.BoxGeometry(0.08, 0.07, 0.03), soft("#e0b83a", { metalness: 0.6, roughness: 0.3 })); buckle.position.set(0, 0.5, 0.265); rig.add(buckle);
+  // Boots peeking out under the robe.
+  const legs = [];
+  for (const sx of [-0.12, 0.12]) {
+    const leg = new THREE.Group(); leg.position.set(sx, 0.12, 0);
+    const boot = mesh(new THREE.SphereGeometry(0.085, 12, 8), soft("#4a3324")); boot.scale.set(1, 0.7, 1.4); boot.position.set(0, -0.06, 0.04); leg.add(boot);
+    c.add(leg); legs.push(leg);
   }
-  const eyes = mesh(new THREE.BoxGeometry(0.2, 0.05, 0.02), mat("#1c1c24")); eyes.position.set(0, 1.1, 0.22); c.add(eyes);
+  // Arms: sleeves with round hands, pivoting at the shoulder.
+  const arms = [];
+  for (const sx of [-1, 1]) {
+    const arm = new THREE.Group(); arm.position.set(sx * 0.24, 0.68, 0);
+    const sleeve = mesh(new THREE.CapsuleGeometry(0.065, 0.24, 4, 10), soft(cloak)); sleeve.position.y = -0.17; arm.add(sleeve);
+    const cuff = mesh(new THREE.TorusGeometry(0.065, 0.02, 6, 14), soft(detail)); cuff.rotation.x = Math.PI / 2; cuff.position.y = -0.3; arm.add(cuff);
+    const hand = mesh(new THREE.SphereGeometry(0.065, 12, 10), soft(skin)); hand.position.y = -0.36; arm.add(hand);
+    arm.rotation.z = sx * 0.18; rig.add(arm); arms.push(arm);
+  }
+  // Head: large and smooth, with eyes, highlights, cheeks and hair.
+  const head = new THREE.Group(); head.position.y = 1.03; rig.add(head);
+  const skull = mesh(new THREE.SphereGeometry(0.28, 24, 18), soft(skin)); head.add(skull);
+  const hairCap = mesh(new THREE.SphereGeometry(0.292, 24, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), soft(hair)); hairCap.rotation.x = -0.35; head.add(hairCap);
+  const eyes = [];
+  for (const sx of [-0.095, 0.095]) {
+    const eye = mesh(new THREE.SphereGeometry(0.05, 12, 10), soft("#1c1c24", { roughness: 0.3 }), { cast: false }); eye.position.set(sx, -0.01, 0.245); eye.scale.z = 0.6; head.add(eye); eyes.push(eye);
+    const hl = mesh(new THREE.SphereGeometry(0.013, 8, 6), mat("#ffffff", { flatShading: false, emissive: new THREE.Color("#ffffff"), emissiveIntensity: 0.6 }), { cast: false }); hl.position.set(sx + 0.014, 0.008, 0.272); head.add(hl);
+    const cheek = mesh(new THREE.SphereGeometry(0.045, 10, 8), soft("#f28b8b", { transparent: true, opacity: 0.55 }), { cast: false }); cheek.position.set(sx * 1.55, -0.085, 0.215); cheek.scale.set(1, 0.6, 0.4); head.add(cheek);
+  }
+  const mouth = mesh(new THREE.TorusGeometry(0.03, 0.008, 6, 10, Math.PI), soft("#7a3b3b"), { cast: false }); mouth.position.set(0, -0.085, 0.262); mouth.rotation.z = Math.PI; head.add(mouth);
+  const hatObj = (HATS[hat === true ? "wizard" : hat] || HATS.none)(cloak, detail); hatObj.position.set(0, 0.2, -0.04); hatObj.rotation.x = hat === "hood" || hat === "goggles" ? 0 : -0.3; head.add(hatObj);
+  // Explorer extras: a backpack and a lantern carried in the right hand.
   if (lanternColor) {
-    const l = mesh(new THREE.OctahedronGeometry(0.1, 0), glow(lanternColor, 3)); l.position.set(0.34, 0.6, 0.12); c.add(l); c.userData.lantern = l;
-    const pack = mesh(new THREE.BoxGeometry(0.36, 0.42, 0.2), mat("#8a5a3a")); pack.position.set(0, 0.62, -0.3); c.add(pack);
+    const pack = mesh(new THREE.BoxGeometry(0.34, 0.38, 0.18), soft("#8a5a3a")); pack.position.set(0, 0.58, -0.3); rig.add(pack);
+    const flap = mesh(new THREE.BoxGeometry(0.36, 0.1, 0.2), soft("#6e4529")); flap.position.set(0, 0.76, -0.3); rig.add(flap);
+    const lan = new THREE.Group(); lan.position.set(0, -0.42, 0.02); arms[1].add(lan);
+    const frame = mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.12, 6), soft("#3b2a20")); lan.add(frame);
+    const flame = mesh(new THREE.OctahedronGeometry(0.06, 0), glow(lanternColor, 3)); flame.position.y = -0.02; lan.add(flame);
+    c.userData.lantern = flame;
   }
-  c.userData.body = body;
+  c.scale.setScalar(scale);
+  let walkT = 0, wave = 0, blinkT = 2 + Math.random() * 3;
+  c.userData.animate = (t, dt, { walking = false, wave: waving = false } = {}) => {
+    walkT = walking ? walkT + dt * 9 : walkT * Math.exp(-dt * 10);
+    const sw = walking ? Math.sin(walkT) : 0;
+    wave += ((waving ? 1 : 0) - wave) * Math.min(1, dt * 6);
+    rig.position.y = walking ? Math.abs(Math.sin(walkT)) * 0.06 : Math.sin(t * 2) * 0.012;
+    rig.rotation.z = sw * 0.04;
+    legs[0].position.z = sw * 0.09; legs[1].position.z = -sw * 0.09;
+    arms[0].rotation.x = -sw * 0.6; arms[1].rotation.x = sw * 0.6;
+    // Wave with the left arm while a player stands nearby.
+    arms[0].rotation.z = -0.18 - wave * 2.3 + wave * Math.sin(t * 9) * 0.25;
+    arms[1].rotation.z = 0.18 + Math.sin(t * 1.6) * 0.03;
+    head.rotation.x = -0.14; // lift the face toward the isometric camera
+    head.rotation.y = waving ? Math.sin(t * 1.2) * 0.15 : 0;
+    head.rotation.z = walking ? sw * 0.05 : Math.sin(t * 0.9) * 0.03;
+    blinkT -= dt;
+    const blink = blinkT < 0.12 && blinkT > 0 ? 0.1 : 1;
+    if (blinkT < 0) blinkT = 2.5 + Math.random() * 3;
+    eyes.forEach((e) => { e.scale.y = blink; });
+  };
+  c.userData.animate(0, 0);
   return c;
 }
 
