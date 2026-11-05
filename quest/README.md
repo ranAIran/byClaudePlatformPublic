@@ -13,7 +13,8 @@ A short 3D quest (10–15 minutes) across seven islands, each built around one A
 | `content.js` | **Everything editable.** `CONFIG` (camera, colours, fog, bloom, speed), `UI` (interface strings in each language) and `ISLANDS` (each island's data). |
 | `puzzles.js` | The challenge types (`tokens`, `embed`, `attention`, `gradient`, `rag`, `agent`, `quiz`). |
 | `world.js` | 3D builders: islands, water, bridges, characters and the `PROPS` decoration sets. |
-| `main.js` | Game loop, input, camera, dialogue, puzzles, Codex and saving. |
+| `main.js` | Game loop, input (walk, pan, pinch), camera, dialogue, puzzles, Codex and saving. |
+| `speech.js` | Narration: splits Hebrew and English runs and picks a voice for each. |
 
 ## Adding or changing content
 
@@ -53,7 +54,16 @@ python3 -m http.server 8000
 Then open `http://localhost:8000/quest/`. Add `?shot` for a frozen frame with no title screen, which is handy for thumbnails.
 
 - **Saved progress:** stored in `localStorage` under `latent-archipelago-v1`. "Start over" on the title screen clears it.
-- **Controls:** tap or click to walk, tap a keeper (or press `E`) to talk, WASD or arrow keys to move, mouse wheel to zoom, `Esc` to close panels.
+- **Controls:** tap or click to walk, tap a keeper (or press `E`) to talk, WASD or arrow keys to move, `Esc` to close panels.
+- **Looking around:** drag to pan the map. Pinch or use the mouse wheel to zoom. The ⌖ button (or `C`) recenters on your character, and the view also drifts back while you walk. Tune it with `CONFIG.camera` (`panMargin`, `panReturn`, `minZoom`, `maxZoom`).
+
+## Narration
+
+Every written instruction has a 🔊 button: dialogue lines, puzzle explanations (plus the question or task), the title intro, Codex entries and the end screen. The HUD speaker button turns on auto narration, which reads each new line as it appears. Set the default with `CONFIG.narration.autoReadDefault`.
+
+Narration uses the browser's built-in voices (Web Speech API) in the selected language. Hebrew text often contains English terms, so `speech.js` splits it into Hebrew and English runs and reads each with a voice of its own language. The two languages are never mixed in one utterance. Hebrew prefixes attached to English words (`ה-`, `ל-`, `ב-`...) get vowel marks so they're pronounced as syllables. If the device has no voice for a language, the game says so and falls back to the default voice.
+
+A puzzle type can add its own narration text by calling `setSpeech(text)`, as `quiz`, `rag` and `agent` do.
 
 ## Deploying
 

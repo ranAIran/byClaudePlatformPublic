@@ -11,7 +11,7 @@ export const CONFIG = {
   title: "Latent Archipelago",
   defaultLang: "he",          // "he" | "en"
   saveKey: "latent-archipelago-v1",
-  camera: { zoom: 23, minZoom: 12, maxZoom: 34, minWidth: 15, follow: 4 },
+  camera: { zoom: 23, minZoom: 12, maxZoom: 40, minWidth: 15, follow: 4, panMargin: 10, panReturn: 1.2 },
   player: { speed: 5.2 },
   world: {
     islandTop: 0.6,           // walkable height
@@ -23,6 +23,7 @@ export const CONFIG = {
   },
   bloom: { enabled: true, strength: 0.55, radius: 0.35, threshold: 0.82 },
   fireflies: 140,
+  narration: { autoReadDefault: false },
 };
 
 export const UI = {
@@ -32,7 +33,14 @@ export const UI = {
     start: "התחילו את המסע",
     continue: "המשיכו מאיפה שעצרתם",
     reset: "התחילו מחדש",
-    hint: "הקישו על הקרקע כדי ללכת · הקישו על שומר כדי לדבר",
+    hint: "הקישו על הקרקע כדי ללכת · גררו כדי להסתכל מסביב · הקישו על שומר כדי לדבר",
+    listen: "הקראה",
+    stop: "עצירה",
+    autoReadOn: "הקראה אוטומטית: פועלת",
+    autoReadOff: "הקראה אוטומטית: כבויה",
+    noVoice: "לא נמצא קול עברי במכשיר. ההקראה תשתמש בקול ברירת המחדל.",
+    noSpeech: "הדפדפן הזה לא תומך בהקראה.",
+    recenter: "חזרה לדמות",
     talk: "דברו",
     next: "המשך",
     challenge: "קבלו את האתגר",
@@ -63,7 +71,14 @@ export const UI = {
     start: "Start the quest",
     continue: "Continue where you left off",
     reset: "Start over",
-    hint: "Tap the ground to walk · Tap a keeper to talk",
+    hint: "Tap the ground to walk · Drag to look around · Tap a keeper to talk",
+    listen: "Read aloud",
+    stop: "Stop",
+    autoReadOn: "Auto narration: on",
+    autoReadOff: "Auto narration: off",
+    noVoice: "No English voice found on this device. Narration will use the default voice.",
+    noSpeech: "This browser doesn't support narration.",
+    recenter: "Back to my character",
     talk: "Talk",
     next: "Next",
     challenge: "Take the challenge",

@@ -1,10 +1,11 @@
 // Puzzle registry. Each entry renders one challenge type into `root`.
-// Signature: (ctx) => void, where ctx = { root, p, tr, ui, done, feedback }
+// Signature: (ctx) => void, where ctx = { root, p, tr, ui, done, feedback, setSpeech }
 //   p        the island's `puzzle` object from content.js
 //   tr(x)    picks the current language from a { he, en } object (strings pass through)
 //   ui       UI strings for the current language
 //   feedback(text, kind)  shows a message under the puzzle ("ok" | "bad" | "info")
 //   done()   call once when the challenge is solved
+//   setSpeech(text)  optional extra text the narration reads after the explanation
 // To add a new challenge type, add a function here and set `puzzle.type` to its key.
 
 export function h(tag, attrs = {}, ...kids) {
@@ -138,8 +139,9 @@ export const PUZZLES = {
   },
 
   // Retrieve exactly the relevant documents, then ask the oracle.
-  rag({ root, p, tr, feedback, done }) {
+  rag({ root, p, tr, feedback, done, setSpeech }) {
     const chosen = new Set();
+    setSpeech?.(`${tr(p.question)} ${tr(p.noContext)}`);
     const q = h("div", { class: "oracle" }, h("b", {}, "Oracle"), h("p", {}, tr(p.question)), h("p", { class: "muted" }, tr(p.noContext)));
     const shelf = h("div", { class: "pz-shelf" });
     function render() {
@@ -157,8 +159,9 @@ export const PUZZLES = {
   },
 
   // Build an ordered tool plan for an agent and run it.
-  agent({ root, p, tr, ui, feedback, done }) {
+  agent({ root, p, tr, ui, feedback, done, setSpeech }) {
     let plan = [];
+    setSpeech?.(tr(p.task));
     const task = h("div", { class: "oracle" }, h("b", {}, "Task"), h("p", {}, tr(p.task)));
     const tools = h("div", { class: "pz-tools" });
     const planEl = h("ol", { class: "pz-plan", dir: "ltr" });
@@ -192,11 +195,12 @@ export const PUZZLES = {
   },
 
   // Generic multiple-choice quiz. Handy for quickly adding new screens from content alone.
-  quiz({ root, p, tr, ui, feedback, done }) {
+  quiz({ root, p, tr, ui, feedback, done, setSpeech }) {
     let idx = 0;
     const box = h("div", { class: "pz-quiz" });
     function render() {
       const q = p.questions[idx];
+      setSpeech?.([tr(q.q), ...q.options.map((o, i) => `${i + 1}. ${tr(o)}`)].join(" "));
       box.replaceChildren(h("div", { class: "attn-count" }, `${idx + 1} / ${p.questions.length}`), h("p", { class: "quiz-q" }, tr(q.q)),
         h("div", { class: "quiz-opts" }, q.options.map((o, i) => h("button", { type: "button", class: "btn opt", onclick: (e) => {
           if (i === q.correct) { e.currentTarget.classList.add("right"); feedback("✓", "ok"); setTimeout(() => { idx++; feedback("", "info"); idx < p.questions.length ? render() : done(); }, 650); }

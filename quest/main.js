@@ -4,17 +4,18 @@ import { bloom } from "./vendor/BloomNode.js";
 import { CONFIG, UI, ISLANDS } from "./content.js";
 import { PUZZLES, h } from "./puzzles.js";
 import * as W from "./world.js";
+import { speech } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
 const TOP = CONFIG.world.islandTop;
 const SHOT = new URLSearchParams(location.search).has("shot");
 
 // ---------- Persistent state ----------
-const S = { lang: CONFIG.defaultLang, solved: new Set(), elapsed: 0, mode: "title", dialog: null, puzzle: null };
+const S = { lang: CONFIG.defaultLang, solved: new Set(), elapsed: 0, mode: "title", dialog: null, puzzle: null, autoRead: !!CONFIG.narration?.autoReadDefault };
 function load() {
-  try { const d = JSON.parse(localStorage.getItem(CONFIG.saveKey) || "null"); if (d) { S.solved = new Set(d.solved || []); S.elapsed = d.elapsed || 0; if (d.lang) S.lang = d.lang; } } catch (e) { /* storage unavailable */ }
+  try { const d = JSON.parse(localStorage.getItem(CONFIG.saveKey) || "null"); if (d) { S.solved = new Set(d.solved || []); S.elapsed = d.elapsed || 0; if (d.lang) S.lang = d.lang; if (typeof d.autoRead === "boolean") S.autoRead = d.autoRead; } } catch (e) { /* storage unavailable */ }
 }
-function save() { try { localStorage.setItem(CONFIG.saveKey, JSON.stringify({ solved: [...S.solved], elapsed: S.elapsed, lang: S.lang })); } catch (e) { /* ignore */ } }
+function save() { try { localStorage.setItem(CONFIG.saveKey, JSON.stringify({ solved: [...S.solved], elapsed: S.elapsed, lang: S.lang, autoRead: S.autoRead })); } catch (e) { /* ignore */ } }
 load();
 const ui = () => UI[S.lang] || UI.en;
 const tr = (x) => (x == null ? "" : typeof x === "string" ? x : (x[S.lang] ?? x.en ?? ""));
@@ -161,6 +162,36 @@ function applyProgress(animate) {
   renderShards();
 }
 
+// ---------- Narration ----------
+// Every written instruction can be read aloud in the current language (see speech.js).
+let warnedVoice = {};
+function say(text) {
+  if (!speech.supported) { toast(ui().noSpeech); return; }
+  if (!speech.hasVoice(S.lang) && !warnedVoice[S.lang]) { warnedVoice[S.lang] = true; toast(ui().noVoice); }
+  speech.speak(text, S.lang);
+}
+function sayBtn(getText) {
+  const u = ui();
+  return h("button", { type: "button", class: "say", "aria-label": u.listen, title: u.listen, onclick: (e) => {
+    e.stopPropagation();
+    if (speech.speaking) speech.stop(); else say(typeof getText === "function" ? getText() : getText);
+  } }, h("span", { "aria-hidden": "true" }, "🔊"));
+}
+function autoSay(text) { if (S.autoRead && speech.supported) say(text); }
+speech.onchange = (on) => { document.body.classList.toggle("speaking", on); };
+function renderAudioBtn() {
+  const u = ui(), b = $("audioBtn");
+  b.textContent = S.autoRead ? "🔊" : "🔈";
+  b.setAttribute("aria-pressed", String(S.autoRead));
+  b.title = S.autoRead ? u.autoReadOn : u.autoReadOff; b.setAttribute("aria-label", b.title);
+}
+$("audioBtn").addEventListener("click", () => {
+  S.autoRead = !S.autoRead; save(); renderAudioBtn();
+  toast(S.autoRead ? ui().autoReadOn : ui().autoReadOff);
+  if (!S.autoRead) speech.stop();
+  else if (S.dialog) autoSay($("dialog").querySelector(".line")?.textContent);
+});
+
 // ---------- HUD ----------
 function renderShards() {
   $("shards").replaceChildren(...isl.map((o) => h("span", { class: "shard" + (S.solved.has(o.data.id) ? " got" : ""), style: { "--c": o.data.theme.accent }, title: o.data.concept })));
@@ -180,6 +211,10 @@ function applyLang() {
   $("langBtn2").textContent = u.langBtn;
   $("talkBtn").textContent = u.talk;
   $("backend").textContent = `${u.renderer}: ${backendName}`;
+  $("recenterBtn").title = u.recenter; $("recenterBtn").setAttribute("aria-label", u.recenter);
+  $("introSay").replaceChildren(sayBtn(() => u.intro));
+  renderAudioBtn();
+  speech.stop();
   if (S.dialog) renderDialog();
   if (S.puzzle) openPuzzle(S.puzzle.o);
   if (!$("codex").hidden) renderCodex();
@@ -190,13 +225,13 @@ $("langBtn").addEventListener("click", toggleLang);
 $("langBtn2").addEventListener("click", toggleLang);
 
 let toastTimer = 0;
-function toast(text) { const t = $("toast"); t.textContent = text; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+function toast(text) { const t = $("toast"); if (!t) return; t.textContent = text; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
 
 // ---------- Dialog ----------
 function openDialog(o) {
   S.dialog = { o, line: 0 }; S.mode = "dialog"; P.target = null; renderDialog();
 }
-function closeDialog() { S.dialog = null; $("dialog").hidden = true; if (S.mode === "dialog") S.mode = "play"; }
+function closeDialog() { speech.stop(); S.dialog = null; $("dialog").hidden = true; if (S.mode === "dialog") S.mode = "play"; }
 function renderDialog() {
   const { o, line } = S.dialog, u = ui(), d = o.data;
   const lines = tr(d.dialogue);
@@ -211,9 +246,10 @@ function renderDialog() {
   else actions.push(h("button", { type: "button", class: "btn", onclick: closeDialog }, u.later), h("button", { type: "button", class: "btn primary", onclick: () => { closeDialog(); openPuzzle(o); } }, u.challenge));
   $("dialog").replaceChildren(
     h("div", { class: "who", style: { "--c": d.theme.accent } }, h("b", { dir: "ltr" }, d.keeper.name), h("span", {}, tr(d.keeper.role)), h("i", { dir: "ltr" }, d.name)),
-    h("p", { class: "line" }, text),
+    h("div", { class: "line-wrap" }, h("p", { class: "line" }, text), sayBtn(() => text)),
     h("div", { class: "actions" }, actions));
   $("dialog").hidden = false;
+  speech.stop(); autoSay(text);
   $("dialog").querySelector(".btn.primary, .btn")?.focus({ preventScroll: true });
 }
 
@@ -221,18 +257,21 @@ function renderDialog() {
 function openPuzzle(o) {
   const d = o.data, u = ui(), type = PUZZLES[d.puzzle.type];
   S.puzzle = { o }; S.mode = "puzzle"; P.target = null;
+  let extra = "";
   const fb = h("p", { class: "feedback", "aria-live": "polite" });
   const body = h("div", { class: "pz-body" });
   const card = h("div", { class: "card puzzle", role: "dialog", "aria-modal": "true", "aria-label": d.concept },
     h("header", {}, h("div", {}, h("small", { dir: "ltr" }, d.name), h("h2", { dir: "ltr" }, d.concept)), h("button", { type: "button", class: "x", "aria-label": u.close, onclick: closePuzzle }, "✕")),
-    h("p", { class: "explain" }, tr(d.puzzle.explain)), body, fb);
+    h("div", { class: "line-wrap" }, h("p", { class: "explain" }, tr(d.puzzle.explain)), sayBtn(() => [tr(d.puzzle.explain), extra].filter(Boolean).join(" "))), body, fb);
   $("modal").replaceChildren(card); $("modal").hidden = false;
   const feedback = (text, kind) => { fb.textContent = text; fb.className = "feedback " + (kind || ""); };
   if (!type) { feedback(`Unknown puzzle type: ${d.puzzle.type}`, "bad"); return; }
   let finished = false;
-  type({ root: body, p: d.puzzle, tr, ui: u, feedback, done: () => { if (finished) return; finished = true; setTimeout(() => solve(o, card), 500); } });
+  const setSpeech = (text) => { extra = text || ""; };
+  type({ root: body, p: d.puzzle, tr, ui: u, feedback, setSpeech, done: () => { if (finished) return; finished = true; setTimeout(() => solve(o, card), 500); } });
+  speech.stop(); autoSay([tr(d.puzzle.explain), extra].filter(Boolean).join(" "));
 }
-function closePuzzle() { S.puzzle = null; $("modal").hidden = true; $("modal").replaceChildren(); if (S.mode === "puzzle") S.mode = "play"; }
+function closePuzzle() { speech.stop(); S.puzzle = null; $("modal").hidden = true; $("modal").replaceChildren(); if (S.mode === "puzzle") S.mode = "play"; }
 function solve(o, card) {
   const d = o.data, u = ui(), first = !S.solved.has(d.id);
   S.solved.add(d.id); save(); applyProgress(true);
@@ -253,7 +292,7 @@ function solve(o, card) {
 function codexEntry(d) {
   const u = ui(), c = d.codex;
   return h("article", { class: "codex-entry", style: { "--c": d.theme.accent } },
-    h("h3", { dir: "ltr" }, d.concept, h("small", {}, " · " + d.name)),
+    h("div", { class: "line-wrap" }, h("h3", { dir: "ltr" }, d.concept, h("small", {}, " · " + d.name)), sayBtn(() => `${tr(c.allegory)} ${tr(c.text)}`)),
     h("p", {}, h("b", {}, u.allegory + ": "), tr(c.allegory)),
     h("p", {}, h("b", {}, u.realWorld + ": "), tr(c.text)),
     h("ul", { class: "links" }, c.links.map((l) => h("li", {}, h("a", { href: l.url, target: "_blank", rel: "noopener", dir: "ltr" }, l.label + " ↗")))));
@@ -269,11 +308,11 @@ $("codexBtn").addEventListener("click", () => { renderCodex(); $("codex").hidden
 
 // ---------- Finale ----------
 let finaleT = -1;
-function finale() { finaleT = 0; S.mode = "end"; setTimeout(() => { renderEnd(); $("end").hidden = false; }, 2200); }
+function finale() { finaleT = 0; S.mode = "end"; setTimeout(() => { renderEnd(); $("end").hidden = false; autoSay(ui().finishText); }, 2200); }
 function renderEnd() {
   const u = ui(), s = Math.round(S.elapsed);
   $("end").replaceChildren(h("div", { class: "card end" },
-    h("h2", {}, u.finishTitle), h("p", {}, u.finishText),
+    h("h2", {}, u.finishTitle), h("div", { class: "line-wrap center" }, h("p", {}, u.finishText), sayBtn(() => u.finishText)),
     h("p", { class: "time" }, `${u.time}: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`),
     h("div", { class: "actions" },
       h("button", { type: "button", class: "btn", onclick: toggleLang }, u.langBtn),
@@ -289,13 +328,54 @@ $("resetBtn").addEventListener("click", () => { S.solved.clear(); S.elapsed = 0;
 const ray = new THREE.Raycaster();
 const ground = new THREE.Plane(new THREE.Vector3(0, 1, 0), -TOP);
 const ndc = new THREE.Vector2();
-let down = null;
-renderer.domElement.addEventListener("pointerdown", (e) => { down = { x: e.clientX, y: e.clientY }; });
-renderer.domElement.addEventListener("pointerup", (e) => {
-  if (!down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12) { down = null; return; }
-  down = null;
+// One pointer: tap walks, drag pans the camera. Two pointers: pinch to zoom.
+const pointers = new Map();
+let down = null, pinch = 0;
+const pan = new THREE.Vector3(); let recentering = false;
+const SIN_E = ISO.y / ISO.length();
+const RIGHT = new THREE.Vector3(1, 0, -1).normalize(), UPG = new THREE.Vector3(-1, 0, -1).normalize();
+const xs = ISLANDS.map((d) => d.pos[0]), zs = ISLANDS.map((d) => d.pos[1]);
+const BOUNDS = { minX: Math.min(...xs) - CONFIG.camera.panMargin, maxX: Math.max(...xs) + CONFIG.camera.panMargin, minZ: Math.min(...zs) - CONFIG.camera.panMargin, maxZ: Math.max(...zs) + CONFIG.camera.panMargin };
+function setZoom(z) { zoom = Math.min(CONFIG.camera.maxZoom, Math.max(CONFIG.camera.minZoom, z)); frustum(); }
+function panBy(dx, dy) {
+  const upp = (cam.top - cam.bottom) / window.innerHeight;
+  pan.addScaledVector(RIGHT, -dx * upp).addScaledVector(UPG, (dy * upp) / SIN_E);
+  recentering = false;
+}
+const el = renderer.domElement;
+el.addEventListener("pointerdown", (e) => {
+  el.setPointerCapture?.(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 1) down = { x: e.clientX, y: e.clientY, panning: false };
+  else { down = null; const [a, b] = [...pointers.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); }
+});
+el.addEventListener("pointermove", (e) => {
+  const prev = pointers.get(e.pointerId);
+  if (!prev) return;
+  const cur = { x: e.clientX, y: e.clientY };
+  pointers.set(e.pointerId, cur);
+  if (pointers.size >= 2) {
+    const [a, b] = [...pointers.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+    if (pinch > 0 && d > 0) setZoom(zoom * (pinch / d));
+    pinch = d; return;
+  }
+  if (!down) return;
+  if (!down.panning && Math.hypot(cur.x - down.x, cur.y - down.y) > 8) { down.panning = true; el.classList.add("grabbing"); }
+  if (down.panning) panBy(cur.x - prev.x, cur.y - prev.y);
+});
+function endPointer(e) {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2) pinch = 0;
+  el.classList.remove("grabbing");
+  const d = down; down = null;
+  return d;
+}
+el.addEventListener("pointercancel", endPointer);
+el.addEventListener("pointerup", (e) => {
+  const d = endPointer(e);
+  if (!d || d.panning) return;
   if (S.mode !== "play") return;
-  const r = renderer.domElement.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
   ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
   ray.setFromCamera(ndc, cam);
   const hit = ray.intersectObjects(isl.flatMap((o) => [o.npc, o.marker]), true)[0];
@@ -306,10 +386,12 @@ renderer.domElement.addEventListener("pointerup", (e) => {
   const p = new THREE.Vector3();
   if (ray.ray.intersectPlane(ground, p)) { P.target = p; P.talkTo = null; ring.position.set(p.x, TOP + 0.03, p.z); ring.material.opacity = 0.9; ring.scale.setScalar(1); }
 });
-renderer.domElement.addEventListener("wheel", (e) => { e.preventDefault(); zoom = Math.min(CONFIG.camera.maxZoom, Math.max(CONFIG.camera.minZoom, zoom * (e.deltaY > 0 ? 1.08 : 0.93))); frustum(); }, { passive: false });
+$("recenterBtn").addEventListener("click", () => { recentering = true; });
+el.addEventListener("wheel", (e) => { e.preventDefault(); setZoom(zoom * (e.deltaY > 0 ? 1.08 : 0.93)); }, { passive: false });
 const KEYMAP = { KeyW: [0, -1], ArrowUp: [0, -1], KeyS: [0, 1], ArrowDown: [0, 1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
 window.addEventListener("keydown", (e) => {
-  if (e.code === "Escape") { if (S.puzzle) closePuzzle(); else if (S.dialog) closeDialog(); else $("codex").hidden = true; return; }
+  if (e.code === "KeyC" && S.mode === "play") { recentering = true; return; }
+  if (e.code === "Escape") { speech.stop(); if (S.puzzle) closePuzzle(); else if (S.dialog) closeDialog(); else $("codex").hidden = true; return; }
   if (S.mode !== "play") return;
   if (KEYMAP[e.code]) { P.keys.add(e.code); P.target = null; e.preventDefault(); }
   if ((e.code === "KeyE" || e.code === "Enter") && nearNpc) openDialog(nearNpc);
@@ -320,7 +402,7 @@ window.addEventListener("resize", () => { renderer.setSize(window.innerWidth, wi
 
 // ---------- Loop ----------
 let nearNpc = null, last = performance.now(), T = 0;
-const tmp = new THREE.Vector3();
+const tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
 function movePlayer(dt) {
   let mx = 0, mz = 0;
   if (P.keys.size) {
@@ -369,8 +451,15 @@ function tick() {
 
   // Camera follows the player.
   camTarget.lerp(player.position, 1 - Math.exp(-dt * CONFIG.camera.follow));
-  cam.position.copy(camTarget).add(ISO); cam.lookAt(camTarget);
-  sun.position.copy(camTarget).add(new THREE.Vector3(14, 26, 8)); sun.target.position.copy(camTarget);
+  // Pan offset: eases back while the player walks, or quickly after "recenter".
+  if (recentering) { pan.multiplyScalar(Math.exp(-dt * 6)); if (pan.lengthSq() < 0.0004) { pan.set(0, 0, 0); recentering = false; } }
+  else if (walking) pan.multiplyScalar(Math.exp(-dt * CONFIG.camera.panReturn));
+  const view = tmp2.copy(camTarget).add(pan);
+  view.x = Math.min(BOUNDS.maxX, Math.max(BOUNDS.minX, view.x)); view.z = Math.min(BOUNDS.maxZ, Math.max(BOUNDS.minZ, view.z));
+  pan.copy(view).sub(camTarget);
+  $("recenterBtn").classList.toggle("active", pan.lengthSq() > 4);
+  cam.position.copy(view).add(ISO); cam.lookAt(view);
+  sun.position.copy(view).add(new THREE.Vector3(14, 26, 8)); sun.target.position.copy(view);
 
   water.userData.update(T);
   isl.forEach((o) => {
