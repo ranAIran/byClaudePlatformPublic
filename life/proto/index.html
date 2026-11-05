@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Life Archipelago Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<script type="importmap">
+{ "imports": {
+  "three": "../../quest/vendor/three.webgpu.min.js",
+  "three/webgpu": "../../quest/vendor/three.webgpu.min.js",
+  "three/tsl": "../../quest/vendor/three.webgpu.min.js"
+} }
+</script>
+<style>
+:root{
+  --glass:rgba(16,22,42,.72); --glass-2:rgba(255,255,255,.08); --line:rgba(255,255,255,.14);
+  --ink:#f4f6ff; --muted:#aab3d1; --gold:#ffc94d; --gold-2:#ff9f1c; --hp:#4ee08a; --mind:#a98bff; --bad:#ff6b6b; --cyan:#5fd4ff;
+  --font:"Rubik",system-ui,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0d1326;font-family:var(--font);color:var(--ink)}
+#stage canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+#ui{position:fixed;inset:0;pointer-events:none}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:18px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.row{display:flex;align-items:center;gap:8px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:6px 11px;border-radius:999px;background:var(--glass);border:1px solid var(--line);font-size:12px;font-weight:600;backdrop-filter:blur(10px)}
+.muted{color:var(--muted)}
+.mono{font-family:var(--mono)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;border-radius:14px;font-weight:700;font-size:14px;border:1px solid var(--line);background:var(--glass-2);color:var(--ink)}
+.btn.primary{background:linear-gradient(180deg,#ffd76a,#ffab2e);color:#2a1a00;border-color:#ffe39a;box-shadow:0 4px 0 #c27a00,0 10px 24px rgba(255,170,40,.35)}
+.bar{height:8px;border-radius:99px;background:rgba(255,255,255,.12);overflow:hidden}
+.bar > i{display:block;height:100%;border-radius:99px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:10px;background:var(--glass-2);border:1px solid var(--line);font-size:11.5px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.label{position:absolute;transform:translate(-50%,-100%);text-align:center;white-space:nowrap}
+.isl{font-weight:800;font-size:15px;text-shadow:0 2px 0 rgba(0,0,0,.45),0 0 14px rgba(0,0,0,.5)}
+.badge{display:inline-block;margin-top:3px;padding:2px 7px;border-radius:99px;font-size:10.5px;font-weight:700}
+.tag{position:absolute;padding:7px 10px;border-radius:12px;background:rgba(255,255,255,.94);color:#1b2240;font-size:11.5px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.25);white-space:nowrap}
+.tag b{display:block;font-size:12.5px}
+.tag small{color:#5a6488;font-weight:500}
+svg.lines{position:absolute;inset:0;width:100%;height:100%}
+.sheet{position:absolute;left:12px;right:12px;bottom:14px;padding:14px;border-radius:22px}
+.field{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px}
+.field:last-child{border-bottom:0}
+.field span:last-child{font-weight:700}
+.icon{width:18px;height:18px;display:inline-block}
+.xp{color:var(--gold);font-weight:800}
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<div id="ui"></div>
+<script type="module" src="./proto.js"></script>
+</body>
+</html>
