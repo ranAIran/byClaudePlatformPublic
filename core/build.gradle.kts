@@ -16,7 +16,8 @@ kotlin {
 
 dependencies {
     api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-    implementation("com.anthropic:anthropic-java:3.2.0")
+    // api: ClaudeExtractor exposes AnthropicClient in its constructor, so the app needs it too.
+    api("com.anthropic:anthropic-java:3.2.0")
     testImplementation(kotlin("test"))
 }
 
