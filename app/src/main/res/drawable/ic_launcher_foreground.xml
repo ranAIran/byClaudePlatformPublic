@@ -1,0 +1,12 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- plus -->
+    <path android:fillColor="#FFFFFF" android:pathData="M36,34h6v10h10v6h-10v10h-6v-10h-10v-6h10z"/>
+    <!-- minus -->
+    <path android:fillColor="#FFD54F" android:pathData="M58,44h24v6h-24z"/>
+    <!-- times -->
+    <path android:fillColor="#FFD54F" android:pathData="M30.2,62.2l4.2,-4.2l7.6,7.6l7.6,-7.6l4.2,4.2l-7.6,7.6l7.6,7.6l-4.2,4.2l-7.6,-7.6l-7.6,7.6l-4.2,-4.2l7.6,-7.6z"/>
+    <!-- divide -->
+    <path android:fillColor="#FFFFFF" android:pathData="M58,67h24v6h-24z M70,58m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0 M70,82m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"/>
+</vector>
