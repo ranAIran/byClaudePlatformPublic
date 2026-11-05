@@ -9,7 +9,7 @@
 
 export const CONFIG = {
   title: "Latent Archipelago",
-  version: "1.3.1",          // shown under the game title; bump on every deploy
+  version: "1.3.2",          // shown under the game title; bump on every deploy
   defaultLang: "he",          // "he" | "en"
   saveKey: "latent-archipelago-v1",
   camera: { zoom: 23, minZoom: 12, maxZoom: 40, minWidth: 15, follow: 4, panMargin: 10, panReturn: 1.2 },
@@ -29,6 +29,8 @@ export const CONFIG = {
   playerLook: { colors: ["#2f6f8f", "#f1cfae", "#c9a227"], hat: "straw", hair: "#5a3a22" },
   bloom: { enabled: true, strength: 0.55, radius: 0.35, threshold: 0.82 },
   fireflies: 140,
+  // Lighter settings for phones and tablets (touch screens): fewer pixels, smaller shadows, less grass.
+  mobileQuality: { pixelRatio: 1.5, shadowMap: 1024, grassPerIsland: 320, fireflies: 80 },
   narration: { autoReadDefault: false },
 };
 
@@ -37,6 +39,7 @@ export const UI = {
     tagline: "מסע קצר בין איי ה-AI",
     intro: "הארכיפלג שקע בערפל. שבעה שומרים מחזיקים שבעה רסיסים של ידע. פתרו את האתגרים שלהם, בנו גשרים ופתחו את ה-Alignment Gate.",
     start: "התחילו את המסע",
+    loading: "טוען…",
     continue: "המשיכו מאיפה שעצרתם",
     reset: "התחילו מחדש",
     hint: "הקישו על הקרקע כדי ללכת · גררו כדי להסתכל מסביב · הקישו על שומר כדי לדבר",
@@ -79,6 +82,7 @@ export const UI = {
     tagline: "A short quest across the islands of AI",
     intro: "The archipelago has sunk into fog. Seven keepers hold seven shards of knowledge. Solve their challenges, build bridges, and open the Alignment Gate.",
     start: "Start the quest",
+    loading: "Loading…",
     continue: "Continue where you left off",
     reset: "Start over",
     hint: "Tap the ground to walk · Drag to look around · Tap a keeper to talk",

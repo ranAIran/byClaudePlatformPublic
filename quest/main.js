@@ -7,6 +7,14 @@ import * as W from "./world.js";
 import { speech } from "./speech.js";
 
 const $ = (id) => document.getElementById(id);
+// Phones and tablets get lighter render settings (see CONFIG.mobileQuality).
+const MOBILE = window.matchMedia?.("(pointer: coarse)").matches;
+if (MOBILE && CONFIG.mobileQuality) {
+  CONFIG.world.grassPerIsland = CONFIG.mobileQuality.grassPerIsland;
+  CONFIG.fireflies = CONFIG.mobileQuality.fireflies;
+}
+let ready = false;
+performance.mark("q:modules");
 const TOP = CONFIG.world.islandTop;
 const SHOT = new URLSearchParams(location.search).has("shot");
 
@@ -24,7 +32,7 @@ const tr = (x) => (x == null ? "" : typeof x === "string" ? x : (x[S.lang] ?? x.
 let renderer;
 try {
   renderer = new THREE.WebGPURenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MOBILE ? CONFIG.mobileQuality?.pixelRatio || 1.5 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -32,6 +40,7 @@ try {
   renderer.toneMappingExposure = 1.15;
   $("stage").append(renderer.domElement);
   await renderer.init();
+  performance.mark("q:gpu");
 } catch (e) {
   console.error(e);
   $("title").hidden = true; $("fatal").hidden = false; $("fatalMsg").textContent = ui().noGpu;
@@ -45,7 +54,7 @@ scene.fog = new THREE.Fog(CONFIG.world.fog.color, CONFIG.world.fog.near, CONFIG.
 const hemi = new THREE.HemisphereLight(CONFIG.world.hemi.sky, CONFIG.world.hemi.ground, CONFIG.world.hemi.intensity);
 const sun = new THREE.DirectionalLight(CONFIG.world.sun.color, CONFIG.world.sun.intensity);
 sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.mapSize.setScalar(MOBILE ? CONFIG.mobileQuality?.shadowMap || 1024 : 2048);
 Object.assign(sun.shadow.camera, { left: -20, right: 20, top: 20, bottom: -20, near: 1, far: 70 });
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.03;
@@ -78,6 +87,7 @@ if (CONFIG.bloom.enabled) {
 }
 
 // ---------- World ----------
+performance.mark("q:scene-start");
 const water = W.makeWater(CONFIG);
 scene.add(water);
 const isl = ISLANDS.map((data, i) => {
@@ -216,7 +226,7 @@ function applyLang() {
   document.documentElement.dir = S.lang === "he" ? "rtl" : "ltr";
   $("tagline").textContent = u.tagline;
   $("intro").textContent = u.intro;
-  $("startBtn").textContent = S.solved.size ? u.continue : u.start;
+  $("startBtn").textContent = ready ? (S.solved.size ? u.continue : u.start) : u.loading;
   $("resetBtn").textContent = u.reset;
   $("resetBtn").hidden = !S.solved.size;
   $("hint").textContent = u.hint;
@@ -454,6 +464,7 @@ function keyDir(keys) {
   return [(sx + sy) * Math.SQRT1_2, (sy - sx) * Math.SQRT1_2];
 }
 
+let firstFrame = true;
 function tick() {
   const now = performance.now();
   let dt = Math.min(0.05, (now - last) / 1000); last = now;
@@ -530,6 +541,11 @@ function tick() {
   }
 
   if (post) post.render(); else renderer.render(scene, cam);
+  if (firstFrame) {
+    firstFrame = false; performance.mark("q:first-frame");
+    ready = true; $("startBtn").disabled = false; $("startBtn").classList.remove("loading"); applyLang();
+    window.__registerSW?.();
+  }
 }
 
 // ---------- PWA: install + offline ----------
@@ -553,15 +569,19 @@ $("installBtn").addEventListener("click", async () => {
 });
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   const hadController = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(CONFIG.version)}`, { scope: "./" }).catch((e) => console.warn("Service worker:", e));
+  const registerSW = () => navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(CONFIG.version)}`, { scope: "./" }).catch((e) => console.warn("Service worker:", e));
+  // Wait until the first frame is on screen, then until the browser is idle.
+  window.__registerSW = () => (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(registerSW, { timeout: 4000 });
   navigator.serviceWorker.addEventListener("controllerchange", () => {
     if (!hadController) return;
     if (S.mode === "title") location.reload(); else toast(ui().updated);
   });
 }
 
+performance.mark("q:world");
 applyProgress(false);
 applyLang();
 if (SHOT) { $("title").hidden = true; $("labels").hidden = false; }
+try { await renderer.compileAsync?.(scene, cam); } catch (e) { /* compile lazily instead */ }
 renderer.setAnimationLoop(tick);
 window.__quest = { S, isl, player, walkable, openPuzzle, openDialog, backendName };

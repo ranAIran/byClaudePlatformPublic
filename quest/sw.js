@@ -13,8 +13,9 @@ const FILES = [
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    // "reload" skips the HTTP cache so a new version never stores stale files.
-    await cache.addAll(FILES.map((f) => new Request(f, { cache: "reload" })));
+    // "no-cache" revalidates with the server (cheap 304s for files the page just downloaded),
+    // so a new version never stores stale files and the first visit doesn't download twice.
+    await cache.addAll(FILES.map((f) => new Request(f, { cache: "no-cache" })));
     await self.skipWaiting();
   })());
 });
