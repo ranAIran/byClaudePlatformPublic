@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Driftlight</title>
+<meta name="description" content="Driftlight: a 60-second WebGPU arcade game. Steer a glowing orb through 50,000 drifting lights and tap to switch colour.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#05060f; --fg:#eef0fa; --muted:#9097b5; --panel:rgba(14,17,38,.78); --line:rgba(150,160,220,.22);
+  --amber:#ffb040; --cyan:#50dcff; --rose:#ff5aab;
+  --display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);overflow:hidden;font-family:var(--mono)}
+canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.hud{position:fixed;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:calc(14px + env(safe-area-inset-top,0px)) max(18px,env(safe-area-inset-right,0px)) 14px max(18px,env(safe-area-inset-left,0px));
+  pointer-events:none;font-variant-numeric:tabular-nums;font-size:15px;letter-spacing:.08em;text-transform:uppercase}
+.hud .stat{display:grid;gap:2px}
+.hud .stat small{color:var(--muted);font-size:11px}
+.hud .stat b{font-weight:500;font-size:20px}
+.hud .right{text-align:right}
+.swatches{display:flex;gap:10px;pointer-events:auto}
+.swatches button{width:30px;height:30px;border-radius:50%;border:2px solid transparent;background:var(--c);opacity:.35;cursor:pointer;padding:0;
+  box-shadow:0 0 0 0 var(--c);transition:opacity .15s,transform .15s,box-shadow .15s}
+.swatches button[aria-pressed="true"]{opacity:1;transform:scale(1.15);border-color:#fff;box-shadow:0 0 18px 2px var(--c)}
+.swatches button:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.mult{color:var(--amber)}
+.overlay{position:fixed;inset:0;display:grid;place-items:center;padding:24px max(16px,env(safe-area-inset-right,0px)) 24px max(16px,env(safe-area-inset-left,0px))}
+.card{max-width:440px;width:100%;display:grid;gap:18px;padding:28px;border-radius:14px;background:var(--panel);border:1px solid var(--line);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);text-align:center}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(34px,9vw,52px);margin:0;letter-spacing:.02em;
+  text-shadow:0 0 24px rgba(255,176,64,.55)}
+h2{font-family:var(--display);font-weight:500;font-size:24px;margin:0}
+.card p{margin:0;color:var(--muted);line-height:1.6;font-size:14px}
+.rules{display:grid;gap:8px;text-align:left;font-size:14px;line-height:1.5;margin:0;padding:0;list-style:none}
+.rules li{display:flex;gap:10px;align-items:baseline}
+.rules i{flex:none;width:10px;height:10px;border-radius:50%;display:inline-block;transform:translateY(1px)}
+.big{font-family:var(--display);font-size:46px;font-weight:700;font-variant-numeric:tabular-nums}
+.cta{font-family:var(--display);font-weight:500;font-size:16px;letter-spacing:.06em;padding:14px 22px;border-radius:999px;border:0;cursor:pointer;
+  background:var(--amber);color:#1a1205;box-shadow:0 0 28px rgba(255,176,64,.45)}
+.cta:focus-visible{outline:2px solid #fff;outline-offset:3px}
+kbd{font-family:var(--mono);font-size:12px;padding:1px 6px;border:1px solid var(--line);border-radius:4px;color:var(--fg)}
+@media (prefers-reduced-motion: reduce){.swatches button{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="gfx" aria-label="Driftlight play field"></canvas>
+
+<div class="hud" id="hud" hidden>
+  <div class="stat"><small>Score</small><b id="score">0</b></div>
+  <div class="swatches" id="swatches" role="group" aria-label="Orb colour">
+    <button type="button" style="--c:var(--amber)" aria-label="Amber" aria-pressed="true" data-k="0"></button>
+    <button type="button" style="--c:var(--cyan)" aria-label="Cyan" aria-pressed="false" data-k="1"></button>
+    <button type="button" style="--c:var(--rose)" aria-label="Rose" aria-pressed="false" data-k="2"></button>
+  </div>
+  <div class="stat right"><small>Time <span class="mult" id="mult"></span></small><b id="time">1:00</b></div>
+</div>
+
+<div class="overlay" id="menu">
+  <div class="card">
+    <h1>DRIFTLIGHT</h1>
+    <ul class="rules">
+      <li><i style="background:var(--amber)"></i>Move to steer your orb. It pulls in lights of its own colour.</li>
+      <li><i style="background:var(--cyan)"></i>Tap, click or press <kbd>Space</kbd> to switch colour. Lights of the other colours push away.</li>
+      <li><i style="background:#3c286e;box-shadow:0 0 0 2px #7a55e0"></i>Dark lights shrink you. If you get too small, your light goes out.</li>
+    </ul>
+    <p>60 seconds. Keep eating without getting hit to raise your multiplier.</p>
+    <button class="cta" id="start" type="button">Start</button>
+  </div>
+</div>
+
+<div class="overlay" id="over" hidden>
+  <div class="card">
+    <h2 id="overTitle">Time's up</h2>
+    <div class="big" id="final">0</div>
+    <p id="best">Best: 0</p>
+    <button class="cta" id="again" type="button">Play again</button>
+  </div>
+</div>
+
+<div class="overlay" id="nogpu" hidden>
+  <div class="card">
+    <h2>WebGPU isn't available</h2>
+    <p id="nogpuMsg">Driftlight needs a browser with WebGPU: Chrome or Edge 113+, or Safari 18+. On Firefox, use Nightly or enable WebGPU in about:config.</p>
+  </div>
+</div>
+
+<script>
+(async function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const SHOT=new URLSearchParams(location.search).has("shot");
+const N=50000, P_STRIDE=32, ROUND=60;
+
+function fail(msg){$("menu").hidden=true;$("hud").hidden=true;$("over").hidden=true;if(msg)$("nogpuMsg").textContent=msg;$("nogpu").hidden=false}
+if(!navigator.gpu){fail();return}
+let adapter;try{adapter=await navigator.gpu.requestAdapter({powerPreference:"high-performance"})}catch(e){}
+if(!adapter){fail("Your browser supports WebGPU, but no compatible GPU adapter was found. Try updating your graphics drivers or enabling hardware acceleration.");return}
+const device=await adapter.requestDevice();
+// Keep the adapter reachable: some browsers drop the GPU instance once it is collected, which aborts mapAsync.
+const keepAlive={gpu:navigator.gpu,adapter,device};window.__driftlight=keepAlive;
+device.lost.then(info=>{if(info.reason!=="destroyed")fail("The GPU device was lost ("+(info.message||"unknown reason")+"). Reload the page to play again.")});
+
+const canvas=$("gfx"), ctx=canvas.getContext("webgpu"), format=navigator.gpu.getPreferredCanvasFormat();
+ctx.configure({device,format,alphaMode:"opaque"});
+
+// ---------- WGSL ----------
+const COMMON=`
+struct U {
+  player: vec2f, res: vec2f,
+  radius: f32, color: u32, time: f32, dt: f32,
+  aspect: f32, live: u32, darkFrac: f32, speed: f32,
+  pulse: f32, hurt: f32, show: f32, pad: f32,
+};
+struct P { pos: vec2f, vel: vec2f, kind: u32, life: f32, seed: u32, lifeMax: f32 };
+fn palette(k: u32) -> vec3f {
+  if (k == 0u) { return vec3f(1.0, 0.69, 0.25); }
+  if (k == 1u) { return vec3f(0.31, 0.86, 1.0); }
+  return vec3f(1.0, 0.35, 0.67);
+}
+@group(0) @binding(0) var<uniform> u: U;
+`;
+const SIM=COMMON+`
+struct C { score: atomic<u32>, damage: atomic<u32> };
+@group(0) @binding(1) var<storage, read_write> parts: array<P>;
+@group(0) @binding(2) var<storage, read_write> cnt: C;
+fn pcg(v: u32) -> u32 { let s = v * 747796405u + 2891336453u; let w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+fn rnd(s: ptr<function, u32>) -> f32 { *s = pcg(*s); return f32(*s) / 4294967295.0; }
+// Slowly moving colour regions, so each part of the field favours one colour.
+fn region(pos: vec2f, t: f32) -> u32 {
+  let r = sin(pos.x * 1.3 + t * 0.05) + cos(pos.y * 1.7 - t * 0.04) + sin((pos.x - pos.y) * 0.9);
+  return u32(floor((r + 3.0) * 0.75)) % 3u;
+}
+fn respawn(p: ptr<function, P>, i: u32) {
+  var s = (*p).seed ^ (i * 9781u) ^ u32(u.time * 1000.0);
+  var pos = vec2f((rnd(&s) * 2.0 - 1.0) * u.aspect, rnd(&s) * 2.0 - 1.0);
+  let away = pos - u.player;
+  if (length(away) < u.radius * 6.0) { pos = u.player + normalize(away + vec2f(1e-3, 0.0)) * u.radius * 6.0; }
+  var k = region(pos, u.time);
+  if (rnd(&s) < 0.25) { k = u32(rnd(&s) * 3.0) % 3u; }
+  if (rnd(&s) < u.darkFrac) { k = 3u; }
+  (*p).pos = pos; (*p).vel = vec2f(0.0); (*p).kind = k; (*p).life = 0.0;
+  (*p).lifeMax = 6.0 + rnd(&s) * 10.0; (*p).seed = s;
+}
+@compute @workgroup_size(64)
+fn sim(@builtin(global_invocation_id) id: vec3u) {
+  let i = id.x;
+  if (i >= arrayLength(&parts)) { return; }
+  var p = parts[i];
+  let dt = u.dt;
+  let t = u.time;
+  let q = p.pos * 1.6;
+  let a = sin(q.x * 1.7 + t * 0.30) + cos(q.y * 2.1 - t * 0.25) + sin((q.x + q.y) * 1.1 + t * 0.15);
+  let flow = vec2f(cos(a * 3.14159), sin(a * 3.14159)) * 0.14 * u.speed;
+  p.vel = mix(p.vel, flow, 1.0 - exp(-dt * 2.0));
+
+  let d = u.player - p.pos;
+  let dist = length(d);
+  let dir = d / max(dist, 1e-4);
+  let reach = u.radius * 4.0;
+  if (u.show > 0.5 && dist < reach) {
+    let f = 1.0 - dist / reach;
+    if (p.kind == u.color) { p.vel += dir * f * 4.0 * dt; }
+    else if (p.kind == 3u) { p.vel += dir * f * 0.9 * dt * u.speed; }
+    else { p.vel -= dir * f * 3.0 * dt; }
+  }
+  let sp = length(p.vel);
+  if (sp > 1.6) { p.vel *= 1.6 / sp; }
+  p.pos += p.vel * dt;
+  p.life += dt;
+
+  if (u.live == 1u && dist < u.radius) {
+    if (p.kind == u.color) { atomicAdd(&cnt.score, 1u); respawn(&p, i); }
+    else if (p.kind == 3u) { atomicAdd(&cnt.damage, 1u); respawn(&p, i); }
+    else { p.pos = u.player - dir * u.radius * 1.02; }
+  }
+  if (p.life > p.lifeMax) { respawn(&p, i); }
+  let A = u.aspect + 0.03;
+  if (p.pos.x > A) { p.pos.x -= 2.0 * A; } else if (p.pos.x < -A) { p.pos.x += 2.0 * A; }
+  if (p.pos.y > 1.03) { p.pos.y -= 2.06; } else if (p.pos.y < -1.03) { p.pos.y += 2.06; }
+  parts[i] = p;
+}
+`;
+const DRAW=COMMON+`
+@group(0) @binding(1) var<storage, read> parts: array<P>;
+struct VO { @builtin(position) pos: vec4f, @location(0) uv: vec2f, @location(1) @interpolate(flat) kind: u32, @location(2) a: f32 };
+@vertex fn vsP(@builtin(vertex_index) vi: u32, @builtin(instance_index) ii: u32) -> VO {
+  var corners = array<vec2f, 6>(vec2f(-1.0,-1.0), vec2f(1.0,-1.0), vec2f(-1.0,1.0), vec2f(-1.0,1.0), vec2f(1.0,-1.0), vec2f(1.0,1.0));
+  let p = parts[ii];
+  let c = corners[vi];
+  var sz = 0.0085;
+  if (p.kind == 3u) { sz = 0.016; }
+  var o: VO;
+  o.pos = vec4f((p.pos.x + c.x * sz) / u.aspect, p.pos.y + c.y * sz, 0.0, 1.0);
+  o.uv = c; o.kind = p.kind;
+  o.a = smoothstep(0.0, 0.6, p.life) * smoothstep(p.lifeMax, p.lifeMax - 0.8, p.life);
+  return o;
+}
+@fragment fn fsP(i: VO) -> @location(0) vec4f {
+  let r2 = dot(i.uv, i.uv);
+  if (r2 > 1.0) { discard; }
+  if (i.kind == 3u) {
+    let r = sqrt(r2);
+    let core = smoothstep(0.8, 0.45, r) * i.a;
+    let rim = exp(-pow((r - 0.7) * 5.0, 2.0)) * i.a;
+    return vec4f(vec3f(0.48, 0.33, 0.88) * rim * 0.55, core * 0.92);
+  }
+  var b = 0.5;
+  if (u.show > 0.5 && i.kind == u.color) { b = 1.0; }
+  let g = exp(-r2 * 4.0);
+  return vec4f(palette(i.kind) * g * i.a * b, 0.0);
+}
+struct FO { @builtin(position) pos: vec4f };
+@vertex fn vsF(@builtin(vertex_index) vi: u32) -> FO {
+  var v = array<vec2f, 3>(vec2f(-1.0,-1.0), vec2f(3.0,-1.0), vec2f(-1.0,3.0));
+  var o: FO; o.pos = vec4f(v[vi], 0.0, 1.0); return o;
+}
+fn world(fc: vec2f) -> vec2f { let n = fc / u.res * 2.0 - 1.0; return vec2f(n.x * u.aspect, -n.y); }
+@fragment fn fsBg(i: FO) -> @location(0) vec4f {
+  let w = world(i.pos.xy);
+  let v = clamp(length(w / vec2f(u.aspect, 1.0)) * 0.75, 0.0, 1.0);
+  var col = mix(vec3f(0.075, 0.09, 0.2), vec3f(0.018, 0.02, 0.05), v);
+  col += vec3f(0.35, 0.02, 0.06) * u.hurt * v;
+  return vec4f(col, 1.0);
+}
+@fragment fn fsOrb(i: FO) -> @location(0) vec4f {
+  if (u.show < 0.5) { discard; }
+  let w = world(i.pos.xy);
+  let d = length(w - u.player);
+  let r = u.radius;
+  let base = mix(palette(u.color), vec3f(1.0, 0.25, 0.25), u.hurt);
+  let glow = exp(-max(d - r, 0.0) / (r * 0.7)) * (0.45 + u.pulse * 0.4);
+  let core = smoothstep(r, r * 0.9, d);
+  let hot = smoothstep(r * 0.75, 0.0, d);
+  let ringR = r * (1.7 + 0.08 * sin(u.time * 4.0));
+  let ring = exp(-pow((d - ringR) / (r * 0.04), 2.0)) * 0.6;
+  let col = base * (glow + core * 0.9 + ring) + vec3f(1.0, 0.97, 0.9) * hot * 0.8;
+  return vec4f(col, core * 0.9);
+}
+`;
+
+const simMod=device.createShaderModule({code:SIM});
+const drawMod=device.createShaderModule({code:DRAW});
+const premul={color:{srcFactor:"one",dstFactor:"one-minus-src-alpha",operation:"add"},alpha:{srcFactor:"one",dstFactor:"one-minus-src-alpha",operation:"add"}};
+const simPipe=device.createComputePipeline({layout:"auto",compute:{module:simMod,entryPoint:"sim"}});
+const bgPipe=device.createRenderPipeline({layout:"auto",vertex:{module:drawMod,entryPoint:"vsF"},fragment:{module:drawMod,entryPoint:"fsBg",targets:[{format}]},primitive:{topology:"triangle-list"}});
+const partPipe=device.createRenderPipeline({layout:"auto",vertex:{module:drawMod,entryPoint:"vsP"},fragment:{module:drawMod,entryPoint:"fsP",targets:[{format,blend:premul}]},primitive:{topology:"triangle-list"}});
+const orbPipe=device.createRenderPipeline({layout:"auto",vertex:{module:drawMod,entryPoint:"vsF"},fragment:{module:drawMod,entryPoint:"fsOrb",targets:[{format,blend:premul}]},primitive:{topology:"triangle-list"}});
+
+// ---------- Buffers ----------
+const uBuf=device.createBuffer({size:64,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});
+const uData=new ArrayBuffer(64), uf=new Float32Array(uData), uu=new Uint32Array(uData);
+const pBuf=device.createBuffer({size:N*P_STRIDE,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});
+const cBuf=device.createBuffer({size:8,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC|GPUBufferUsage.COPY_DST});
+const ring=[0,1,2].map(()=>({buf:device.createBuffer({size:8,usage:GPUBufferUsage.MAP_READ|GPUBufferUsage.COPY_DST}),busy:false}));
+
+// Same as the WGSL region() at time 0.
+function region(x,y){const r=Math.sin(x*1.3)+Math.cos(y*1.7)+Math.sin((x-y)*0.9);return Math.floor((r+3)*0.75)%3}
+function seedParticles(aspect){
+  const ab=new ArrayBuffer(N*P_STRIDE), f=new Float32Array(ab), w=new Uint32Array(ab);
+  for(let i=0;i<N;i++){
+    const o=i*8, lm=6+Math.random()*10, x=(Math.random()*2-1)*aspect, y=Math.random()*2-1;
+    f[o]=x; f[o+1]=y; f[o+2]=0; f[o+3]=0;
+    w[o+4]=Math.random()<0.012?3:Math.random()<0.25?(Math.random()*3)|0:region(x,y); f[o+5]=Math.random()*lm; w[o+6]=(Math.random()*4294967295)>>>0; f[o+7]=lm;
+  }
+  device.queue.writeBuffer(pBuf,0,ab);
+}
+
+const simBG=device.createBindGroup({layout:simPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:uBuf}},{binding:1,resource:{buffer:pBuf}},{binding:2,resource:{buffer:cBuf}}]});
+const bgBG=device.createBindGroup({layout:bgPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:uBuf}}]});
+const partBG=device.createBindGroup({layout:partPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:uBuf}},{binding:1,resource:{buffer:pBuf}}]});
+const orbBG=device.createBindGroup({layout:orbPipe.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:uBuf}}]});
+
+// ---------- Sizing ----------
+let W=1,H=1,aspect=1;
+function resize(){
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  W=Math.max(1,Math.round(canvas.clientWidth*dpr)); H=Math.max(1,Math.round(canvas.clientHeight*dpr));
+  canvas.width=W; canvas.height=H; aspect=W/H;
+}
+resize(); window.addEventListener("resize",resize);
+seedParticles(aspect);
+
+// ---------- Game state ----------
+const BASE_R=0.06, MIN_R=0.024, MAX_R=0.17;
+const S={mode:"menu",color:0,radius:BASE_R,score:0,timeLeft:ROUND,elapsed:0,streak:0,pulse:0,hurt:0,
+  player:[0,0],target:[0,0],t:0};
+let best=0; try{best=+localStorage.getItem("driftlight-best")||0}catch(e){}
+
+function setColor(k){
+  S.color=((k%3)+3)%3; S.pulse=1;
+  for(const b of $("swatches").children) b.setAttribute("aria-pressed",String(+b.dataset.k===S.color));
+}
+function mult(){return Math.min(5,1+Math.floor(S.streak/3))}
+function start(){
+  S.mode="play";S.radius=BASE_R;S.score=0;S.timeLeft=ROUND;S.elapsed=0;S.streak=0;S.hurt=0;setColor(0);
+  $("menu").hidden=true;$("over").hidden=true;$("hud").hidden=SHOT;
+  updateHud();
+}
+function end(out){
+  S.mode="over";
+  if(S.score>best){best=S.score;try{localStorage.setItem("driftlight-best",String(best))}catch(e){}}
+  $("overTitle").textContent=out?"Your light went out":"Time's up";
+  $("final").textContent=S.score.toLocaleString();
+  $("best").textContent="Best: "+best.toLocaleString();
+  $("hud").hidden=true;$("over").hidden=false;$("again").focus();
+}
+function updateHud(){
+  $("score").textContent=S.score.toLocaleString();
+  const s=Math.max(0,Math.ceil(S.timeLeft));
+  $("time").textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+  const m=mult(); $("mult").textContent=m>1?"×"+m:"";
+}
+function apply(eaten,dmg){
+  if(S.mode!=="play")return;
+  if(eaten){S.score+=eaten*mult();S.radius=Math.min(MAX_R,S.radius+eaten*0.00008);S.pulse=Math.min(1,S.pulse+eaten*0.05)}
+  if(dmg){S.radius-=dmg*0.004;S.streak=0;S.hurt=1;if(S.radius<MIN_R)end(true)}
+}
+
+// ---------- Input ----------
+function toWorld(x,y){const r=canvas.getBoundingClientRect();return[((x-r.left)/r.width*2-1)*aspect,-((y-r.top)/r.height*2-1)]}
+let touchStart=null;
+canvas.addEventListener("pointermove",e=>{
+  const off=e.pointerType==="mouse"?0:70;
+  S.target=toWorld(e.clientX,e.clientY-off);
+});
+canvas.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse"){if(e.button===0&&S.mode==="play")setColor(S.color+1);S.target=toWorld(e.clientX,e.clientY);return}
+  canvas.setPointerCapture(e.pointerId);
+  touchStart={x:e.clientX,y:e.clientY,t:performance.now()};
+  S.target=toWorld(e.clientX,e.clientY-70);
+});
+canvas.addEventListener("pointerup",e=>{
+  if(e.pointerType==="mouse"||!touchStart)return;
+  const moved=Math.hypot(e.clientX-touchStart.x,e.clientY-touchStart.y), dt=performance.now()-touchStart.t;
+  if(moved<14&&dt<260&&S.mode==="play")setColor(S.color+1);
+  touchStart=null;
+});
+canvas.addEventListener("contextmenu",e=>e.preventDefault());
+$("swatches").addEventListener("click",e=>{const b=e.target.closest("button");if(b)setColor(+b.dataset.k)});
+window.addEventListener("keydown",e=>{
+  if(S.mode==="play"){
+    if(e.code==="Space"){e.preventDefault();setColor(S.color+1)}
+    else if(e.key==="1"||e.key==="2"||e.key==="3")setColor(+e.key-1);
+  }else if((e.code==="Enter"||e.code==="Space")&&document.activeElement===document.body){e.preventDefault();start()}
+});
+$("start").addEventListener("click",start);
+$("again").addEventListener("click",start);
+
+if(SHOT){S.target=[aspect*0.3,0.05];S.player=[aspect*0.3,0.05];start()}
+
+// ---------- Loop ----------
+let last=performance.now();
+function frame(now){
+  let dt=Math.min(0.05,(now-last)/1000); last=now;
+  if(SHOT&&S.t>4)dt=0;
+  S.t+=dt;
+  const k=1-Math.exp(-dt*14);
+  S.player[0]+=(S.target[0]-S.player[0])*k; S.player[1]+=(S.target[1]-S.player[1])*k;
+  S.pulse*=Math.exp(-dt*5); S.hurt*=Math.exp(-dt*4);
+
+  let darkFrac=0.012, speed=1;
+  if(S.mode==="play"&&!SHOT){
+    S.timeLeft-=dt; S.elapsed+=dt; S.streak+=dt;
+    const p=Math.min(1,S.elapsed/ROUND); darkFrac=0.012+0.014*p; speed=1+0.7*p;
+    S.radius=Math.max(MIN_R,S.radius-dt*0.0012*speed);
+    if(S.timeLeft<=0){S.timeLeft=0;updateHud();end(false)}
+    else updateHud();
+  }
+  const playing=S.mode==="play";
+  uf[0]=S.player[0];uf[1]=S.player[1];uf[2]=W;uf[3]=H;
+  uf[4]=S.radius;uu[5]=S.color;uf[6]=S.t;uf[7]=dt;
+  uf[8]=aspect;uu[9]=playing&&!SHOT?1:0;uf[10]=darkFrac;uf[11]=speed;
+  uf[12]=S.pulse;uf[13]=S.hurt;uf[14]=playing?1:0;uf[15]=0;
+  device.queue.writeBuffer(uBuf,0,uData);
+
+  const enc=device.createCommandEncoder();
+  const cp=enc.beginComputePass(); cp.setPipeline(simPipe); cp.setBindGroup(0,simBG); cp.dispatchWorkgroups(Math.ceil(N/64)); cp.end();
+  const slot=ring.find(s=>!s.busy);
+  if(slot){enc.copyBufferToBuffer(cBuf,0,slot.buf,0,8);enc.clearBuffer(cBuf)}
+  const rp=enc.beginRenderPass({colorAttachments:[{view:ctx.getCurrentTexture().createView(),loadOp:"clear",storeOp:"store",clearValue:{r:0,g:0,b:0,a:1}}]});
+  rp.setPipeline(bgPipe); rp.setBindGroup(0,bgBG); rp.draw(3);
+  rp.setPipeline(partPipe); rp.setBindGroup(0,partBG); rp.draw(6,N);
+  rp.setPipeline(orbPipe); rp.setBindGroup(0,orbBG); rp.draw(3);
+  rp.end();
+  device.queue.submit([enc.finish()]);
+  if(slot){
+    slot.busy=true;
+    slot.buf.mapAsync(GPUMapMode.READ).then(()=>{
+      const a=new Uint32Array(slot.buf.getMappedRange()); const e=a[0],d=a[1];
+      slot.buf.unmap(); slot.busy=false; apply(e,d);
+    },()=>{slot.busy=false});
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
