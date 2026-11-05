@@ -9,7 +9,7 @@
 
 export const CONFIG = {
   title: "Latent Archipelago",
-  version: "1.3.3",          // shown under the game title; bump on every deploy
+  version: "1.3.4",          // shown under the game title. On every release also update the two "v…" texts in index.html and SW_BUILD in sw.js
   defaultLang: "he",          // "he" | "en"
   saveKey: "latent-archipelago-v1",
   camera: { zoom: 23, minZoom: 12, maxZoom: 40, minWidth: 15, follow: 4, panMargin: 10, panReturn: 1.2 },

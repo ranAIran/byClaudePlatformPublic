@@ -1,8 +1,13 @@
 // Service worker: makes the game installable and playable offline.
-// main.js registers it as sw.js?v=<CONFIG.version>, so every version bump installs a fresh
-// worker that re-downloads all files and deletes the old cache.
-const VERSION = new URL(self.location.href).searchParams.get("v") || "dev";
-const CACHE = `latent-archipelago-${VERSION}`;
+//
+// Strategy: NETWORK FIRST for the game's own files. Online, every file comes from the server
+// (normal HTTP caching applies), and the copy in the cache is refreshed. Offline, the cached
+// copy is used. This way a new version is never hidden behind an old cache.
+//
+// The browser re-checks this file on every visit and installs it again whenever its bytes
+// change; bump SW_BUILD with each release to be sure.
+const SW_BUILD = "1.3.4";
+const CACHE = "latent-archipelago-v2";
 const FILES = [
   "./", "./index.html", "./main.js", "./content.js", "./puzzles.js", "./world.js", "./speech.js",
   "./vendor/three.webgpu.min.js", "./vendor/BloomNode.js",
@@ -13,8 +18,7 @@ const FILES = [
 self.addEventListener("install", (e) => {
   e.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    // "no-cache" revalidates with the server (cheap 304s for files the page just downloaded),
-    // so a new version never stores stale files and the first visit doesn't download twice.
+    // Revalidate with the server so the offline copy matches what is live now.
     await cache.addAll(FILES.map((f) => new Request(f, { cache: "no-cache" })));
     await self.skipWaiting();
   })());
@@ -22,36 +26,29 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
-    for (const key of await caches.keys()) if (key.startsWith("latent-archipelago-") && key !== CACHE) await caches.delete(key);
+    // Remove caches from older service workers (including the version-named ones).
+    for (const key of await caches.keys()) if (key.startsWith("latent-archipelago") && key !== CACHE) await caches.delete(key);
     await self.clients.claim();
   })());
 });
+
+self.addEventListener("message", (e) => { if (e.data === "build") e.source?.postMessage({ build: SW_BUILD }); });
 
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  // Google Fonts: serve from cache, refresh in the background.
-  if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
-    e.respondWith((async () => {
-      const cache = await caches.open(CACHE);
-      const hit = await cache.match(req);
-      const net = fetch(req).then((res) => { cache.put(req, res.clone()); return res; }).catch(() => hit);
-      return hit || net;
-    })());
-    return;
-  }
-  if (url.origin !== self.location.origin) return;
-  // Game files: cache first (they are versioned by the cache name), network as fallback.
+  const isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
+  if (url.origin !== self.location.origin && !isFont) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const hit = await cache.match(req, { ignoreSearch: req.mode === "navigate" });
-    if (hit) return hit;
     try {
-      const res = await fetch(req);
-      if (res.ok && url.pathname.includes("/quest/")) cache.put(req, res.clone());
+      const res = await fetch(req, isFont ? undefined : { cache: "no-cache" });
+      if (res.ok || res.type === "opaque") cache.put(req, res.clone());
       return res;
     } catch (err) {
+      const hit = await cache.match(req, { ignoreSearch: true });
+      if (hit) return hit;
       if (req.mode === "navigate") return (await cache.match("./index.html")) || Response.error();
       throw err;
     }

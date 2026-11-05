@@ -570,7 +570,9 @@ $("installBtn").addEventListener("click", async () => {
 });
 if ("serviceWorker" in navigator && location.protocol !== "file:") {
   const hadController = !!navigator.serviceWorker.controller;
-  const registerSW = () => navigator.serviceWorker.register(`./sw.js?v=${encodeURIComponent(CONFIG.version)}`, { scope: "./" }).catch((e) => console.warn("Service worker:", e));
+  // No version in the URL: the browser re-checks sw.js itself on every visit (updateViaCache "none"
+  // skips the HTTP cache for that check), and sw.js serves game files network-first.
+  const registerSW = () => navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" }).then((r) => r.update?.()).catch((e) => console.warn("Service worker:", e));
   // Wait until the first frame is on screen, then until the browser is idle.
   window.__registerSW = () => (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(registerSW, { timeout: 4000 });
   navigator.serviceWorker.addEventListener("controllerchange", () => {

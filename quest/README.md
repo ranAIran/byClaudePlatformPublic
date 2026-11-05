@@ -73,11 +73,11 @@ A puzzle type can add its own narration text by calling `setSpeech(text)`, as `q
 
 The game is a Progressive Web App. On Android and desktop Chrome or Edge an "Install as an app" button appears on the title screen. On iPhone the title screen explains Share → Add to Home Screen. After the first visit it also works offline.
 
-`sw.js` caches every game file under a cache named after `CONFIG.version`. Bumping the version installs a fresh copy and removes the old cache. If you add a new file to the game, add it to `FILES` in `sw.js` too.
+`sw.js` loads the game's files **network first**: online they always come from the server, and the cache is only the offline fallback, so an update can't get stuck behind an old copy. The browser re-checks `sw.js` on every visit. If you add a new file to the game, add it to `FILES` in `sw.js` too.
 
 ## Deploying
 
-The site is fully static. Bump `CONFIG.version` in `content.js` on every release; it's shown under the game title (title screen and top bar), so you can confirm which version is live.
+The site is fully static. On every release bump the version in three places: `CONFIG.version` in `content.js`, the two `v…` texts in `index.html` (so the number shows instantly, before scripts load), and `SW_BUILD` in `sw.js`. The version appears under the game title, so you can confirm which version is live.
 
 - **GitHub Pages:** serve the branch from `/ (root)`. The game is at `/quest/`.
 - **Vercel:** Framework "Other", no build command, Root Directory `./`.
