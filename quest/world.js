@@ -55,7 +55,7 @@ export function makeWater(cfg) {
 // game can keep characters on the ground and know where the shore is.
 export function makeIsland(isl, cfg) {
   const g = cfg.world.style === "classic" ? makeIslandClassic(isl, cfg) : makeIslandLush(isl, cfg);
-  const builder = PROPS[isl.props];
+  const builder = cfg.noProps ? null : PROPS[isl.props];
   const anim = builder ? builder(g, isl, cfg, rng(hashStr(isl.id) + 1)) : null;
   const own = g.userData.update;
   g.userData.update = (t, dt, near) => { own?.(t, dt, near); anim?.(t, dt); };

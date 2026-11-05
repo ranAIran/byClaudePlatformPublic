@@ -77,7 +77,7 @@ The game is a Progressive Web App. On Android and desktop Chrome or Edge an "Ins
 
 ## Deploying
 
-The site is fully static. Bump `CONFIG.version` in `content.js` on every release; it's shown in the bottom corner, so you can confirm which version is live.
+The site is fully static. Bump `CONFIG.version` in `content.js` on every release; it's shown under the game title (title screen and top bar), so you can confirm which version is live.
 
 - **GitHub Pages:** serve the branch from `/ (root)`. The game is at `/quest/`.
 - **Vercel:** Framework "Other", no build command, Root Directory `./`.

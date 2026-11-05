@@ -48,7 +48,9 @@ function build() {
   sun.position.copy(center).add(new THREE.Vector3(...cfg.world.sun.offset)); sun.target.position.copy(center);
   scene.add(hemi, sun, sun.target);
   const water = W.makeWater(cfg); water.position.set(center.x, 0, center.z); scene.add(water); updaters.push((t) => water.userData.update(t));
-  const g = W.makeIsland(which, cfg); scene.add(g); updaters.push((t, dt) => g.userData.update(t, dt, true));
+  const iconMode = params.has("icon");
+  const islData = iconMode ? { ...which, radius: 4.2 } : which;
+  const g = W.makeIsland(islData, iconMode ? { ...cfg, noProps: true } : cfg); scene.add(g); updaters.push((t, dt) => g.userData.update(t, dt, true));
   const hy = (x, z) => g.userData.heightAt(x, z);
   const npc = W.makeCharacter(which.keeper.colors, { hat: which.keeper.hat, hair: which.keeper.hair });
   npc.position.set(center.x - 0.6, hy(-0.6, 1.6), center.z + 1.6); npc.rotation.y = Math.PI / 4; scene.add(npc);
@@ -59,6 +61,21 @@ function build() {
   const marker = W.makeMarker(which.theme.accent); marker.position.set(npc.position.x, TOP + 2, npc.position.z); scene.add(marker);
   updaters.push((t) => { marker.rotation.y = t * 1.5; marker.position.y = TOP + 2 + Math.sin(t * 2) * 0.12; });
   cam.position.copy(center).add(ISO); cam.lookAt(center);
+  // Icon mode: square render with a large floating shard, used to generate the app icons.
+  if (params.has("icon")) {
+    document.body.classList.add("icon");
+    marker.visible = false;
+    const shard = new THREE.Mesh(new THREE.OctahedronGeometry(1, 0), W.mat("#ffa928", { emissive: new THREE.Color("#ff8a00"), emissiveIntensity: 0.55, roughness: 0.35, metalness: 0.1 }));
+    shard.scale.set(1.0, 1.6, 1.0); shard.position.set(center.x - 0.2, TOP + 3.3, center.z - 0.2); scene.add(shard);
+    const halo = new THREE.Mesh(new THREE.TorusGeometry(1.45, 0.09, 8, 48), W.mat("#ffe08a", { emissive: new THREE.Color("#ffd166"), emissiveIntensity: 0.9 })); halo.position.copy(shard.position); halo.position.y -= 0.2; halo.rotation.x = Math.PI / 2.3; scene.add(halo);
+    updaters.push(() => { shard.rotation.y = 0.75; });
+    for (const [x, z, s] of [[2.2, -0.6, 0.85]]) { const t = new THREE.Group(); const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.1 * s, 0.16 * s, 1 * s, 6), W.mat("#7a5232")); tr.position.y = 0.5 * s; const c1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.8 * s, 1), W.mat("#5aa252")); c1.position.y = 1.4 * s; c1.castShadow = tr.castShadow = true; t.add(tr, c1); t.position.set(center.x + x, hy(x, z), center.z + z); scene.add(t); }
+    npc.position.set(center.x - 1.3, hy(-1.3, 1.4), center.z + 1.4); npc.scale.setScalar(1.5);
+    pl.position.set(center.x + 1.3, hy(1.3, 1.6), center.z + 1.6); pl.rotation.y = Math.PI / 4 - 0.35; pl.scale.setScalar(1.5);
+    const z = +params.get("icon") || 1.6;
+    const aim = center.clone().add(new THREE.Vector3(0, 1.3, 0));
+    cam.zoom = z; cam.position.copy(aim).add(ISO); cam.lookAt(aim); cam.updateProjectionMatrix();
+  }
   if (params.has("close")) { cam.zoom = 2.6; cam.position.add(new THREE.Vector3(0.3, 0, 2.2)); cam.lookAt(center.clone().add(new THREE.Vector3(0.3, 0, 2.2))); cam.updateProjectionMatrix(); }
   post = new THREE.PostProcessing(renderer);
   const sp = pass(scene, cam), c = sp.getTextureNode("output");

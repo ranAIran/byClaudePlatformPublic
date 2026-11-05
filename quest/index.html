@@ -69,7 +69,9 @@ button{font:inherit;color:inherit}
 .hud-btn{padding:7px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--paper);cursor:pointer;box-shadow:0 3px 0 var(--ink);font-weight:500}
 #hint{position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:rgba(32,40,58,.78);color:var(--paper);
   padding:7px 14px;border-radius:999px;font-size:13px;white-space:nowrap;max-width:calc(100vw - 32px);overflow:hidden;text-overflow:ellipsis;pointer-events:none}
-#version{position:fixed;left:max(10px,env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));font:500 10px var(--mono);color:rgba(32,40,58,.55);pointer-events:none;direction:ltr;z-index:5}
+.ver{display:block;font:500 10px var(--mono);color:var(--muted);letter-spacing:.06em;direction:ltr}
+.title-card .ver{font-size:12px;margin-top:-6px}
+[dir="rtl"] .brand .ver{text-align:right}
 #backend{position:fixed;right:max(14px,env(safe-area-inset-right,0px));bottom:calc(14px + env(safe-area-inset-bottom,0px));font:500 11px var(--mono);color:rgba(32,40,58,.7);pointer-events:none}
 
 #labels{position:fixed;inset:0;pointer-events:none}
@@ -211,7 +213,7 @@ button{font:inherit;color:inherit}
 <div id="labels"></div>
 
 <div id="hud" hidden>
-  <div class="brand"><b>Latent Archipelago</b><small id="tagline"></small></div>
+  <div class="brand"><b>Latent Archipelago</b><small id="tagline"></small><span class="ver" id="version"></span></div>
   <div class="hud-right">
     <div id="shards" aria-label="Shards"></div>
     <button type="button" class="hud-btn icon" id="recenterBtn" aria-label="Recenter">⌖</button>
@@ -222,7 +224,6 @@ button{font:inherit;color:inherit}
 </div>
 <div id="hint" hidden></div>
 <div id="backend"></div>
-<div id="version" aria-label="Version"></div>
 <button type="button" id="talkBtn" hidden></button>
 <div id="dialog" class="card" hidden role="dialog" aria-live="polite"></div>
 <div id="toast" hidden role="status"></div>
@@ -235,6 +236,7 @@ button{font:inherit;color:inherit}
   <div class="card title-card">
     <div class="tag">A quest in seven islands</div>
     <h1>Latent Archipelago</h1>
+    <span class="ver" id="titleVersion"></span>
     <div class="line-wrap center"><p id="intro"></p><span id="introSay"></span></div>
     <div class="isles"><span>Tokens</span><span>Embeddings</span><span>Attention</span><span>Training</span><span>RAG</span><span>Agents</span><span>Alignment</span></div>
     <div class="actions">
