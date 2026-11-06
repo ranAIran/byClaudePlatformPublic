@@ -1,0 +1,63 @@
+name: Life Archipelago (tests + Android APK)
+
+on:
+  push:
+    branches: [ "claude/life-archipelago" ]
+    paths: [ "life/**", "quest/**", ".github/workflows/life-android.yml" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write   # publishes each APK as a GitHub pre-release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Unit tests (requirements R1–R3, R7, R8, sharing)
+        working-directory: life
+        run: |
+          npm install --no-audit --no-fund
+          npm test
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Bundle the shared web app into the APK
+        run: bash life/android/copy-web.sh
+
+      - name: Build APK
+        working-directory: life/android
+        run: ./gradlew :app:assembleDebug --console=plain
+
+      - name: Rename APK
+        run: cp life/android/app/build/outputs/apk/debug/app-debug.apk life-archipelago.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: life-archipelago-apk
+          path: life-archipelago.apk
+
+      # Each build is its own pre-release, so it never replaces another app's "latest" release.
+      - name: Publish pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: life-v0.1.${{ github.run_number }}
+          name: "Life Archipelago 0.1.${{ github.run_number }}"
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          make_latest: false
+          body: |
+            Download **life-archipelago.apk** below (under Assets) on your Android phone.
+            Allow "install unknown apps" for your browser when asked. Each new build installs over the previous one.
+            Built from ${{ github.sha }} on ${{ github.ref_name }}.
+          files: life-archipelago.apk

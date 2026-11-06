@@ -1,0 +1,13 @@
+{
+  "name": "life-archipelago",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:visual": "node test/visual.mjs"
+  },
+  "devDependencies": {
+    "vitest": "2.1.8"
+  }
+}
