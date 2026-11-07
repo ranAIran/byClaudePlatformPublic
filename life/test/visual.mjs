@@ -45,6 +45,15 @@ const xp0 = await p.evaluate(() => window.__life.store.xp());
 const box = await p.$('#sheetBody [data-act="toggle"]'); if (box) { await box.tap(); await p.waitForTimeout(200); }
 check((await p.evaluate(() => window.__life.store.xp())) > xp0, "R8 completing a task adds XP");
 await p.screenshot({ path: `${out}/v-xp.png` });
+// R16 · feedback opens a prefilled GitHub issue.
+await p.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; });
+await p.tap("#menuBtn"); await p.tap('#menu [data-act="feedback"]'); await p.waitForTimeout(200);
+await p.tap('#fbKinds [data-kind="bug"]'); await p.fill("#fbText", "The kitchen label overlaps the fridge"); await p.waitForTimeout(150);
+await p.screenshot({ path: `${out}/v-feedback.png` });
+await p.tap("#fbGitHub"); await p.waitForTimeout(200);
+const opened = await p.evaluate(() => window.__opened || "");
+const q = opened ? new URL(opened).searchParams : new URLSearchParams();
+check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issues/new?") && q.get("title").includes("Bug: The kitchen label overlaps the fridge") && q.get("body").includes("renderer:"), `R16 feedback opens a prefilled GitHub issue (${q.get("title")})`);
 check(errs.length === 0, `no page errors${errs.length ? ": " + errs.join(" | ") : ""}`);
 await b.close(); server.close();
 process.exit(failures.length ? 1 : 0);

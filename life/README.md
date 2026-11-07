@@ -28,7 +28,7 @@ About 95% of the code is shared. Android adds only `MainActivity.kt`: it loads t
 
 ```bash
 cd life && npm install
-npm test               # R1 capture, R2 place suggestions, R3 places, R7 export/import, R8 XP, sharing
+npm test               # R1 capture, R2 place suggestions, R3 places, R7 export/import, R8 XP, R16 feedback, sharing
 npm run test:visual    # R4 fly into Home under 1.2 s, R5 never a blank frame, the capture flow, XP on completion
 ```
 
@@ -38,4 +38,5 @@ npm run test:visual    # R4 fly into Home under 1.2 s, R5 never a blank frame, t
 - The bag: type, speak or snap a photo; dates in English and Hebrew ("tomorrow", "20/11", "עד מרץ", "מחר") become due dates; each capture gets a suggested place.
 - Tasks and multi-step quests with XP and levels; items, pets, notes, links, photos and scans in rooms and islands.
 - Search, share a summary, export and import a JSON backup.
+- Send feedback (menu): opens a prefilled GitHub issue with the version and device details, or shares it by email or chat.
 - Android: scan documents (ML Kit), take photos, voice input, and "Share" from any app into the bag.

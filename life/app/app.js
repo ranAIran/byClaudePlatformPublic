@@ -8,9 +8,10 @@ import { exportJSON, importJSON, exportDigest } from "./core/exporter.js";
 import { shareToNode } from "./core/share.js";
 import { isoDate } from "./core/capture.js";
 import { initBridge } from "./bridge.js";
+import { buildFeedback } from "./core/feedback.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.2";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -259,6 +260,7 @@ async function onShare(p) {
 }
 function onVoice(text) { if (!text) return; $("capInput").value = text; $("capForm").requestSubmit(); }
 function onBack() {
+  if (!$("feedback").hidden) { $("feedback").hidden = true; return true; }
   if (!$("menu").hidden) { $("menu").hidden = true; return true; }
   if (!$("searchBox").hidden) { $("searchBox").hidden = true; return true; }
   if (!$("sheet").hidden) { closeSheet(); return true; }
@@ -281,6 +283,7 @@ $("menuBtn").addEventListener("click", () => { $("menu").hidden = !$("menu").hid
 $("menu").addEventListener("click", async (e) => {
   const act = e.target.closest("[data-act]")?.dataset.act; if (!act) return; $("menu").hidden = true;
   const stamp = isoDate(new Date());
+  if (act === "feedback") openFeedback();
   if (act === "share") { const r = await bridge.shareText("Life Archipelago", exportDigest(store)); if (r === "copied") toast("Summary copied to the clipboard"); }
   if (act === "export") { bridge.saveFile(`life-backup-${stamp}.json`, "application/json", exportJSON(store)); toast("Backup exported"); }
   if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast("Summary exported"); }
@@ -291,6 +294,39 @@ $("menu").addEventListener("click", async (e) => {
 $("importInput").addEventListener("change", async () => {
   const f = $("importInput").files[0]; $("importInput").value = ""; if (!f) return;
   try { importJSON(store, await f.text()); toast("Backup imported"); } catch (err) { toast("That file isn't a Life Archipelago backup"); }
+});
+
+// ---------- R16 · feedback ----------
+let fbKind = "idea";
+function diag() {
+  return {
+    version: VERSION,
+    platform: bridge.android ? `Android app ${bridge.version || ""}`.trim() : "web",
+    renderer: backendName,
+    screen: `${innerWidth}×${innerHeight} @${Math.round((window.devicePixelRatio || 1) * 10) / 10}`,
+    view: view === "home" ? `home › ${room}` : "map",
+    open: sheetFor ? title(sheetFor) : "",
+    items: store.all().filter((n) => !n.system).length,
+    browser: navigator.userAgent.replace(/\s+/g, " ").slice(0, 160),
+    time: new Date().toISOString(),
+  };
+}
+function feedbackNow() { return buildFeedback({ kind: fbKind, text: $("fbText").value, diag: diag(), includeDetails: $("fbDetails").checked }); }
+function renderDiag() { $("fbDiag").textContent = $("fbDetails").checked ? Object.entries(diag()).map(([k, v]) => `${k}: ${v}`).join("\n") : "Device details will not be included."; }
+function openFeedback() {
+  $("menu").hidden = true; closeSheet(); $("searchBox").hidden = true;
+  $("feedback").hidden = false; renderDiag(); $("fbText").focus();
+}
+$("fbKinds").addEventListener("click", (e) => { const b = e.target.closest("[data-kind]"); if (!b) return; fbKind = b.dataset.kind; for (const c of $("fbKinds").children) c.classList.toggle("on", c === b); });
+$("fbDetails").addEventListener("change", renderDiag);
+$("fbClose").addEventListener("click", () => { $("feedback").hidden = true; });
+$("fbGitHub").addEventListener("click", () => {
+  bridge.openExternal(feedbackNow().url);
+  $("feedback").hidden = true; $("fbText").value = ""; toast("Thank you! Press Submit on GitHub to send it");
+});
+$("fbShare").addEventListener("click", async () => {
+  const f = feedbackNow(); const r = await bridge.shareText(f.title, f.text);
+  if (r === "copied") toast("Feedback copied: paste it in an email or chat");
 });
 
 // ---------- toast ----------

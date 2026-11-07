@@ -33,8 +33,8 @@ Read this first. It carries the decisions and lessons from earlier sessions so a
 
 ```bash
 cd life && npm install
-npm test                 # Vitest: life/test/core.test.js (R1–R3, R7, R8, sharing)
-npm run test:visual      # Playwright: life/test/visual.mjs (R4 fly < 1.2 s, R5 no blank frame, capture flow, XP)
+npm test                 # Vitest: life/test/*.test.js (R1–R3, R7, R8, R16, sharing)
+npm run test:visual      # Playwright: life/test/visual.mjs (R4 fly < 1.2 s, R5 no blank frame, capture flow, XP, R16 feedback)
 bash life/android/copy-web.sh   # copies life/app + quest engine into the APK assets (CI does this)
 ```
 
@@ -66,5 +66,6 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 ## Status (update at the end of every session)
 
 - **Done:** v0.1 web app and APK 0.1.1 (CI green). Tests R1–R5, R7, R8 and sharing pass.
+- **Done:** R16 Send feedback (menu → Send feedback…): opens a prefilled GitHub issue with version and device details, or shares the text. App version 0.1.2. Not yet added to the requirements table in the doc.
 - **Not yet verified on a real phone:** scanner, camera, voice, share-in, WebGPU performance.
 - **Next candidates:** device check of APK 0.1.1 and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.

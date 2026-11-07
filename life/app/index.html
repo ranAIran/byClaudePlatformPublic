@@ -102,6 +102,9 @@ button{font:inherit;color:inherit;cursor:pointer}
 #searchBox{position:fixed;left:10px;right:10px;top:calc(10px + var(--top));padding:10px;z-index:7;display:grid;gap:8px;max-height:70%}
 #searchBox input{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:12px;color:var(--ink);font:inherit;padding:11px 12px;outline:none;font-size:15px}
 #searchRes{overflow:auto;display:grid;gap:6px}
+#feedback{position:fixed;left:8px;right:8px;bottom:calc(8px + var(--bot));padding:14px;border-radius:24px;display:grid;gap:10px;z-index:8;max-height:86%;overflow:auto}
+#fbText{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:14px;color:var(--ink);font:inherit;font-size:15px;padding:11px 12px;outline:none;resize:vertical;min-height:110px}
+#fbDiag{font-size:10.5px;white-space:pre-wrap;line-height:1.5;max-height:90px;overflow:auto}
 #renderer{position:fixed;right:12px;bottom:4px;font:500 9.5px var(--mono);color:rgba(255,255,255,.35);pointer-events:none}
 </style>
 </head>
@@ -147,6 +150,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 </div>
 
 <div id="menu" class="panel" hidden>
+  <button data-act="feedback">Send feedback…</button>
   <button data-act="share">Share a summary…</button>
   <button data-act="export">Export backup (JSON)</button>
   <button data-act="exportmd">Export notes (Markdown)</button>
@@ -161,6 +165,19 @@ button{font:inherit;color:inherit;cursor:pointer}
   <div id="searchRes"></div>
 </div>
 
+<div id="feedback" class="panel" hidden role="dialog" aria-label="Send feedback">
+  <div class="row" style="justify-content:space-between"><h2 style="margin:0;font-size:19px">Send feedback</h2><button class="x" id="fbClose" aria-label="Close">✕</button></div>
+  <div class="row" id="fbKinds" style="gap:6px;flex-wrap:wrap">
+    <button class="chip on" data-kind="idea">Idea</button>
+    <button class="chip" data-kind="bug">Something's wrong</button>
+    <button class="chip" data-kind="praise">I like…</button>
+  </div>
+  <textarea id="fbText" rows="5" placeholder="What happened, or what would make this better?" aria-label="Your feedback"></textarea>
+  <label class="row muted" style="font-size:13px;gap:8px"><input type="checkbox" id="fbDetails" checked> Include version and device details</label>
+  <div id="fbDiag" class="mono muted"></div>
+  <div class="row" style="gap:8px"><button class="btn primary" id="fbGitHub" style="flex:1.3">Open on GitHub</button><button class="btn" id="fbShare" style="flex:1">Share…</button></div>
+  <p class="muted" style="font-size:12px;margin:0;line-height:1.45">GitHub opens a new issue with this filled in: sign in and press Submit. Or share it by email or chat.</p>
+</div>
 <div id="toast" hidden></div>
 <div id="renderer"></div>
 <script type="module" src="./app.js"></script>
