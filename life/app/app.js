@@ -1,6 +1,6 @@
 // Life Archipelago v0.1 — the same file runs on the web and inside the Android app's WebView.
 import * as THREE from "three";
-import { pass } from "three/tsl";
+import { pass, renderOutput } from "three/tsl";
 import { bloom } from "../../quest/vendor/BloomNode.js";
 import { buildMap, buildHome, fitCamera, projectTo } from "./scenes.js";
 import { createStore, localStorageBackend } from "./core/store.js";
@@ -11,7 +11,7 @@ import { initBridge } from "./bridge.js";
 import { buildFeedback } from "./core/feedback.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.1.2";
+export const VERSION = "0.1.3";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -53,13 +53,25 @@ $("stage").append(renderer.domElement);
 await renderer.init();
 const backendName = renderer.backend?.isWebGPUBackend ? "WebGPU" : "WebGL2";
 
+// Post-processing with its own screen quad per world. THREE.PostProcessing (r170) shares one quad and
+// material between all instances, so the second world overwrote the first: going back to the map kept
+// showing the house. A private quad per world also avoids recompiling the shader on every switch.
+function screenPass(node) {
+  const q = new THREE.QuadMesh(new THREE.NodeMaterial());
+  q.material.fragmentNode = renderOutput(node, renderer.toneMapping, renderer.outputColorSpace);
+  return { render() {
+    const tm = renderer.toneMapping, cs = renderer.outputColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping; renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    q.render(renderer); renderer.toneMapping = tm; renderer.outputColorSpace = cs;
+  } };
+}
 const map = buildMap(), home = buildHome();
 for (const w of [map, home]) {
   fitCamera(w.cam);
   w.base = w.cam.position.clone().sub(w.cam.userData.target);
   w.pan = new THREE.Vector3();
-  const p = new THREE.PostProcessing(renderer), sp = pass(w.scene, w.cam), c = sp.getTextureNode("output");
-  p.outputNode = c.add(bloom(c, 0.45, 0.35, 0.85)); w.post = p;
+  const sp = pass(w.scene, w.cam), c = sp.getTextureNode("output");
+  w.post = screenPass(c.add(bloom(c, 0.45, 0.35, 0.85)));
 }
 let view = "map", room = "living";
 const world = () => (view === "map" ? map : home);
@@ -348,7 +360,10 @@ renderer.setAnimationLoop(() => {
   if (w.zoomGoal) { w.cam.zoom += (w.zoomGoal - w.cam.zoom) * Math.min(1, dt * 6); if (Math.abs(w.cam.zoom - w.zoomGoal) < 0.002) { w.cam.zoom = w.zoomGoal; w.zoomGoal = 0; } w.cam.updateProjectionMatrix(); }
   const tgt = w.cam.userData.target.clone().add(w.pan); w.cam.position.copy(tgt).add(w.base); w.cam.lookAt(tgt);
   w.updaters.forEach((u) => u(T, dt));
+  // Warm up the other world's shaders once, after the first frames, so the first flight does not stall.
+  // (Not before the first frame: compiling early left the quest blank once.) The map is drawn over it.
+  if (frames === 10) (w === map ? home : map).post.render();
   w.post.render();
   placeLabels();
-  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName }; }
+  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName, terrariums: () => { const out = []; home.scene.traverse((o) => { if (o.name === "terrarium") { const { w, h, d } = o.userData.size; out.push([w, h, d].map((v) => Math.round(v * 80))); } }); return out; } }; }
 });

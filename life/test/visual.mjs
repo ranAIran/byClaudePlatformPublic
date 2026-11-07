@@ -18,6 +18,9 @@ const out = process.argv[2] || ".";
 const failures = [];
 const check = (ok, msg) => { console.log((ok ? "PASS " : "FAIL ") + msg); if (!ok) failures.push(msg); };
 const colours = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 120; c.height = 120; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.3, im.width, im.height * 0.35, 0, 0, 120, 120); const d = x.getImageData(0, 0, 120, 120).data; const s = new Set(); for (let i = 0; i < d.length; i += 4) s.add((d[i] >> 4) + "," + (d[i + 1] >> 4) + "," + (d[i + 2] >> 4)); return s.size; }, (await p.screenshot()).toString("base64"));
+// A 24×24 grey thumbnail of the 3D area (middle of the screen) to compare frames.
+const thumb = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 24; c.height = 24; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.25, im.width, im.height * 0.5, 0, 0, 24, 24); const d = x.getImageData(0, 0, 24, 24).data; const g = []; for (let i = 0; i < d.length; i += 4) g.push((d[i] + d[i + 1] + d[i + 2]) / 3); return g; }, (await p.screenshot()).toString("base64"));
+const dist = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.length;
 
 const b = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const ctx = await b.newContext({ ...devices["Pixel 7"] });
@@ -26,6 +29,7 @@ p.on("pageerror", (e) => errs.push(e.message)); p.on("console", (m) => { if (m.t
 await p.goto(base); await p.waitForFunction(() => window.__life?.ready, null, { timeout: 120000 }); await p.waitForTimeout(800);
 await p.screenshot({ path: `${out}/v-map.png` });
 check((await colours(p)) > 40, "R5 map frame is not blank");
+const mapThumb = await thumb(p);
 // Capture into the bag, then place it from the bag.
 await p.fill("#capInput", "renew passport before March"); await p.press("#capInput", "Enter"); await p.waitForTimeout(300);
 const bagN = await p.evaluate(() => window.__life.store.unplaced().length);
@@ -40,11 +44,19 @@ await p.click(".lbl >> nth=0"); await p.waitForFunction(() => window.__lastFlyMs
 await p.waitForTimeout(900); await p.screenshot({ path: `${out}/v-home.png` });
 check(flyMs < 1200, `R4 fly into Home took ${flyMs} ms`);
 check((await colours(p)) > 40, "R5 home frame is not blank");
+const tanks = JSON.stringify(await p.evaluate(() => window.__life.terrariums()));
+check(tanks === "[[60,60,45],[60,45,45]]", `R17 bedroom has two terrariums 60×60×45 and 60×45×45 cm (${tanks})`);
 // Complete a task for XP.
 const xp0 = await p.evaluate(() => window.__life.store.xp());
 const box = await p.$('#sheetBody [data-act="toggle"]'); if (box) { await box.tap(); await p.waitForTimeout(200); }
 check((await p.evaluate(() => window.__life.store.xp())) > xp0, "R8 completing a task adds XP");
 await p.screenshot({ path: `${out}/v-xp.png` });
+// R4 · back from Home must show the islands again, not the last home frame.
+const homeThumb = await thumb(p);
+await p.tap("#sheetClose").catch(() => {}); await p.tap("#back"); await p.waitForFunction(() => window.__life.view() === "map"); await p.waitForTimeout(900);
+await p.screenshot({ path: `${out}/v-back.png` });
+const backThumb = await thumb(p), dMap = dist(backThumb, mapThumb), dHome = dist(backThumb, homeThumb);
+check(dMap < dHome * 0.6, `R4 back to map shows the islands (diff to map ${dMap.toFixed(1)}, to home ${dHome.toFixed(1)})`);
 // R16 · feedback opens a prefilled GitHub issue.
 await p.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; });
 await p.tap("#menuBtn"); await p.tap('#menu [data-act="feedback"]'); await p.waitForTimeout(200);

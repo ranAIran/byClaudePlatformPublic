@@ -96,6 +96,27 @@ function bed(g, x, z, blanket = "#6c8cd5") {
   put(bx(1.55, 0.12, 1.84, blanket), x + 0.42, 0.7, z, g);
   for (const dz of [-0.45, 0.45]) { const p = bx(0.55, 0.16, 0.7, "#ffffff"); put(p, x - 0.85, 0.74, z + dz, g); }
 }
+// Real-world size to scene units (the bed scale: 1 unit ≈ 80 cm).
+export const cm = (v) => v / 80;
+// A glass terrarium of outer size w×h×d (scene units) standing at floor height y, front facing +z.
+function terrarium(g, x, y, z, w, h, d, o = {}) {
+  const t = new THREE.Group(); t.position.set(x, y, z); g.add(t); t.userData.size = { w, h, d }; t.name = "terrarium";
+  const frame = "#16181d", f = 0.025;
+  put(bx(w, f, d, frame), 0, f / 2, 0, t); put(bx(w, f * 1.6, d, frame), 0, h - f * 0.8, 0, t);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) put(bx(f, h, f, frame), sx * (w - f) / 2, h / 2, sz * (d - f) / 2, t);
+  const glass = new THREE.MeshStandardMaterial({ color: "#d8f1ff", transparent: true, opacity: 0.18, roughness: 0.05, metalness: 0.1, depthWrite: false });
+  const panes = [[w, h, 0.01, 0, (d - 0.01) / 2], [0.01, h, d, (w - 0.01) / 2, 0], [0.01, h, d, -(w - 0.01) / 2, 0]];
+  for (const [pw, ph, pd, px, pz] of panes) { const p = bx(pw, ph - 0.02, pd, glass); p.position.set(px, h / 2, pz); p.renderOrder = 2; t.add(p); }
+  put(bx(w - 0.04, 0.003, d - 0.04, frame), 0, h * 0.995, 0, t);
+  put(bx(w - 0.05, h * 0.18, d - 0.05, o.sub || "#8a6440"), 0, f + h * 0.09, 0, t);
+  put(bx(w - 0.05, h * 0.75, 0.01, m("#7fb77e", { emissive: "#2f5a33", emissiveIntensity: 0.6 })), 0, h * 0.45, -(d - 0.06) / 2, t);
+  const top = f + h * 0.18;
+  if (o.rock) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.11, 0), m("#8b8f96", { flatShading: true })); r.scale.set(1.4, 0.7, 1); put(r, w * 0.2, top + 0.05, 0.02, t); }
+  if (o.cactus) { put(cy(0.05, 0.06, h * 0.45, o.plant), -w * 0.18, top + h * 0.22, -0.04, t); put(cy(0.03, 0.03, h * 0.18, o.plant), -w * 0.18 + 0.07, top + h * 0.28, -0.04, t); put(sp(0.06, "#d8c08f", 8), w * 0.22, top + 0.03, 0.06, t); }
+  else for (let i = 0; i < 5; i++) { const l = sp(0.09, o.plant || "#4fa35a", 10); l.scale.set(0.6, 1.6, 0.6); l.rotation.z = Math.cos(i * 1.7) * 0.6; put(l, -w * 0.2 + Math.cos(i) * 0.06, top + 0.13, -0.05 + Math.sin(i) * 0.06, t); }
+  put(bx(w * 0.7, 0.03, 0.07, glow("#fff1c4", 1.6)), 0, h + 0.01, -d * 0.15, t);
+  return t;
+}
 function nightstand(g, x, z, lampOn = true) {
   put(bx(0.6, 0.6, 0.55, "#a8774c"), x, 0.3, z, g);
   put(cy(0.05, 0.08, 0.32, "#3b2a20", 10), x, 0.76, z, g);
@@ -207,13 +228,28 @@ function buildHomeInto() {
   floorPatch(g, 3, 2.25, 5.9, 4.4, texMat(tileTex("#efe7da", "#d6cbb8")));
   floorPatch(g, -3, -2.25, 5.9, 4.4, m("#d9cbe9", { roughness: 1 }));
   floorPatch(g, 3, -2.25, 5.9, 4.4, texMat(woodTex("#a77b52", "rgba(60,35,15,.35)")));
-  // Bedroom (back left)
+  // Bedroom (back left): bed, computer table, two terrariums on a stand. Scale: 1 unit ≈ 80 cm.
   bed(g, -4.55, -2.6, "#7b93d8");
   nightstand(g, -5.5, -1.05, true);
-  put(bx(1.3, 2.2, 0.6, "#b98f67"), -1.4, 1.1, -4.15, g);
-  put(bx(0.02, 2.0, 0.02, "#7a5232"), -1.4, 1.1, -3.84, g);
-  put(bx(1.4, 1.0, 0.05, glow("#e9f6ff", 0.9)), -3.6, 1.6, -4.43, g);
   put(cy(1.0, 1.0, 0.03, "#f2e9ff"), -2.8, 0.06, -1.9, g);
+  // Terrarium stand along the back wall, then 60×60×45 and 60×45×45 cm tanks (W×H×D).
+  const standH = 0.62, standZ = -4.45 + 0.32;
+  put(bx(1.9, standH, 0.62, "#3a3f4a"), -4.75, standH / 2, standZ, g);
+  put(bx(1.92, 0.04, 0.64, "#2a2e36"), -4.75, standH + 0.02, standZ, g);
+  terrarium(g, -5.23, standH + 0.04, standZ, cm(60), cm(60), cm(45), { plant: "#4fa35a", sub: "#8a6440", rock: true });
+  terrarium(g, -4.27, standH + 0.04, standZ, cm(60), cm(45), cm(45), { plant: "#7cc46a", sub: "#c9a46a", cactus: true });
+  // Computer table with monitor, keyboard, tower and chair; the window sits above it.
+  const dX = -1.55, dZ = -4.07;
+  put(bx(1.7, 0.07, 0.72, "#e9e4dc"), dX, 0.76, dZ, g);
+  for (const [ax, az] of [[-0.8, -0.3], [0.8, -0.3], [-0.8, 0.3], [0.8, 0.3]]) put(bx(0.05, 0.73, 0.05, "#2b2b33"), dX + ax, 0.36, dZ + az, g);
+  put(bx(0.26, 0.03, 0.18, "#2b2b33"), dX - 0.1, 0.81, dZ - 0.15, g); put(bx(0.05, 0.28, 0.04, "#2b2b33"), dX - 0.1, 0.95, dZ - 0.2, g);
+  put(bx(0.95, 0.55, 0.04, "#1f1f26"), dX - 0.1, 1.28, dZ - 0.2, g);
+  put(bx(0.88, 0.48, 0.01, glow("#8fd3ff", 1.3)), dX - 0.1, 1.28, dZ - 0.177, g);
+  put(bx(0.6, 0.02, 0.18, "#3a3a46"), dX - 0.1, 0.805, dZ + 0.15, g);
+  put(bx(0.08, 0.02, 0.12, "#3a3a46"), dX + 0.35, 0.805, dZ + 0.16, g);
+  put(bx(0.22, 0.5, 0.48, "#262a33"), dX + 0.6, 0.25, dZ, g); put(bx(0.01, 0.06, 0.06, glow("#7affc1", 1.6)), dX + 0.6, 0.42, dZ + 0.245, g);
+  put(cy(0.28, 0.28, 0.08, "#3a3a46"), dX - 0.1, 0.5, dZ + 0.75, g); put(bx(0.55, 0.6, 0.08, "#3a3a46"), dX - 0.1, 0.85, dZ + 1.03, g); put(cy(0.04, 0.04, 0.46, "#6b6f7a", 8), dX - 0.1, 0.23, dZ + 0.75, g);
+  put(bx(1.3, 0.8, 0.05, glow("#e9f6ff", 0.9)), dX, 1.95, -4.43, g);
   // Office (back right)
   put(bx(2.0, 0.08, 0.9, "#8a5a3a"), 2.6, 0.78, -3.9, g);
   for (const [dx, dz] of [[-0.9, -0.38], [0.9, -0.38], [-0.9, 0.38], [0.9, 0.38]]) put(bx(0.07, 0.76, 0.07, "#5a3a24"), 2.6 + dx, 0.38, -3.9 + dz, g);
@@ -263,7 +299,7 @@ function buildHomeInto() {
   cam.userData.V = 28.5; cam.userData.target = target.clone();
   const rooms = {
     living: new THREE.Vector3(-3, 1.4, 2.25), kitchen: new THREE.Vector3(3, 1.4, 2.25),
-    bedroom: new THREE.Vector3(-3, 2.2, -2.25), office: new THREE.Vector3(3, 2.2, -2.25),
+    bedroom: new THREE.Vector3(-2.4, 1.2, -1.1), office: new THREE.Vector3(3, 2.2, -2.25),
   };
   return { rooms, target };
 }

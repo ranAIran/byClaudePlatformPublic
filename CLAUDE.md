@@ -54,6 +54,7 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 - **Life version:** `VERSION` in `life/app/app.js`; the APK `versionName` is `0.1.<CI run number>`.
 - WebGL/WebGPU `scene.background` textures are not drawn under this setup: use a backdrop mesh (`backdrop()` in `life/proto/proto.js`).
 - Hebrew keyword matching must be whole-word with optional one-letter prefixes (ו ב ל מ ה ש כ), not substring (`life/app/core/places.js`).
+- **Do not use `THREE.PostProcessing` for more than one scene** (r170): all instances share one quad/material, so the last one built wins (map showed the house). `app.js` uses `screenPass()`, a private QuadMesh per world, and warms up the other world at frame 10.
 - The APK is signed with the committed test key `life/android/debug.keystore` so updates install over each other. Not for the Play Store.
 
 ## Life Archipelago architecture
@@ -69,5 +70,6 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 - **Done:** R16 Send feedback (menu → Send feedback…): opens a prefilled GitHub issue with version and device details, or shares the text. App version 0.1.2. Not yet added to the requirements table in the doc.
 - **Done:** quest 1.4.0: Hebrew words in the tokens puzzle (player picks English/עברית); admin shortcut (tap the version 5 times, PIN in `CONFIG.admin.pin`, skip islands; not security, the PIN is in the source).
 - **Done:** two independent APKs from `life/android` via product flavors `life` (com.lifearchipelago.app) and `quest` (com.latentarchipelago.quest); CI publishes both in each release.
+- **Done (0.1.3):** bedroom redesign: bed, computer table, two terrariums 60×60×45 and 60×45×45 cm (`terrarium()` and `cm()` in `life/app/scenes.js`, 1 unit ≈ 80 cm; test R17). Fixed back-to-map showing the house (test "R4 back to map").
 - **Not yet verified on a real phone:** scanner, camera, voice, share-in, WebGPU performance.
 - **Next candidates:** device check of APK 0.1.1 and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.
