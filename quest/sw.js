@@ -6,7 +6,7 @@
 //
 // The browser re-checks this file on every visit and installs it again whenever its bytes
 // change; bump SW_BUILD with each release to be sure.
-const SW_BUILD = "1.3.4";
+const SW_BUILD = "1.4.0";
 const CACHE = "latent-archipelago-v2";
 const FILES = [
   "./", "./index.html", "./main.js", "./content.js", "./puzzles.js", "./world.js", "./speech.js",

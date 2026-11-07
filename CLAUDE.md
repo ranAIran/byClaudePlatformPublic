@@ -11,7 +11,7 @@ Read this first. It carries the decisions and lessons from earlier sessions so a
 | Driftlight | branch `claude/bold-brown-gxnmau` | 60-second WebGPU particle game (first experiment) | not deployed |
 
 - **Plan, requirements and market review:** the "Life Archipelago Plan" Claude Doc: https://claude.ai/artifact/S4iKLptxgowCdSQWM56CXW (requirements R1–R15 with status, prototypes, roadmap).
-- **APK downloads:** https://github.com/ranAIran/byClaudePlatformPublic/releases (pre-releases named "Life Archipelago 0.1.N").
+- **APK downloads:** https://github.com/ranAIran/byClaudePlatformPublic/releases (pre-releases "Life + Latent Archipelago 0.1.N" with life-archipelago.apk and latent-archipelago.apk).
 - **GitHub Pages** serves branch `claude/life-archipelago` from the root. Vercel can serve the same repo (production branch set in Vercel settings).
 
 ## Branches
@@ -67,5 +67,7 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 
 - **Done:** v0.1 web app and APK 0.1.1 (CI green). Tests R1–R5, R7, R8 and sharing pass.
 - **Done:** R16 Send feedback (menu → Send feedback…): opens a prefilled GitHub issue with version and device details, or shares the text. App version 0.1.2. Not yet added to the requirements table in the doc.
+- **Done:** quest 1.4.0: Hebrew words in the tokens puzzle (player picks English/עברית); admin shortcut (tap the version 5 times, PIN in `CONFIG.admin.pin`, skip islands; not security, the PIN is in the source).
+- **Done:** two independent APKs from `life/android` via product flavors `life` (com.lifearchipelago.app) and `quest` (com.latentarchipelago.quest); CI publishes both in each release.
 - **Not yet verified on a real phone:** scanner, camera, voice, share-in, WebGPU performance.
 - **Next candidates:** device check of APK 0.1.1 and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.

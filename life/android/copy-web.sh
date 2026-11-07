@@ -4,9 +4,9 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/life/android/app/src/main/assets/www"
 rm -rf "$OUT"
-mkdir -p "$OUT/life" "$OUT/quest/icons"
+mkdir -p "$OUT/life"
 cp -r "$ROOT/life/app" "$OUT/life/app"
-cp -r "$ROOT/quest/vendor" "$OUT/quest/vendor"
-cp "$ROOT/quest/world.js" "$ROOT/quest/content.js" "$OUT/quest/"
-cp "$ROOT/quest/icons/favicon-32.png" "$OUT/quest/icons/"
+# The whole quest: it is the Latent Archipelago app, and its engine is shared with Life.
+cp -r "$ROOT/quest" "$OUT/quest"
+rm -f "$OUT/quest/README.md" "$OUT/quest/preview.html" "$OUT/quest/preview.js"
 echo "Web app copied to $OUT"

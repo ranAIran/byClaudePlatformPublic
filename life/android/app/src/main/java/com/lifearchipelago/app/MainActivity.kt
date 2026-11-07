@@ -165,7 +165,8 @@ class MainActivity : ComponentActivity() {
         })
 
         handleShare(intent)
-        web.loadUrl("https://appassets.androidplatform.net/assets/www/life/app/index.html")
+        // The start page comes from the product flavor: Life Archipelago or Latent Archipelago.
+        web.loadUrl("https://appassets.androidplatform.net/assets/www/" + getString(R.string.start_path))
     }
 
     override fun onNewIntent(intent: Intent) {

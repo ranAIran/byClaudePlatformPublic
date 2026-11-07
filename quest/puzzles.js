@@ -22,12 +22,25 @@ export function h(tag, attrs = {}, ...kids) {
 
 export const PUZZLES = {
   // Cut words into tokens by toggling the gaps between letters.
-  tokens({ root, p, ui, feedback, done }) {
-    const state = p.words.map(() => new Set());
+  // The player can switch between English and Hebrew words (p.words / p.wordsHe).
+  tokens({ root, p, ui, tr, feedback, done }) {
+    let set = "en";
+    const sets = { en: p.words, he: p.wordsHe && p.wordsHe.length ? p.wordsHe : null };
+    let words = sets.en, state = words.map(() => new Set());
+    const isHe = () => set === "he";
+    const pick = h("div", { class: "tk-pick", role: "group", "aria-label": "Word language" });
+    const note = h("p", { class: "explain", hidden: true });
     const list = h("div", { class: "pz-tokens", dir: "ltr" });
+    function renderPick() {
+      pick.replaceChildren(...[["en", "English"], ["he", "עברית"]].filter(([k]) => sets[k]).map(([k, label]) =>
+        h("button", { type: "button", class: "chip-btn" + (set === k ? " on" : ""), "aria-pressed": String(set === k), dir: k === "he" ? "rtl" : "ltr",
+          onclick: () => { if (set === k) return; set = k; words = sets[k]; state = words.map(() => new Set()); feedback("", "info"); renderPick(); render(); } }, label)));
+      note.hidden = !isHe(); if (isHe() && p.noteHe) note.textContent = tr(p.noteHe);
+    }
     function render() {
-      list.replaceChildren(...p.words.map((w, wi) => {
-        const row = h("div", { class: "tk-row" });
+      list.replaceChildren(...words.map((w, wi) => {
+        const dir = isHe() ? "rtl" : "ltr";
+        const row = h("div", { class: "tk-row", dir });
         const letters = [...w.word];
         letters.forEach((ch, i) => {
           row.append(h("span", { class: "tk-letter" }, ch));
@@ -38,18 +51,18 @@ export const PUZZLES = {
           }
         });
         const parts = split(w.word, state[wi]);
-        const chips = h("div", { class: "tk-chips" }, parts.map((t, k) => h("span", { class: "chip c" + (k % 4) }, t)));
+        const chips = h("div", { class: "tk-chips", dir }, parts.map((t, k) => h("span", { class: "chip c" + (k % 4) }, t)));
         return h("div", { class: "tk-word" }, row, chips);
       }));
     }
     function split(word, cuts) { const out = []; let last = 0; [...cuts].sort((a, b) => a - b).forEach((c) => { out.push(word.slice(last, c)); last = c; }); out.push(word.slice(last)); return out; }
     const check = h("button", { type: "button", class: "btn primary", onclick: () => {
-      const wrong = p.words.filter((w, i) => split(w.word, state[i]).join("|") !== w.answer.join("|"));
+      const wrong = words.filter((w, i) => split(w.word, state[i]).join("|") !== w.answer.join("|"));
       if (!wrong.length) { feedback("✓", "ok"); done(); }
       else feedback(`✗ ${wrong.map((w) => w.word).join(", ")}`, "bad");
     } }, ui.check);
-    render();
-    root.append(list, h("div", { class: "actions" }, check));
+    renderPick(); render();
+    root.append(pick, note, list, h("div", { class: "actions" }, check));
   },
 
   // Plant word seeds into the bed with the closest meaning.

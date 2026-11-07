@@ -248,6 +248,44 @@ function applyLang() {
   if (!$("codex").hidden) renderCodex();
   if (!$("end").hidden) renderEnd();
 }
+// ---------- Admin shortcut (demos and testing) ----------
+// Tap the version number CONFIG.admin.taps times within 3 seconds, enter the PIN, then skip islands.
+let adminTaps = [];
+function adminTap() {
+  const now = Date.now(); adminTaps = adminTaps.filter((t) => now - t < 3000); adminTaps.push(now);
+  if (adminTaps.length >= (CONFIG.admin?.taps || 5)) { adminTaps = []; openAdminPin(); }
+}
+function adminCard(...kids) {
+  const card = h("div", { class: "card puzzle", role: "dialog", "aria-label": "Admin" },
+    h("header", {}, h("div", {}, h("small", { dir: "ltr" }, "Admin"), h("h2", { dir: "ltr" }, "Skip islands")), h("button", { type: "button", class: "x", "aria-label": "Close", onclick: () => { $("modal").hidden = true; } }, "✕")), ...kids);
+  $("modal").replaceChildren(card); $("modal").hidden = false;
+}
+function openAdminPin() {
+  if (!CONFIG.admin?.pin) return;
+  const input = h("input", { class: "pin", type: "password", inputmode: "numeric", autocomplete: "off", maxlength: "12", "aria-label": "PIN", dir: "ltr" });
+  const msg = h("p", { class: "feedback" });
+  const go = () => { if (input.value === String(CONFIG.admin.pin)) openAdminPanel(); else { msg.textContent = "✗"; msg.className = "feedback bad"; input.value = ""; input.focus(); } };
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  adminCard(h("p", { class: "explain", dir: "ltr" }, "Enter the admin PIN"), input, msg, h("div", { class: "actions" }, h("button", { type: "button", class: "btn primary", onclick: go }, "Unlock")));
+  setTimeout(() => input.focus(), 50);
+}
+function adminSkip(ids) {
+  for (const id of ids) S.solved.add(id);
+  save(); applyProgress(true); openAdminPanel();
+}
+function openAdminPanel() {
+  const rows = isl.map((o) => h("div", { class: "admin-row", dir: "ltr" }, h("span", {}, h("b", {}, o.data.name), " · ", o.data.concept),
+    S.solved.has(o.data.id) ? h("span", { class: "muted" }, "✓ solved") : h("button", { type: "button", class: "btn", onclick: () => adminSkip([o.data.id]) }, "Skip")));
+  const puzzles = isl.filter((o) => o.data.requires !== "all").map((o) => o.data.id);
+  const gateId = isl.find((o) => o.data.requires === "all")?.data.id;
+  adminCard(h("div", { class: "admin-list" }, rows),
+    h("div", { class: "actions" },
+      h("button", { type: "button", class: "btn", onclick: () => { S.solved.clear(); S.elapsed = 0; save(); location.reload(); } }, "Reset progress"),
+      h("button", { type: "button", class: "btn", onclick: () => adminSkip(puzzles) }, "Skip to the gate"),
+      h("button", { type: "button", class: "btn primary", onclick: () => { adminSkip(gateId ? [...puzzles, gateId] : puzzles); $("modal").hidden = true; if (gateId) finale(); } }, "Finish the quest")));
+}
+for (const id of ["version", "titleVersion"]) document.getElementById(id)?.addEventListener("click", adminTap);
+
 function toggleLang() { S.lang = S.lang === "he" ? "en" : "he"; save(); applyLang(); }
 $("langBtn").addEventListener("click", toggleLang);
 $("langBtn2").addEventListener("click", toggleLang);
@@ -568,7 +606,8 @@ $("installBtn").addEventListener("click", async () => {
   try { await installEvt.userChoice; } catch (e) { /* dismissed */ }
   installEvt = null; renderInstall();
 });
-if ("serviceWorker" in navigator && location.protocol !== "file:") {
+// Inside the Android app the files are bundled, so no service worker is needed there.
+if ("serviceWorker" in navigator && location.protocol !== "file:" && location.host !== "appassets.androidplatform.net") {
   const hadController = !!navigator.serviceWorker.controller;
   // No version in the URL: the browser re-checks sw.js itself on every visit (updateViaCache "none"
   // skips the HTTP cache for that check), and sw.js serves game files network-first.

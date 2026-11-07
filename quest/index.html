@@ -148,6 +148,12 @@ button{font:inherit;color:inherit}
 .chip{display:inline-block;padding:3px 9px;border-radius:8px;font:500 15px var(--mono);border:1.5px solid var(--ink)}
 .chip.c0{background:#ffe0b3}.chip.c1{background:#c9ecff}.chip.c2{background:#ffd3e6}.chip.c3{background:#e3d6ff}
 .pz-tokens{display:grid;gap:14px}
+.tk-pick{display:flex;gap:8px;justify-content:center;margin-bottom:12px}
+.chip-btn{font:inherit;font-weight:600;padding:6px 14px;border-radius:999px;border:2px solid var(--ink);background:var(--paper);cursor:pointer}
+.chip-btn.on{background:var(--ink);color:var(--paper)}
+.admin-list{display:grid;gap:8px;margin-top:10px}
+.admin-row{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:8px 10px;border:2px solid var(--line);border-radius:12px}
+.pin{font:600 24px var(--mono);letter-spacing:.4em;text-align:center;padding:10px;border:2px solid var(--ink);border-radius:12px;width:100%;background:var(--paper);color:var(--ink)}
 .tk-word{display:grid;gap:6px;justify-items:center}
 .tk-row{display:flex;align-items:stretch}
 .tk-letter{font:500 26px var(--mono);padding:2px 1px}
@@ -223,7 +229,7 @@ button{font:inherit;color:inherit}
 <div id="labels"></div>
 
 <div id="hud" hidden>
-  <div class="brand"><b>Latent Archipelago</b><small id="tagline"></small><span class="ver" id="version">v1.3.4</span></div>
+  <div class="brand"><b>Latent Archipelago</b><small id="tagline"></small><span class="ver" id="version">v1.4.0</span></div>
   <div class="hud-right">
     <div id="shards" aria-label="Shards"></div>
     <button type="button" class="hud-btn icon" id="recenterBtn" aria-label="Recenter">⌖</button>
@@ -246,7 +252,7 @@ button{font:inherit;color:inherit}
   <div class="card title-card">
     <div class="tag">A quest in seven islands</div>
     <h1>Latent Archipelago</h1>
-    <span class="ver" id="titleVersion">v1.3.4</span>
+    <span class="ver" id="titleVersion">v1.4.0</span>
     <div class="line-wrap center"><p id="intro">הארכיפלג שקע בערפל. שבעה שומרים מחזיקים שבעה רסיסים של ידע. פתרו את האתגרים שלהם, בנו גשרים ופתחו את ה-Alignment Gate.</p><span id="introSay"></span></div>
     <div class="isles"><span>Tokens</span><span>Embeddings</span><span>Attention</span><span>Training</span><span>RAG</span><span>Agents</span><span>Alignment</span></div>
     <div class="actions">

@@ -39,25 +39,31 @@ jobs:
         working-directory: life/android
         run: ./gradlew :app:assembleDebug --console=plain
 
-      - name: Rename APK
-        run: cp life/android/app/build/outputs/apk/debug/app-debug.apk life-archipelago.apk
+      - name: Rename APKs
+        run: |
+          cp life/android/app/build/outputs/apk/life/debug/app-life-debug.apk life-archipelago.apk
+          cp life/android/app/build/outputs/apk/quest/debug/app-quest-debug.apk latent-archipelago.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: life-archipelago-apk
-          path: life-archipelago.apk
+          name: archipelago-apks
+          path: |
+            life-archipelago.apk
+            latent-archipelago.apk
 
       # Each build is its own pre-release, so it never replaces another app's "latest" release.
       - name: Publish pre-release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: life-v0.1.${{ github.run_number }}
-          name: "Life Archipelago 0.1.${{ github.run_number }}"
+          name: "Life + Latent Archipelago 0.1.${{ github.run_number }}"
           target_commitish: ${{ github.sha }}
           prerelease: true
           make_latest: false
           body: |
-            Download **life-archipelago.apk** below (under Assets) on your Android phone.
+            Two independent apps (under Assets): **life-archipelago.apk** and **latent-archipelago.apk** (the quest). Install either or both.
             Allow "install unknown apps" for your browser when asked. Each new build installs over the previous one.
             Built from ${{ github.sha }} on ${{ github.ref_name }}.
-          files: life-archipelago.apk
+          files: |
+            life-archipelago.apk
+            latent-archipelago.apk

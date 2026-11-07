@@ -9,7 +9,7 @@
 
 export const CONFIG = {
   title: "Latent Archipelago",
-  version: "1.3.4",          // shown under the game title. On every release also update the two "v…" texts in index.html and SW_BUILD in sw.js
+  version: "1.4.0",          // shown under the game title. On every release also update the two "v…" texts in index.html and SW_BUILD in sw.js
   defaultLang: "he",          // "he" | "en"
   saveKey: "latent-archipelago-v1",
   camera: { zoom: 23, minZoom: 12, maxZoom: 40, minWidth: 15, follow: 4, panMargin: 10, panReturn: 1.2 },
@@ -32,6 +32,9 @@ export const CONFIG = {
   // Lighter settings for phones and tablets (touch screens): fewer pixels, smaller shadows, less grass.
   mobileQuality: { pixelRatio: 1.5, shadowMap: 1024, grassPerIsland: 320, fireflies: 80 },
   narration: { autoReadDefault: false },
+  // Admin shortcut: tap the version number 5 times, enter the PIN, then skip islands.
+  // The PIN is visible in this file, so it is a convenience for demos and testing, not security.
+  admin: { pin: "12321", taps: 5 },
 };
 
 export const UI = {
@@ -155,6 +158,16 @@ export const ISLANDS = [
         { word: "rethinking", answer: ["re", "think", "ing"] },
         { word: "playground", answer: ["play", "ground"] },
       ],
+      // Hebrew words, chosen by the player: prefix letters and suffixes split from the root.
+      wordsHe: [
+        { word: "והמחשבים", answer: ["ו", "ה", "מחשב", "ים"] },
+        { word: "שכתבתי", answer: ["ש", "כתב", "תי"] },
+        { word: "לחברים", answer: ["ל", "חבר", "ים"] },
+      ],
+      noteHe: {
+        he: "בעברית: חתכו את אותיות השימוש (ו, ה, ל, ש) ואת הסיומות (ים, תי) מהשורש. טקסט בעברית בדרך כלל דורש יותר Tokens מאותו טקסט באנגלית.",
+        en: "In Hebrew: cut the prefix letters (ו, ה, ל, ש) and the suffixes (ים, תי) off the root. Hebrew text usually takes more Tokens than the same text in English.",
+      },
     },
     codex: {
       allegory: { he: "Byte הוא Tokenizer, ובמזח \"נשלחים\" Tokens למודל.", en: "Byte is a Tokenizer, shipping Tokens to the model from the docks." },

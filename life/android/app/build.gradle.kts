@@ -15,6 +15,24 @@ android {
         versionName = "0.1." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
     }
 
+    // Two independent apps from one project: each has its own package id, name, icon and
+    // start page, so either can be installed alone or both side by side.
+    flavorDimensions += "product"
+    productFlavors {
+        create("life") {
+            dimension = "product"
+            applicationId = "com.lifearchipelago.app"
+            resValue("string", "app_name", "Life Archipelago")
+            resValue("string", "start_path", "life/app/index.html")
+        }
+        create("quest") {
+            dimension = "product"
+            applicationId = "com.latentarchipelago.quest"
+            resValue("string", "app_name", "Latent Archipelago")
+            resValue("string", "start_path", "quest/index.html")
+        }
+    }
+
     // A fixed test key (committed on purpose, not for the Play Store) so every CI build
     // can be installed over the previous one without uninstalling and losing data.
     signingConfigs {
