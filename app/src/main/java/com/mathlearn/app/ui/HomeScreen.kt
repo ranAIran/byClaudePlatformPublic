@@ -56,6 +56,10 @@ fun HomeScreen(vm: AppViewModel) {
         title = "מתמטיקה ו׳ ✏️",
         onBack = null,
         actions = {
+            // Quick theme switch: cycles נוכחית → כהה → גיימרים (also in Settings).
+            TextButton(onClick = { vm.updateSkin(Skin.entries[(vm.skin.ordinal + 1) % Skin.entries.size]) }) {
+                Text("🎨 ${vm.skin.title}")
+            }
             IconButton(onClick = { vm.navigate(Screen.History) }) { Icon(Icons.Filled.DateRange, "ההתקדמות שלי") }
             IconButton(onClick = { vm.navigate(Screen.Settings) }) { Icon(Icons.Filled.Settings, "הגדרות") }
         },

@@ -20,6 +20,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedCard
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import com.mathlearn.app.AppViewModel
 
 @Composable
@@ -33,7 +42,12 @@ fun SettingsScreen(vm: AppViewModel) {
             Modifier.padding(pad).padding(16.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("קריאה חכמה של דפים (לא חובה)", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text("מראה", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Skin.entries.forEach { s ->
+                SkinOption(s, selected = vm.skin == s, onClick = { vm.updateSkin(s) })
+            }
+
+            Text("קריאה חכמה של דפים (לא חובה)", modifier = Modifier.padding(top = 16.dp),, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             Text(
                 "עם מפתח API של Anthropic, הדפים שמעלים נקראים על ידי Claude – הוא מבין עברית, כתב יד, " +
                     "בעיות מילוליות ושרטוטים, ומכין מפתח תשובות עם רמזים ופתרונות. " +
@@ -59,6 +73,31 @@ fun SettingsScreen(vm: AppViewModel) {
             Text("גרסה ${com.mathlearn.app.BuildConfig.VERSION_NAME} (${com.mathlearn.app.BuildConfig.BUILD_SHA})",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline,
                 modifier = Modifier.padding(top = 16.dp))
+        }
+    }
+}
+
+/** One theme choice with a small swatch of its colors. */
+@Composable
+private fun SkinOption(skin: Skin, selected: Boolean, onClick: () -> Unit) {
+    val swatch = when (skin) {
+        Skin.CLASSIC -> listOf(Color(0xFFF7F7FB), Color(0xFF3F51B5), Color(0xFFE0525C))
+        Skin.DARK -> listOf(Color(0xFF07090F), Color(0xFF8FB0FF), Color(0xFFE8C468))
+        Skin.GAMER -> listOf(Color(0xFF0D0620), Color(0xFFFF3EC8), Color(0xFF26E6FF), Color(0xFFB6FF3B))
+    }
+    OutlinedCard(
+        onClick = onClick,
+        border = BorderStroke(if (selected) 3.dp else 1.dp, if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                swatch.forEach { c -> Box(Modifier.size(width = 14.dp, height = 32.dp).background(c, RoundedCornerShape(3.dp))) }
+            }
+            Column(Modifier.weight(1f)) {
+                Text((if (selected) "✓ " else "") + skin.title, fontWeight = FontWeight.Bold)
+                Text(skin.description, style = MaterialTheme.typography.bodySmall)
+            }
         }
     }
 }

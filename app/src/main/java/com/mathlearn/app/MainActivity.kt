@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (savedInstanceState == null) handleShare(intent)
-        setContent { MathTheme { App(vm) } }
+        setContent { MathTheme(vm.skin) { App(vm) } }
     }
 
     override fun onNewIntent(intent: Intent) {

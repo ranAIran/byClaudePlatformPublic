@@ -29,6 +29,10 @@ class Repository(context: Context) {
         get() = prefs.getString("model", null)?.takeIf { it.isNotBlank() } ?: com.mathlearn.core.ClaudeExtractor.DEFAULT_MODEL
         set(v) = prefs.edit().putString("model", v.trim()).apply()
 
+    var skin: String?
+        get() = prefs.getString("skin", null)
+        set(v) = prefs.edit().putString("skin", v).apply()
+
     var autoRead: Boolean
         get() = prefs.getBoolean("auto_read", false)
         set(v) = prefs.edit().putBoolean("auto_read", v).apply()

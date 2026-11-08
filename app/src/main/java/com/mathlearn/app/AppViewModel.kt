@@ -89,6 +89,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Hebrew read-aloud with word highlighting, shared by all screens. */
     val speaker = Speaker(app).apply { slow = repo.slowSpeech }
 
+    /** The chosen look (colors, buttons, text style). */
+    var skin by mutableStateOf(com.mathlearn.app.ui.Skin.fromName(repo.skin))
+        private set
+
+    fun updateSkin(s: com.mathlearn.app.ui.Skin) { skin = s; repo.skin = s.name }
+
     /** Read each new question aloud automatically. */
     var autoRead by mutableStateOf(repo.autoRead)
         private set
