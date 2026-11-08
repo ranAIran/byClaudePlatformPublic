@@ -20,6 +20,7 @@
   --bad-soft: #fbe9e7;
   --hint-soft: #fff4d6;
   --line: #d4dae6;
+  --marker: #ffe066;
   --display: "Suez One", "Assistant", "Arial Hebrew", sans-serif;
   --body: "Assistant", "Arial Hebrew", "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
@@ -41,6 +42,13 @@ h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap
 h1 { font-size: 2rem; color: var(--pen); }
 h2 { font-size: 1.3rem; }
 .m { font-family: var(--mono); unicode-bidi: isolate; direction: ltr; }
+.w { cursor: pointer; border-radius: 4px; transition: background-color .08s; }
+.w.on { background: var(--marker); color: #1b1b1b; box-shadow: 0 0 0 2px var(--marker); }
+.say { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.say button[aria-pressed="true"] { background: var(--pen-soft); }
+.fbrow { display: flex; gap: 6px; align-items: flex-start; }
+.fbrow > .grow { flex: 1; min-width: 0; }
+.mini { padding: 2px 8px; border-color: transparent; background: transparent; font-size: 1.1rem; }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; border-radius: 10px; border: 1.5px solid var(--pen); background: var(--sheet); color: var(--pen);
   padding: 9px 16px; font-weight: 600; }
@@ -86,6 +94,7 @@ header.top { display: flex; align-items: flex-end; justify-content: space-betwee
 .progress > i { display: block; height: 100%; background: var(--pen); }
 .q { font-size: 1.35rem; line-height: 1.7; white-space: pre-line; font-weight: 600; }
 .answer { font-family: var(--mono); font-size: 1.3rem; direction: ltr; text-align: left; }
+.answer::placeholder { direction: rtl; text-align: right; font-family: var(--body); }
 .choices { display: grid; gap: 8px; }
 .choice { text-align: right; border: 1.5px solid var(--line); color: var(--ink); background: var(--sheet); font-weight: 400; }
 .choice[aria-pressed="true"] { border-color: var(--pen); background: var(--pen-soft); font-weight: 700; }
@@ -178,6 +187,98 @@ function mathHTML(text) {
   return out + esc(t.slice(last));
 }
 
+/* ============ read-aloud (port of the app's SpeechText) ============ */
+const ONES = ["", "", "חצי", "שליש", "רבע", "חמישית", "שישית", "שביעית", "שמינית", "תשיעית", "עשירית"];
+const PLURALS = ["", "", "חצאים", "שלישים", "רבעים", "חמישיות", "שישיות", "שביעיות", "שמיניות", "תשיעיות", "עשיריות"];
+const UNITS = { "סמ״ר": "סנטימטר רבוע", 'סמ"ר': "סנטימטר רבוע", "מ״ר": "מטר רבוע", 'מ"ר': "מטר רבוע", "ס״מ": "סנטימטר", 'ס"מ': "סנטימטר",
+  "ק״מ": "קילומטר", 'ק"מ': "קילומטר", "מ׳": "מטר", "₪": "שקלים", "ש״ח": "שקלים", 'ש"ח': "שקלים" };
+const OPS = { "+": "ועוד", "-": "פחות", "−": "פחות", "–": "פחות", "·": "כפול", "×": "כפול", "*": "כפול", ":": "חלקי", "÷": "חלקי",
+  "=": "שווה", "?": "כמה", "☐": "משבצת", "□": "משבצת", ">": "גדול מ", "<": "קטן מ", "←": "", "→": "" };
+function fracWords(n, d) { const k = +d; if (k >= 2 && k <= 10) return n === "1" ? ONES[k] : `${n} ${PLURALS[k]}`; return `${n} חלקי ${d}`; }
+function speakWord(raw, afterInt) {
+  if (Object.hasOwn(OPS, raw)) return OPS[raw];
+  if (!/[\p{L}\p{N}]/u.test(raw)) return "";
+  if (Object.hasOwn(UNITS, raw)) return UNITS[raw];
+  const neg = raw.match(/^\((?:-|−)(\d+(?:\.\d+)?)\)([.,?!:]?)$/); if (neg) return `מינוס ${neg[1]}${neg[2]}`;
+  let w = raw, pre = "", suf = "", trail = "";
+  while (w.startsWith("(")) { pre += "פותחים סוגריים "; w = w.slice(1); }
+  while (w && ".,?!;".includes(w.at(-1))) { trail = w.at(-1) + trail; w = w.slice(0, -1); }
+  while (w.endsWith(")")) { suf = " סוגרים סוגריים" + suf; w = w.slice(0, -1); }
+  if (Object.hasOwn(UNITS, w)) return (pre + UNITS[w] + suf + trail).trim();
+  for (const n of [1, 2]) if (w.length > n && [...w.slice(0, n)].every((c) => "בלוהכשמ".includes(c)) && Object.hasOwn(UNITS, w.slice(n))) return (pre + w.slice(0, n) + UNITS[w.slice(n)] + suf + trail).trim();
+  let body; let m;
+  if (!w) body = "";
+  else if ((m = w.match(/^([א-ת]{1,3})[-־](.+)$/))) body = m[1] + speakWord(m[2], false);
+  else if (/^-?\d+\/\d+$/.test(w)) { const ng = w.startsWith("-"); const [n, d] = w.replace("-", "").split("/"); body = (ng ? "מינוס " : afterInt ? "ו" : "") + fracWords(n, d); }
+  else if (/^[-−]\d+(\.\d+)?$/.test(w)) body = "מינוס " + w.slice(1);
+  else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(w)) body = w.replace(/,/g, "");
+  else if (/^\d+(\.\d+)?%$/.test(w)) body = w.slice(0, -1) + " אחוז";
+  else if (/^\d+x$/.test(w)) body = w.slice(0, -1) + " איקס";
+  else if (w === "x") body = "איקס";
+  else body = w;
+  return (pre + body + suf + trail).trim();
+}
+function speechPlan(text) {
+  const tokens = []; let spoken = "", prevEnd = 0, prevInt = false;
+  for (const m of text.matchAll(/\S+/g)) {
+    if (spoken) spoken += text.slice(prevEnd, m.index).includes("\n") ? ". " : " ";
+    const s = speakWord(m[0], prevInt), st = spoken.length; spoken += s;
+    tokens.push({ ds: m.index, de: m.index + m[0].length, ss: st, se: spoken.length });
+    prevEnd = m.index + m[0].length; prevInt = /^\d+$/.test(m[0]);
+  }
+  return { spoken, tokens, at(i) { let f = -1; tokens.forEach((t, k) => { if (t.ss <= i) f = k; }); return f; } };
+}
+/* Text the child can listen to: each word is a tappable span; math runs stay left-to-right. */
+const SAY = {};
+function readable(key, text) {
+  text = String(text ?? ""); SAY[key] = text;
+  const plan = speechPlan(text), runs = [];
+  for (const m of text.matchAll(MATH_RUN)) if (!/^[\d.,]+$/.test(m[0])) runs.push([m.index, m.index + m[0].length]);
+  const cuts = new Set([0, text.length]); plan.tokens.forEach((t) => { cuts.add(t.ds); cuts.add(t.de); }); runs.forEach(([a, b]) => { cuts.add(a); cuts.add(b); });
+  const pts = [...cuts].sort((a, b) => a - b); let html = "", inRun = false;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1], run = runs.some(([x, y]) => a >= x && b <= y);
+    if (run && !inRun) { html += '<span class="m">'; inRun = true; } else if (!run && inRun) { html += "</span>"; inRun = false; }
+    const t = plan.tokens.findIndex((k) => a >= k.ds && b <= k.de), seg = esc(text.slice(a, b));
+    html += t >= 0 ? `<span class="w" data-k="${esc(key)}" data-t="${t}">${seg}</span>` : seg;
+  }
+  return html + (inRun ? "</span>" : "");
+}
+const speech = { key: null, tok: -1, plan: null, est: null, real: false, id: 0, voice: null, voicesKnown: false,
+  ok: "speechSynthesis" in window, slow: false, auto: false };
+function pickVoice() { try { const vs = speechSynthesis.getVoices(); if (vs.length) speech.voicesKnown = true; speech.voice = vs.find((v) => /^(he|iw)/i.test(v.lang)) || null; } catch {} refreshSpeechUI(); }
+function markWord() {
+  document.querySelectorAll(".w.on").forEach((el) => el.classList.remove("on"));
+  if (speech.key == null || speech.tok < 0) return;
+  document.querySelectorAll(".w").forEach((el) => { if (el.dataset.k === speech.key && +el.dataset.t === speech.tok) el.classList.add("on"); });
+}
+function refreshSpeechUI() {
+  document.querySelectorAll("[data-say]").forEach((b) => { const on = b.dataset.say === speech.key; b.setAttribute("aria-pressed", on); b.textContent = b.classList.contains("mini") ? (on ? "■" : "🔊") : (on ? "■ עצירה" : "🔊 הקראה"); });
+  const n = document.getElementById("noVoice"); if (n) n.hidden = !(speech.voicesKnown && !speech.voice);
+  markWord();
+}
+function stopSpeech() { speech.id++; clearTimeout(speech.est); speech.key = null; speech.tok = -1; try { speechSynthesis.cancel(); } catch {} refreshSpeechUI(); }
+function speak(key, tokenIndex = -1) {
+  if (!speech.ok || SAY[key] == null) return;
+  stopSpeech();
+  const plan = speechPlan(SAY[key]), id = speech.id;
+  const tk = plan.tokens[tokenIndex];
+  const text = tk ? plan.spoken.slice(tk.ss, tk.se) : plan.spoken;
+  if (!text.trim()) return;
+  Object.assign(speech, { key, plan, tok: tk ? tokenIndex : 0, real: !!tk });
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "he-IL"; if (speech.voice) u.voice = speech.voice; u.rate = speech.slow ? 0.65 : 0.9;
+  u.onboundary = (e) => { if (id !== speech.id || tk) return; speech.real = true; clearTimeout(speech.est); speech.tok = plan.at(e.charIndex); markWord(); };
+  u.onstart = () => { if (id !== speech.id || speech.real) return; // engines without word events: advance on an estimate
+    let i = 0; const step = () => { if (id !== speech.id || speech.real || i >= plan.tokens.length) return; speech.tok = i; markWord();
+      const t = plan.tokens[i++]; speech.est = setTimeout(step, (t.se - t.ss + 1) * (speech.slow ? 105 : 70)); };
+    speech.est = setTimeout(step, 350); };
+  u.onend = u.onerror = () => { if (id === speech.id) { speech.key = null; speech.tok = -1; clearTimeout(speech.est); refreshSpeechUI(); } };
+  refreshSpeechUI();
+  speechSynthesis.speak(u);
+}
+if (speech.ok) { try { speechSynthesis.onvoiceschanged = pickVoice; } catch {} }
+
 /* ============ content ============ */
 const TOPICS = [
   ["FRACTIONS", "שברים", "½"], ["DECIMALS", "שברים עשרוניים", "0.5"], ["PERCENT", "אחוזים", "%"],
@@ -259,13 +360,24 @@ let sets = store.get("sets", null);
 if (!sets) sets = BUILTINS.map(norm);
 let results = store.get("results", []);
 const saveSets = () => store.set("sets", sets);
+speech.slow = store.get("slow", false); speech.auto = store.get("auto", false);
 
 /* ============ state + render ============ */
 const S = { view: "home", files: [], note: "", busy: false, error: "", draft: null, sess: null, result: null };
 const app = document.getElementById("app");
 let sample = null;
-function render() { app.innerHTML = VIEWS[S.view](); bind(); }
-const go = (v, extra = {}) => { Object.assign(S, extra, { view: v }); render(); window.scrollTo(0, 0); };
+function render() { app.innerHTML = VIEWS[S.view](); bind(); refreshSpeechUI(); autoRead(); }
+const go = (v, extra = {}) => { stopSpeech(); Object.assign(S, extra, { view: v }); render(); window.scrollTo(0, 0); };
+function autoRead() {
+  const s = S.sess; if (S.view !== "session" || !s || !speech.auto) return;
+  const e = s.set.exercises[s.i]; if (s.autoReadFor === e.id) return; s.autoReadFor = e.id; speak("q-" + e.id);
+}
+const sayBar = (key) => speech.ok ? `<div class="say"><button data-say="${esc(key)}" aria-pressed="false">🔊 הקראה</button>
+  <button id="slowB" aria-pressed="${speech.slow}">🐢 לאט</button><button id="autoB" aria-pressed="${speech.auto}">הקראה אוטומטית</button>
+  <span class="muted">אפשר גם ללחוץ על מילה כדי לשמוע רק אותה.</span></div>
+  <p id="noVoice" class="err" hidden>בדפדפן הזה אין קול בעברית. ההקראה עובדת בטלפון (אנדרואיד או אייפון), או במחשב בדפדפן Edge.</p>` : "";
+const fbBox = (cls, key, text, lead = "") => `<div class="fb ${cls}"><div class="fbrow"><div class="grow">${lead}<span class="body">${readable(key, text)}</span></div>
+  ${speech.ok ? `<button class="mini" data-say="${esc(key)}" aria-label="הקראה">🔊</button>` : ""}</div></div>`;
 
 const VIEWS = {
   home() {
@@ -322,19 +434,22 @@ const VIEWS = {
     const locked = !test && (solved || sol);
     let fb = "";
     if (!test) {
-      if (s.hint[e.id] && e.hint) fb += `<div class="fb hint"><span class="body">💡 ${mathHTML(e.hint)}</span></div>`;
-      if (chk === true) fb += `<div class="fb good"><b>${pick(["🎉 נכון!", "⭐ כל הכבוד!", "✅ בדיוק!", "👏 מצוין!"])}</b>${e.explanation ? `<div class="body">${mathHTML(e.explanation)}</div>` : ""}</div>`;
-      else if (chk === false && !sol) fb += `<div class="fb bad">${wrongs >= 2 ? "עדיין לא. אפשר לנסות שוב או להסתכל בפתרון." : "לא בדיוק – נסו שוב! אתם יכולים 💪"}</div>`;
-      if (sol && !solved) fb += `<div class="fb sol"><span class="body">${e.answer ? `<b>התשובה: ${mathHTML(e.answer)}</b>\n` : ""}${mathHTML(e.explanation || "אין מפתח תשובות לשאלה הזו. השוו עם המורה.")}</span></div>
-        ${e.answer ? "" : `<div class="row"><b>איך הלך?</b><button data-self="1" class="${s.self[e.id] === true ? "primary" : ""}">צדקתי</button><button data-self="0" class="${s.self[e.id] === false ? "primary" : ""}">צריך עוד תרגול</button></div>`}`;
+      if (s.hint[e.id] && e.hint) fb += fbBox("hint", "h-" + e.id, "רמז: " + e.hint, "💡 ");
+      if (chk === true) { s.cheer = s.cheer || {}; s.cheer[e.id] = s.cheer[e.id] || pick(["נכון!", "כל הכבוד!", "בדיוק!", "מצוין!"]);
+        fb += fbBox("good", "ok-" + e.id, s.cheer[e.id] + (e.explanation ? "\n" + e.explanation : ""), "⭐ "); }
+      else if (chk === false && !sol) fb += fbBox("bad", "no-" + e.id, wrongs >= 2 ? "עדיין לא. אפשר לנסות שוב או להסתכל בפתרון." : "לא בדיוק. נסו שוב, אתם יכולים!");
+      if (sol && !solved) fb += fbBox("sol", "s-" + e.id, (e.answer ? "התשובה: " + e.answer + "\n" : "") + (e.explanation || "אין מפתח תשובות לשאלה הזו. השוו עם המורה."))
+        + (e.answer ? "" : `<div class="row"><b>איך הלך?</b><button data-self="1" class="${s.self[e.id] === true ? "primary" : ""}">צדקתי</button><button data-self="0" class="${s.self[e.id] === false ? "primary" : ""}">צריך עוד תרגול</button></div>`);
     }
     const input = e.choices.length
-      ? `<div class="choices">${e.choices.map((c, k) => `<button class="choice" data-choice="${k}" aria-pressed="${given === c}" ${locked ? "disabled" : ""}>${mathHTML(c)}</button>`).join("")}</div>`
+      ? `<div class="choices">${e.choices.map((c, k) => `<div class="fbrow"><button class="choice grow" data-choice="${k}" aria-pressed="${given === c}" ${locked ? "disabled" : ""}>${mathHTML(c)}</button>
+          ${speech.ok ? (SAY[`c-${e.id}-${k}`] = c, `<button class="mini" data-say="c-${esc(e.id)}-${k}" aria-label="הקראת האפשרות">🔊</button>`) : ""}</div>`).join("")}</div>`
       : `<input id="ans" class="answer" type="text" inputmode="text" autocomplete="off" aria-label="התשובה שלך" placeholder="התשובה שלך" value="${esc(given)}" ${locked ? "disabled" : ""}>
          <div class="muted">אפשר לכתוב שבר כמו 3/4, מספר מעורב כמו 2 1/2, או עשרוני כמו 0.75.</div>`;
     return `<header class="top"><h1 style="font-size:1.4rem">${esc(s.set.title)}</h1><button class="ghost" id="quit">יציאה</button></header>
       <div class="muted">שאלה ${s.i + 1} מתוך ${n} · ${test ? "מבחן" : "תרגול"}</div><div class="progress"><i style="width:${(s.i + 1) * 100 / n}%"></i></div>
-      <div class="sheet"><div class="q">${mathHTML(e.prompt)}</div></div>
+      <div class="sheet"><div class="q">${readable("q-" + e.id, e.prompt)}</div></div>
+      ${sayBar("q-" + e.id)}
       ${input}
       ${test ? (e.answer ? "" : `<div class="muted">לשאלה הזו אין מפתח תשובות – המורה יבדוק אותה.</div>`) : `<div class="row">
         ${e.hint && !solved ? `<button class="ghost" id="hintB">💡 רמז</button>` : ""}
@@ -433,6 +548,10 @@ const saveDraft = () => { const d = S.draft; d.exercises = d.exercises.filter((e
 function bind() {
   const $ = (id) => document.getElementById(id), on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
   const all = (sel, fn) => document.querySelectorAll(sel).forEach((el) => { el.onclick = () => fn(el); });
+  document.querySelectorAll("[data-say]").forEach((b) => { b.onclick = () => speech.key === b.dataset.say ? stopSpeech() : speak(b.dataset.say); });
+  document.querySelectorAll(".w").forEach((w) => { w.onclick = (ev) => { ev.stopPropagation(); speak(w.dataset.k, +w.dataset.t); }; });
+  on("slowB", () => { speech.slow = !speech.slow; store.set("slow", speech.slow); $("slowB").setAttribute("aria-pressed", speech.slow); });
+  on("autoB", () => { speech.auto = !speech.auto; store.set("auto", speech.auto); $("autoB").setAttribute("aria-pressed", speech.auto); if (speech.auto && S.sess) { S.sess.autoReadFor = null; autoRead(); } });
   if (S.view === "home") {
     const f = $("file"); if (f) f.onchange = () => f.files[0] && onFile(f.files[0]);
     const n = $("note"); if (n) n.oninput = () => { S.note = n.value; };
@@ -460,7 +579,7 @@ function bind() {
     on("check", check); on("hintB", () => { s.hint[e.id] = true; render(); });
     on("solB", () => { s.sol[e.id] = true; if (e.answer && !(e.id in s.first)) s.first[e.id] = false; render(); });
     all("[data-self]", (b) => { s.self[e.id] = b.dataset.self === "1"; render(); });
-    on("prev", () => { s.i--; s.confirm = null; render(); }); on("next", () => { s.i++; s.confirm = null; render(); });
+    on("prev", () => { stopSpeech(); s.i--; s.confirm = null; render(); }); on("next", () => { stopSpeech(); s.i++; s.confirm = null; render(); });
     on("finish", () => { if (s.set.kind !== "TEST") return finish(); const left = s.set.exercises.filter((q) => !(s.answers[q.id] || "").trim()).length;
       s.confirm = left ? `נשארו עוד ${left} שאלות בלי תשובה. להגיש בכל זאת?` : "ענית על כל השאלות. להגיש את המבחן?"; s.onYes = finish; render(); });
     on("quit", () => { s.confirm = "לצאת? ההתקדמות באימון הזה לא תישמר."; s.onYes = () => go("home", { sess: null }); render(); });
@@ -473,6 +592,7 @@ function bind() {
   }
 }
 
+pickVoice();
 render();
 (async () => { try { sample = (await window.claude?.use?.("sample")) || null; } catch { sample = null; } })();
 </script>
