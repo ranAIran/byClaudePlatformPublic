@@ -25,7 +25,8 @@ enum class Skin(val title: String, val description: String) {
     GAMER("גיימרים", "צבעי ניאון, כפתורים עם פינות חתוכות וכתב מודגש."),
     ;
 
-    companion object { fun fromName(n: String?) = entries.firstOrNull { it.name == n } ?: CLASSIC }
+    /** No choice saved yet -> the gamer look, which is the default. */
+    companion object { fun fromName(n: String?) = entries.firstOrNull { it.name == n } ?: GAMER }
 }
 
 /** Colors for right / wrong answers, which differ per skin. */

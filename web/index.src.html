@@ -155,6 +155,11 @@ button, .tile, .item, .editor, .drop, input[type=text], textarea { border-radius
 :root[data-skin="dark"] .sheet { border-color: #1f2738; }
 :root[data-skin="dark"] header.top { border-bottom-color: #2a3550; }
 
+.modal { position: fixed; inset: 0; z-index: 30; background: rgba(5, 3, 15, .55); display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.modalBox { background: var(--sheet); color: var(--ink); border: 1.5px solid var(--pen); border-radius: var(--radius); padding: 18px; width: min(100%, 360px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .35); font-size: 1.1rem; }
+:root[data-skin="gamer"] .modalBox { box-shadow: 0 0 24px rgba(255, 62, 200, .45); }
 .skins { display: flex; gap: 6px; flex-wrap: wrap; }
 .skins button { padding: 5px 12px; font-size: .9rem; }
 .skins button[aria-pressed="true"] { background: var(--pen); color: var(--sheet); }
@@ -440,7 +445,7 @@ const S = { view: "home", files: [], note: "", busy: false, error: "", draft: nu
 const SKINS = [["classic", "נוכחית"], ["dark", "כהה"], ["gamer", "גיימרים"]];
 const skinNow = () => document.documentElement.dataset.skin || "classic";
 function setSkin(k) { if (k === "classic") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = k; store.set("skin", k); }
-setSkin(store.get("skin", "classic"));
+setSkin(store.get("skin", "gamer")); // the gamer look is the default
 const app = document.getElementById("app");
 let sample = null;
 function render() { app.innerHTML = VIEWS[S.view](); bind(); refreshSpeechUI(); autoRead(); }
@@ -539,7 +544,7 @@ const VIEWS = {
       <div class="row" style="justify-content:space-between;margin-top:8px"><button id="prev" ${s.i === 0 ? "disabled" : ""}>→ הקודמת</button>
         ${s.i < n - 1 ? `<button class="primary" id="next">הבאה ←</button>` : `<button class="primary" id="finish">${test ? "הגשת המבחן" : "סיום"}</button>`}</div>
       <p id="clock" class="muted version" aria-live="off"></p>
-      ${s.confirm ? `<div class="fb sol"><span class="body">${s.confirm}</span><div class="row" style="margin-top:8px"><button class="primary" id="confirmYes">כן</button><button id="confirmNo">ביטול</button></div></div>` : ""}`;
+      ${s.confirm ? `<div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmText"><div class="modalBox"><p id="confirmText" class="body" style="margin:0">${s.confirm}</p><div class="row" style="margin-top:14px"><button class="primary" id="confirmYes">כן</button><button id="confirmNo">ביטול</button></div></div></div>` : ""}`;
   },
 
   result() {
@@ -657,7 +662,12 @@ function bind() {
     const s = S.sess, e = s.set.exercises[s.i]; const a = $("ans");
     if (a) { a.oninput = () => { s.answers[e.id] = a.value; const c = $("check"); if (c) c.disabled = !a.value.trim(); };
       a.onkeydown = (k) => { if (k.key === "Enter") { if (s.set.kind === "TEST") { if (s.i < s.set.exercises.length - 1) { s.i++; render(); } } else if (e.answer && a.value.trim()) check(); } };
-      if (!a.disabled) a.focus({ preventScroll: true }); }
+      // Put the cursor in the answer box only on arriving at a new question, only with a mouse/keyboard
+      // (on a phone that would pop the keyboard up over the page), and never while a dialog is open.
+      if (!a.disabled && !s.confirm && s.focusedFor !== e.id && matchMedia("(pointer: fine)").matches) a.focus({ preventScroll: true });
+      s.focusedFor = e.id; }
+    if (s.confirm) { const no = $("confirmNo"); if (no) no.focus({ preventScroll: true });
+      document.onkeydown = (k) => { if (k.key === "Escape" && S.sess && S.sess.confirm) { S.sess.confirm = null; render(); } }; }
     all("[data-choice]", (b) => { s.answers[e.id] = e.choices[+b.dataset.choice]; render(); });
     on("check", check); on("hintB", () => { s.hint[e.id] = (s.hint[e.id] || 0) + 1; render(); });
     if (s.openId !== e.id) enterQ(s, e.id); tickClock();
