@@ -1,0 +1,478 @@
+<title>מתמטיקה ו׳</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a squared math notebook (מחברת חשבון) — graph-paper cards with a red margin rule, school-pen blue ink. */
+:root {
+  --paper: #f7f8fb;
+  --sheet: #ffffff;
+  --grid: #dfe6f1;
+  --ink: #1b2440;
+  --pencil: #5f6984;
+  --pen: #1f4fd1;
+  --pen-soft: #e6ecfb;
+  --margin: #e0525c;
+  --good: #1f7a45;
+  --good-soft: #e3f3e9;
+  --bad: #b3261e;
+  --bad-soft: #fbe9e7;
+  --hint-soft: #fff4d6;
+  --line: #d4dae6;
+  --display: "Suez One", "Assistant", "Arial Hebrew", sans-serif;
+  --body: "Assistant", "Arial Hebrew", "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #121722; --sheet: #1a2030; --grid: #262e42; --ink: #e8ecf6; --pencil: #a3acc4;
+  --pen: #8fb0ff; --pen-soft: #22304f; --margin: #f07a82; --good: #6fd39a; --good-soft: #17352a;
+  --bad: #ff8a80; --bad-soft: #3a1d1d; --hint-soft: #3a3220; --line: #2e374d; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #121722; --sheet: #1a2030; --grid: #262e42; --ink: #e8ecf6; --pencil: #a3acc4;
+  --pen: #8fb0ff; --pen-soft: #22304f; --margin: #f07a82; --good: #6fd39a; --good-soft: #17352a;
+  --bad: #ff8a80; --bad-soft: #3a1d1d; --hint-soft: #3a3220; --line: #2e374d; color-scheme: dark }
+
+html { direction: rtl; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 48px; }
+.wrap { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+h1, h2, h3 { font-family: var(--display); font-weight: 400; margin: 0; text-wrap: balance; }
+h1 { font-size: 2rem; color: var(--pen); }
+h2 { font-size: 1.3rem; }
+.m { font-family: var(--mono); unicode-bidi: isolate; direction: ltr; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; border-radius: 10px; border: 1.5px solid var(--pen); background: var(--sheet); color: var(--pen);
+  padding: 9px 16px; font-weight: 600; }
+button.primary { background: var(--pen); color: var(--sheet); }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, .tile:focus-visible { outline: 3px solid var(--margin); outline-offset: 2px; }
+button.ghost { border-color: transparent; background: transparent; padding-inline: 8px; }
+input[type=text], textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 10px;
+  background: var(--sheet); padding: 10px 12px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.muted { color: var(--pencil); font-size: .92rem; }
+.err { color: var(--bad); font-weight: 600; }
+
+header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  padding-block: 20px 4px; border-bottom: 2px solid var(--margin); }
+.stats { display: flex; gap: 18px; font-size: .95rem; color: var(--pencil); }
+.stats b { display: block; font-family: var(--mono); font-size: 1.35rem; color: var(--ink); }
+
+/* graph paper */
+.sheet { background-color: var(--sheet);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px; border: 1px solid var(--line); border-radius: 6px; position: relative;
+  padding: 18px 44px 18px 18px; }
+.sheet::before { content: ""; position: absolute; top: 0; bottom: 0; right: 30px; width: 2px; background: var(--margin); opacity: .7; }
+
+.upload { display: grid; gap: 12px; }
+.drop { border: 2px dashed var(--pen); border-radius: 12px; padding: 18px; text-align: center; background: var(--pen-soft); }
+.thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
+.thumbs img { height: 120px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.tile { background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; padding: 14px;
+  display: flex; flex-direction: column; gap: 4px; text-align: right; color: var(--ink); font-weight: 400; }
+.tile .sym { font-family: var(--mono); font-size: 1.4rem; color: var(--pen); }
+
+.list { display: flex; flex-direction: column; gap: 8px; }
+.item { display: flex; align-items: center; gap: 10px; background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+.item .grow { flex: 1; min-width: 0; }
+.chip { font-size: .78rem; padding: 2px 8px; border-radius: 99px; background: var(--pen-soft); color: var(--pen); font-weight: 600; }
+
+/* session */
+.progress { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.progress > i { display: block; height: 100%; background: var(--pen); }
+.q { font-size: 1.35rem; line-height: 1.7; white-space: pre-line; font-weight: 600; }
+.answer { font-family: var(--mono); font-size: 1.3rem; direction: ltr; text-align: left; }
+.choices { display: grid; gap: 8px; }
+.choice { text-align: right; border: 1.5px solid var(--line); color: var(--ink); background: var(--sheet); font-weight: 400; }
+.choice[aria-pressed="true"] { border-color: var(--pen); background: var(--pen-soft); font-weight: 700; }
+.fb { border-radius: 10px; padding: 12px 14px; white-space: pre-line; }
+.fb.good { background: var(--good-soft); color: var(--good); }
+.fb.bad { background: var(--bad-soft); color: var(--bad); }
+.fb.hint { background: var(--hint-soft); }
+.fb.sol { background: var(--pen-soft); }
+.fb .body { color: var(--ink); }
+.big { font-family: var(--mono); font-size: 3rem; color: var(--pen); line-height: 1; }
+.res { border-inline-start: 4px solid var(--line); }
+.res.ok { border-inline-start-color: var(--good); }
+.res.no { border-inline-start-color: var(--bad); }
+.editor { display: grid; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+details summary { cursor: pointer; color: var(--pen); font-weight: 600; }
+@media (prefers-reduced-motion: no-preference) { .fb { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.98); opacity: .6 } } }
+</style>
+
+<div class="wrap" id="app"></div>
+
+<script>
+"use strict";
+/* ============ math core (port of the app's Kotlin core) ============ */
+const BI = (n) => BigInt(n);
+const gcdB = (a, b) => { a = a < 0n ? -a : a; b = b < 0n ? -b : b; while (b) [a, b] = [b, a % b]; return a; };
+class R {
+  constructor(n, d = 1n) { if (d === 0n) throw new Error("div0"); const g = gcdB(n, d) || 1n; n /= g; d /= g; if (d < 0n) { n = -n; d = -d; } this.n = n; this.d = d; }
+  static of(n, d = 1) { return new R(BI(n), BI(d)); }
+  static dec(s) { const [i, f = ""] = s.split("."); const den = 10n ** BI(f.length); return new R(BI(i || "0") * den + BI(f || "0"), den); }
+  add(o) { return new R(this.n * o.d + o.n * this.d, this.d * o.d); }
+  sub(o) { return new R(this.n * o.d - o.n * this.d, this.d * o.d); }
+  mul(o) { return new R(this.n * o.n, this.d * o.d); }
+  div(o) { if (o.n === 0n) throw new Error("div0"); return new R(this.n * o.d, this.d * o.n); }
+  neg() { return new R(-this.n, this.d); }
+  pow(e) { if (e < 0) return R.of(1).div(this.pow(-e)); return new R(this.n ** BI(e), this.d ** BI(e)); }
+  eq(o) { return this.n === o.n && this.d === o.d; }
+  get isInt() { return this.d === 1n; }
+}
+function normalize(t) {
+  let s = t.replace(/[×·⋅∙]/g, "*").replace(/[÷:]/g, "/").replace(/[−–—]/g, "-")
+    .replace(/[\[{]/g, "(").replace(/[\]}]/g, ")").replace(/²/g, "^2").replace(/³/g, "^3");
+  s = s.replace(/(?<=[\d)])\s*[xX]\s*(?=[\d(])/g, "*");
+  s = s.replace(/(\d),(\d{3})(?!\d)/g, "$1$2").replace(/(\d),(\d)/g, "$1.$2");
+  s = s.replace(/(?<![\d./])(\d+)\s+(\d+)\s*\/\s*(\d+)(?![\d.])/g, "($1+$2/$3)");
+  return s.trim();
+}
+function evaluate(text) {
+  const s = normalize(text); let p = 0;
+  const ws = () => { while (p < s.length && /\s/.test(s[p])) p++; };
+  const eat = (c) => { ws(); if (s[p] === c) { p++; return true; } return false; };
+  const fail = (m) => { throw new Error(m); };
+  function expr() { let v = term(); for (;;) { if (eat("+")) v = v.add(term()); else if (eat("-")) v = v.sub(term()); else return v; } }
+  function term() { let v = unary(); for (;;) { ws(); if (eat("*")) v = v.mul(unary()); else if (eat("/")) v = v.div(unary()); else if (s[p] === "(") v = v.mul(unary()); else return v; } }
+  function unary() { if (eat("-")) return unary().neg(); if (eat("+")) return unary(); return power(); }
+  function power() { const b = postfix(); if (eat("^")) { const e = unary(); if (!e.isInt) fail("exp"); return b.pow(Number(e.n)); } return b; }
+  function postfix() { let v = primary(); while (eat("%")) v = v.div(R.of(100)); return v; }
+  function primary() {
+    ws(); if (eat("(")) { const v = expr(); if (!eat(")")) fail(")"); return v; }
+    const st = p; while (p < s.length && /[\d.]/.test(s[p])) p++;
+    if (st === p) fail("num"); const lit = s.slice(st, p); if ((lit.match(/\./g) || []).length > 1 || lit === ".") fail("num");
+    const v = R.dec(lit);
+    if (!lit.includes(".") && s[p] === "/" && /\d/.test(s[p + 1] || "")) { // tight a/b is a fraction literal
+      const sv = p; p++; const ds = p; while (p < s.length && /\d/.test(s[p])) p++;
+      if (s[p] === ".") { p = sv; return v; } return v.div(R.dec(s.slice(ds, p)));
+    }
+    return v;
+  }
+  if (!s) fail("empty"); const v = expr(); ws(); if (p < s.length) fail("tail"); return v;
+}
+const tryEval = (t) => { try { return evaluate(t); } catch { return null; } };
+function stripLabel(s) { return s.trim().replace(/^(answer|ans|תשובה)\s*[:=]\s*/i, "").replace(/^[a-zA-Z]\s*=\s*/, "").trim(); }
+function stripUnits(s) { return s.replace(/\s*(cm|mm|km|m|kg|g|ml|l|ס"מ|ס״מ|מ"ר|מ״ר|סמ"ר|סמ״ר|מטרים|מטר|ש"ח|₪|\$)\s*[²³^0-9]*\s*$/i, "").replace(/[₪$]/g, "").trim(); }
+function parseValue(t) { const s = stripUnits(stripLabel(t)); if (!s || /\p{L}/u.test(s)) return null; return tryEval(s); }
+function normText(s) { const t = s.toLowerCase().replace(/\s+/g, "").replace(/[.!]$/, ""); return ({ yes: "כן", y: "כן", no: "לא", n: "לא" })[t] || t; }
+function isCorrect(expected, given) {
+  if (!given || !given.trim()) return false;
+  return expected.split("|").some((e) => { const a = parseValue(e), b = parseValue(given); if (a && b) return a.eq(b); return normText(stripLabel(e)) === normText(stripLabel(given)); });
+}
+
+/* ============ display: keep math runs left-to-right inside Hebrew ============ */
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const MATH_RUN = /[0-9(☐][0-9.,:+\-−–×·*/=()☐?<>%_ ]*[0-9)?☐_]|[0-9]/g;
+function mathHTML(text) {
+  const t = String(text ?? ""); let out = "", last = 0;
+  for (const m of t.matchAll(MATH_RUN)) {
+    out += esc(t.slice(last, m.index));
+    out += /^[\d.,]+$/.test(m[0]) ? esc(m[0]) : `<span class="m">${esc(m[0])}</span>`;
+    last = m.index + m[0].length;
+  }
+  return out + esc(t.slice(last));
+}
+
+/* ============ content ============ */
+const TOPICS = [
+  ["FRACTIONS", "שברים", "½"], ["DECIMALS", "שברים עשרוניים", "0.5"], ["PERCENT", "אחוזים", "%"],
+  ["RATIO", "יחס ופרופורציה", "∶"], ["NEGATIVE_NUMBERS", "מספרים שליליים", "−"], ["ORDER_OF_OPERATIONS", "סדר פעולות חשבון", "( )"],
+  ["DIVISIBILITY", "התחלקות, מחלק וכפולה", "÷"], ["GEOMETRY", "שטח והיקף", "▭"], ["EQUATIONS", "משוואות פשוטות", "x"],
+];
+const topicTitle = (k) => (TOPICS.find((t) => t[0] === k) || [k, "אחר"])[1];
+const BUILTINS = /*BUILTINS*/[];
+
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+const uid = () => Math.random().toString(36).slice(2, 10);
+const frac = (r) => r.isInt ? `${r.n}` : `${r.n}/${r.d}`;
+const mixed = (r) => { if (r.isInt) return `${r.n}`; const a = r.n < 0n ? -r.n : r.n; const w = a / r.d; if (!w) return frac(r); return `${r.n < 0n ? "-" : ""}${w} ${a % r.d}/${r.d}`; };
+const decStr = (r) => { const v = Number(r.n) / Number(r.d); return String(Math.round(v * 1e6) / 1e6); };
+const sg = (n) => n < 0 ? `(${n})` : `${n}`;
+const ex = (topic, prompt, answer, hint, explanation) => ({ id: uid(), prompt, answer: String(answer), choices: [], hint, explanation, topic });
+const GEN = {
+  FRACTIONS() { const f = () => { const d = pick([2, 3, 4, 5, 6, 8, 10, 12]); return R.of(rnd(1, d - 1), d); }; const a = f(), b = f(); const A = frac(a), B = frac(b);
+    switch (rnd(0, 3)) {
+      case 0: { const r = a.add(b); return ex("FRACTIONS", `${A} + ${B} = ?`, frac(r), "מצאו קודם מכנה משותף.", `${A} + ${B} = ${frac(r)}${!r.isInt && r.n > r.d ? " = " + mixed(r) : ""}`); }
+      case 1: { const [x, y] = Number(a.sub(b).n) >= 0 ? [a, b] : [b, a]; const r = x.sub(y); return ex("FRACTIONS", `${frac(x)} − ${frac(y)} = ?`, frac(r), "הביאו את שני השברים לאותו מכנה, ואז חסרו את המונים.", `${frac(x)} − ${frac(y)} = ${frac(r)}`); }
+      case 2: { const r = a.mul(b); return ex("FRACTIONS", `${A} · ${B} = ?`, frac(r), "כופלים מונה במונה ומכנה במכנה.", `(${a.n}·${b.n})/(${a.d}·${b.d}) = ${frac(r)}`); }
+      default: { const r = a.div(b); return ex("FRACTIONS", `${A} : ${B} = ?`, frac(r), "חילוק בשבר = כפל בשבר ההפוך.", `${A} · ${b.d}/${b.n} = ${frac(r)}${!r.isInt && r.n > r.d ? " = " + mixed(r) : ""}`); }
+    } },
+  DECIMALS() { const d = (m, pl) => R.of(rnd(1, m * 10 ** pl), 10 ** pl); const a = d(50, rnd(1, 2)), b = d(20, rnd(1, 2));
+    switch (rnd(0, 2)) {
+      case 0: { const r = a.add(b); return ex("DECIMALS", `${decStr(a)} + ${decStr(b)} = ?`, decStr(r), "סדרו את הנקודות העשרוניות זו מתחת לזו.", `${decStr(a)} + ${decStr(b)} = ${decStr(r)}`); }
+      case 1: { const [x, y] = Number(a.sub(b).n) >= 0 ? [a, b] : [b, a]; const r = x.sub(y); return ex("DECIMALS", `${decStr(x)} − ${decStr(y)} = ?`, decStr(r), "יישרו את הנקודות העשרוניות, והוסיפו אפסים אם צריך.", `${decStr(x)} − ${decStr(y)} = ${decStr(r)}`); }
+      default: { const x = d(9, 1), y = rnd(2, 12); const r = x.mul(R.of(y)); return ex("DECIMALS", `${decStr(x)} · ${y} = ?`, decStr(r), "כפלו כאילו אין נקודה, ואז החזירו את הנקודה למקומה.", `${decStr(x)} · ${y} = ${decStr(r)}`); }
+    } },
+  PERCENT() { const p = pick([10, 20, 25, 50, 75, 5, 15, 30, 40, 60]), base = pick([20, 40, 60, 80, 120, 200, 240, 300, 400]); const part = decStr(R.of(p * base, 100));
+    switch (rnd(0, 2)) {
+      case 0: return ex("PERCENT", `כמה הם ${p}% מתוך ${base}?`, part, `${p}% זה ${p}/100. כפלו ב-${base}.`, `${p}/100 · ${base} = ${part}`);
+      case 1: return ex("PERCENT", `${part} הם כמה אחוזים מתוך ${base}?`, p, "חלקו את החלק בשלם, ואז כפלו ב-100.", `${part} : ${base} · 100 = ${p}%`);
+      default: { const np = decStr(R.of(base).sub(R.of(p * base, 100))); return ex("PERCENT", `חולצה עולה ${base} ₪. יש עליה הנחה של ${p}%. מה המחיר החדש?`, np, `חשבו כמה הם ${p}% מתוך ${base}, ואז הפחיתו.`, `${p}% מתוך ${base} = ${part}; ${base} − ${part} = ${np} ₪`); }
+    } },
+  RATIO() { const a = rnd(1, 5); let b = rnd(1, 6); if (b === a) b++; const k = rnd(2, 9), big = Math.max(a, b);
+    if (Math.random() < .5) { const t = (a + b) * k; return ex("RATIO", `מחלקים ${t} גולות ביחס ${a} : ${b}. כמה גולות יש בחלק הגדול?`, big * k, `חברו את חלקי היחס (${a} + ${b}) ומצאו כמה שווה חלק אחד.`, `${t} : ${a + b} = ${k} לכל חלק; ${big} · ${k} = ${big * k}`); }
+    return ex("RATIO", `${a} מחברות עולות ${a * k} ₪. כמה יעלו ${b * a} מחברות?`, b * a * k, "מצאו קודם את המחיר של מחברת אחת.", `מחברת אחת = ${a * k} : ${a} = ${k} ₪; ${b * a} · ${k} = ${b * a * k} ₪`); },
+  NEGATIVE_NUMBERS() { const a = rnd(-20, 20); let b = rnd(-20, 20) || -3;
+    switch (rnd(0, 2)) {
+      case 0: return ex("NEGATIVE_NUMBERS", `${sg(a)} + ${sg(b)} = ?`, a + b, "דמיינו ישר מספרים: הוספת מספר שלילי מזיזה שמאלה.", `${sg(a)} + ${sg(b)} = ${a + b}`);
+      case 1: return ex("NEGATIVE_NUMBERS", `${sg(a)} − ${sg(b)} = ?`, a - b, "חיסור מספר זה כמו חיבור המספר הנגדי לו.", `${sg(a)} + ${sg(-b)} = ${a - b}`);
+      default: { const x = rnd(-9, 9) || 2, y = rnd(-9, 9) || -4; return ex("NEGATIVE_NUMBERS", `${sg(x)} · ${sg(y)} = ?`, x * y, "סימנים זהים ← חיובי, סימנים שונים ← שלילי.", `${sg(x)} · ${sg(y)} = ${x * y}`); }
+    } },
+  ORDER_OF_OPERATIONS() { const a = rnd(2, 12), b = rnd(2, 9), c = rnd(2, 9), d = rnd(1, 9);
+    const e = pick([`${a} + ${b} · ${c}`, `(${a} + ${b}) · ${c} − ${d}`, `${a} · ${d} + ${b * c} : ${c}`]); const v = frac(evaluate(e));
+    return ex("ORDER_OF_OPERATIONS", `${e} = ?`, v, "קודם סוגריים, אחר כך כפל וחילוק, ובסוף חיבור וחיסור.", `${e} = ${v}`); },
+  DIVISIBILITY() { const g = (a, b) => b ? g(b, a % b) : a;
+    switch (rnd(0, 2)) {
+      case 0: { const k = rnd(2, 8), a = k * rnd(2, 7); let b = k * rnd(2, 7); if (b === a) b += k; return ex("DIVISIBILITY", `מהו המחלק המשותף הגדול ביותר של ${a} ושל ${b}?`, g(a, b), "רשמו את המחלקים של כל מספר ומצאו את הגדול המשותף.", `המחלק המשותף הגדול = ${g(a, b)}`); }
+      case 1: { const x = rnd(2, 12), y = rnd(2, 12), l = x / g(x, y) * y; return ex("DIVISIBILITY", `מהי הכפולה המשותפת הקטנה ביותר של ${x} ושל ${y}?`, l, "רשמו כפולות של המספר הגדול עד שאחת מתחלקת גם בשני.", `הכפולה המשותפת הקטנה = ${l}`); }
+      default: { const n = rnd(100, 999), d = pick([3, 9]), s = [...String(n)].reduce((t, c) => t + +c, 0); return ex("DIVISIBILITY", `האם ${n} מתחלק ב-${d} ללא שארית? (כן / לא)`, n % d === 0 ? "כן" : "לא", `מספר מתחלק ב-${d} אם סכום ספרותיו מתחלק ב-${d}.`, `סכום הספרות הוא ${s}, ${s % d === 0 ? "והוא מתחלק" : "והוא לא מתחלק"} ב-${d}.`); }
+    } },
+  GEOMETRY() { const w = rnd(2, 15), h = rnd(2, 12);
+    switch (rnd(0, 2)) {
+      case 0: return ex("GEOMETRY", `אורך מלבן ${w} ס״מ ורוחבו ${h} ס״מ. מה שטחו (בסמ״ר)?`, w * h, "שטח מלבן = אורך · רוחב.", `${w} · ${h} = ${w * h} סמ״ר`);
+      case 1: return ex("GEOMETRY", `אורך מלבן ${w} ס״מ ורוחבו ${h} ס״מ. מה היקפו (בס״מ)?`, 2 * (w + h), "היקף מלבן = 2 · (אורך + רוחב).", `2 · (${w} + ${h}) = ${2 * (w + h)} ס״מ`);
+      default: { const b = rnd(2, 12) * 2; return ex("GEOMETRY", `למשולש בסיס של ${b} ס״מ וגובה של ${h} ס״מ. מה שטחו (בסמ״ר)?`, b * h / 2, "שטח משולש = בסיס · גובה : 2.", `${b} · ${h} : 2 = ${b * h / 2} סמ״ר`); }
+    } },
+  EQUATIONS() { const x = rnd(-5, 15), a = rnd(2, 9), b = rnd(1, 20);
+    switch (rnd(0, 2)) {
+      case 0: return ex("EQUATIONS", `x + ${b} = ${x + b}. מהו x?`, x, `החסירו ${b} משני האגפים.`, `x = ${x + b} − ${b} = ${x}`);
+      case 1: return ex("EQUATIONS", `${a}x = ${a * x}. מהו x?`, x, `חלקו את שני האגפים ב-${a}.`, `x = ${a * x} : ${a} = ${x}`);
+      default: return ex("EQUATIONS", `${a}x + ${b} = ${a * x + b}. מהו x?`, x, `קודם החסירו ${b}, ואחר כך חלקו ב-${a}.`, `${a}x = ${a * x}  ←  x = ${x}`);
+    } },
+};
+const genSet = (topic, kind) => ({ id: uid(), title: topicTitle(topic) + (kind === "TEST" ? " – מבחן" : " – תרגול"), kind, exercises: Array.from({ length: kind === "TEST" ? 10 : 8 }, () => GEN[topic]()) });
+const mixedTest = () => ({ id: uid(), title: "מבחן מסכם – כיתה ו׳", kind: "TEST", exercises: TOPICS.flatMap((t, i) => i < 12 ? [GEN[t[0]]()] : []).concat([GEN.FRACTIONS(), GEN.PERCENT(), GEN.EQUATIONS()]).sort(() => Math.random() - .5) });
+
+/* ============ per-viewer storage (this browser only) ============ */
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("math6:" + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("math6:" + k, JSON.stringify(v)); } catch {} },
+};
+const norm = (s) => ({ ...s, exercises: s.exercises.map((e) => ({ choices: [], topic: "OTHER", answer: null, hint: null, explanation: null, ...e })) });
+let sets = store.get("sets", null);
+if (!sets) sets = BUILTINS.map(norm);
+let results = store.get("results", []);
+const saveSets = () => store.set("sets", sets);
+
+/* ============ state + render ============ */
+const S = { view: "home", files: [], note: "", busy: false, error: "", draft: null, sess: null, result: null };
+const app = document.getElementById("app");
+let sample = null;
+function render() { app.innerHTML = VIEWS[S.view](); bind(); }
+const go = (v, extra = {}) => { Object.assign(S, extra, { view: v }); render(); window.scrollTo(0, 0); };
+
+const VIEWS = {
+  home() {
+    const scored = results.filter((r) => r.graded > 0);
+    const avg = scored.length ? Math.round(scored.reduce((t, r) => t + r.correct * 100 / r.graded, 0) / scored.length) + "%" : "–";
+    return `
+    <header class="top"><h1>מתמטיקה ו׳</h1>
+      <div class="stats"><span><b>${results.length}</b>אימונים</span><span><b>${avg}</b>ממוצע</span><span><b>${results.reduce((t, r) => t + r.correct, 0)}</b>נפתרו</span></div></header>
+
+    <section class="sheet upload" aria-labelledby="up-h">
+      <h2 id="up-h">העלאת דף עבודה או מבחן</h2>
+      <p class="muted" style="margin:0">תמונה או PDF של הדף. Claude יקרא את התרגילים, יפתור ויכין רמזים ופתרונות, ואז אפשר לתרגל אותם כאן.</p>
+      <label class="drop" for="file"><b>בחירת קובץ</b> · תמונה (JPG, PNG) או PDF, עד 6 עמודים
+        <input id="file" type="file" accept="image/*,application/pdf" style="display:block;margin:8px auto 0"></label>
+      ${S.files.length ? `<div class="thumbs">${S.files.map((f) => `<img alt="עמוד" src="${f.url}">`).join("")}</div>
+        <input id="note" type="text" placeholder="הערה (לא חובה), למשל: רק שאלות 1–5" value="${esc(S.note)}">
+        <div class="row"><button class="primary" id="extract" ${S.busy ? "disabled" : ""}>${S.busy ? "Claude קורא את הדף…" : "חילוץ התרגילים"}</button>
+        <button class="ghost" id="clearFiles">ניקוי</button></div>` : ""}
+      ${S.error ? `<p class="err">${esc(S.error)}</p>` : ""}
+    </section>
+
+    <section aria-labelledby="my-h" class="list"><h2 id="my-h">דפי העבודה שלי</h2>
+      ${sets.length ? sets.map((s) => `<div class="item"><div class="grow"><b>${esc(s.title)}</b><div class="muted">${s.exercises.length} שאלות · ${s.kind === "TEST" ? "מבחן" : "תרגול"}</div></div>
+        <button class="ghost" data-edit="${s.id}">עריכה</button><button class="ghost" data-del="${s.id}">מחיקה</button><button data-start="${s.id}">התחלה</button></div>`).join("")
+        : `<p class="muted">עדיין אין דפים. העלו דף כדי להתחיל.</p>`}
+    </section>
+
+    <section aria-labelledby="t-h" style="display:grid;gap:12px"><div class="row" style="justify-content:space-between"><h2 id="t-h">תרגול לפי נושא</h2><button id="mixed">מבחן מסכם מהיר</button></div>
+      <div class="grid2">${TOPICS.map(([k, t, sym]) => `<div class="tile" role="group" aria-label="${t}"><span class="sym">${sym}</span><b>${t}</b>
+        <div class="row"><button data-topic="${k}" data-kind="EXERCISES">תרגול</button><button class="ghost" data-topic="${k}" data-kind="TEST">מבחן</button></div></div>`).join("")}</div>
+    </section>
+
+    ${results.length ? `<section class="list" aria-labelledby="h-h"><h2 id="h-h">ההתקדמות שלי</h2>${results.slice(0, 8).map((r) => `<div class="item"><div class="grow">${esc(r.title)}<div class="muted">${r.kind === "TEST" ? "מבחן" : "תרגול"} · ${new Date(r.at).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" })}</div></div><span class="m" style="font-size:1.2rem;color:var(--pen)">${r.graded ? Math.round(r.correct * 100 / r.graded) + "%" : "–"}</span></div>`).join("")}</section>` : ""}
+    <p class="muted">ההתקדמות ודפי העבודה נשמרים בדפדפן הזה בלבד.</p>`;
+  },
+
+  review() {
+    const d = S.draft;
+    return `<header class="top"><h1>בדיקת התרגילים</h1><button class="ghost" id="back">חזרה</button></header>
+    <input id="title" type="text" aria-label="שם הדף" value="${esc(d.title)}">
+    <div class="row"><button data-kindsel="EXERCISES" class="${d.kind === "EXERCISES" ? "primary" : ""}">תרגול – משוב תוך כדי</button><button data-kindsel="TEST" class="${d.kind === "TEST" ? "primary" : ""}">מבחן – ציון בסוף</button></div>
+    <p class="muted">נמצאו ${d.exercises.length} תרגילים. תקנו מה שנקרא לא נכון. אם לא יודעים את התשובה, השאירו ריק – את אלה בודקים לבד.</p>
+    ${d.exercises.map((e, i) => `<div class="editor"><div class="row" style="justify-content:space-between"><b>שאלה ${i + 1}</b><button class="ghost" data-rm="${i}">מחיקה</button></div>
+      <textarea id="p-${e.id}" data-f="prompt" data-i="${i}" rows="2" aria-label="שאלה">${esc(e.prompt)}</textarea>
+      <input id="a-${e.id}" data-f="answer" data-i="${i}" type="text" aria-label="תשובה" placeholder="תשובה (לא חובה)" value="${esc(e.answer || "")}" style="direction:ltr;text-align:left">
+      <input id="c-${e.id}" data-f="choices" data-i="${i}" type="text" aria-label="אפשרויות" placeholder="אפשרויות בחירה, מופרדות ב-; (לא חובה)" value="${esc(e.choices.join("; "))}">
+      ${e.explanation ? `<div class="muted">פתרון: ${mathHTML(e.explanation)}</div>` : ""}</div>`).join("")}
+    <div class="row"><button id="addQ">הוספת תרגיל</button><button id="saveOnly">שמירה</button><button class="primary" id="saveStart">שמירה והתחלה</button></div>`;
+  },
+
+  session() {
+    const s = S.sess, e = s.set.exercises[s.i], test = s.set.kind === "TEST", n = s.set.exercises.length;
+    const given = s.answers[e.id] || "", chk = s.last[e.id], wrongs = s.wrong[e.id] || 0, sol = s.sol[e.id], solved = chk === true;
+    const locked = !test && (solved || sol);
+    let fb = "";
+    if (!test) {
+      if (s.hint[e.id] && e.hint) fb += `<div class="fb hint"><span class="body">💡 ${mathHTML(e.hint)}</span></div>`;
+      if (chk === true) fb += `<div class="fb good"><b>${pick(["🎉 נכון!", "⭐ כל הכבוד!", "✅ בדיוק!", "👏 מצוין!"])}</b>${e.explanation ? `<div class="body">${mathHTML(e.explanation)}</div>` : ""}</div>`;
+      else if (chk === false && !sol) fb += `<div class="fb bad">${wrongs >= 2 ? "עדיין לא. אפשר לנסות שוב או להסתכל בפתרון." : "לא בדיוק – נסו שוב! אתם יכולים 💪"}</div>`;
+      if (sol && !solved) fb += `<div class="fb sol"><span class="body">${e.answer ? `<b>התשובה: ${mathHTML(e.answer)}</b>\n` : ""}${mathHTML(e.explanation || "אין מפתח תשובות לשאלה הזו. השוו עם המורה.")}</span></div>
+        ${e.answer ? "" : `<div class="row"><b>איך הלך?</b><button data-self="1" class="${s.self[e.id] === true ? "primary" : ""}">צדקתי</button><button data-self="0" class="${s.self[e.id] === false ? "primary" : ""}">צריך עוד תרגול</button></div>`}`;
+    }
+    const input = e.choices.length
+      ? `<div class="choices">${e.choices.map((c, k) => `<button class="choice" data-choice="${k}" aria-pressed="${given === c}" ${locked ? "disabled" : ""}>${mathHTML(c)}</button>`).join("")}</div>`
+      : `<input id="ans" class="answer" type="text" inputmode="text" autocomplete="off" aria-label="התשובה שלך" placeholder="התשובה שלך" value="${esc(given)}" ${locked ? "disabled" : ""}>
+         <div class="muted">אפשר לכתוב שבר כמו 3/4, מספר מעורב כמו 2 1/2, או עשרוני כמו 0.75.</div>`;
+    return `<header class="top"><h1 style="font-size:1.4rem">${esc(s.set.title)}</h1><button class="ghost" id="quit">יציאה</button></header>
+      <div class="muted">שאלה ${s.i + 1} מתוך ${n} · ${test ? "מבחן" : "תרגול"}</div><div class="progress"><i style="width:${(s.i + 1) * 100 / n}%"></i></div>
+      <div class="sheet"><div class="q">${mathHTML(e.prompt)}</div></div>
+      ${input}
+      ${test ? (e.answer ? "" : `<div class="muted">לשאלה הזו אין מפתח תשובות – המורה יבדוק אותה.</div>`) : `<div class="row">
+        ${e.hint && !solved ? `<button class="ghost" id="hintB">💡 רמז</button>` : ""}
+        ${e.answer ? `<button class="primary" id="check" ${locked || !given ? "disabled" : ""}>בדיקה</button>${!solved && (wrongs >= 2 || sol) ? `<button id="solB">הצגת הפתרון</button>` : ""}`
+          : `<button class="primary" id="solB" ${sol ? "disabled" : ""}>סיימתי – אבדוק לבד</button>`}</div>`}
+      ${fb}
+      <div class="row" style="justify-content:space-between;margin-top:8px"><button id="prev" ${s.i === 0 ? "disabled" : ""}>→ הקודמת</button>
+        ${s.i < n - 1 ? `<button class="primary" id="next">הבאה ←</button>` : `<button class="primary" id="finish">${test ? "הגשת המבחן" : "סיום"}</button>`}</div>
+      ${s.confirm ? `<div class="fb sol"><span class="body">${s.confirm}</span><div class="row" style="margin-top:8px"><button class="primary" id="confirmYes">כן</button><button id="confirmNo">ביטול</button></div></div>` : ""}`;
+  },
+
+  result() {
+    const r = S.result, set = S.resultSet, pct = r.graded ? Math.round(r.correct * 100 / r.graded) : null;
+    const [emo, msg] = pct === null ? ["📋", "סיימת! בדקו את התשובות עם המורה."] : pct >= 90 ? ["🏆", "עבודה מדהימה!"] : pct >= 70 ? ["⭐", "כל הכבוד – תמשיכו כך!"] : pct >= 50 ? ["👍", "מאמץ יפה – עוד קצת תרגול ואתם שם."] : ["💪", "ממשיכים להתאמן – מכל טעות לומדים משהו."];
+    const mistakes = r.items.filter((x) => x.ok === false).length;
+    return `<header class="top"><h1>תוצאות</h1></header>
+      <div class="sheet" style="text-align:center"><div style="font-size:2.6rem">${emo}</div><div class="big">${pct === null ? "–" : pct + "%"}</div>
+        <div>${r.correct} נכונות מתוך ${r.graded}${r.graded < r.items.length ? ` · ${r.items.length - r.graded} לא נבדקו` : ""}</div><h2 style="margin-top:6px">${msg}</h2></div>
+      <div class="row">${mistakes ? `<button class="primary" id="redo">לתרגל את הטעויות (${mistakes})</button>` : ""}<button id="home">למסך הראשי</button></div>
+      <h2>סקירה</h2><div class="list">${r.items.map((x) => { const e = set.exercises.find((q) => q.id === x.id); return `<div class="item res ${x.ok === true ? "ok" : x.ok === false ? "no" : ""}"><div class="grow">
+        <div style="white-space:pre-line"><b>${x.ok === true ? "✅" : x.ok === false ? "❌" : "❔"} ${mathHTML(e.prompt)}</b></div>
+        <div>התשובה שלך: ${x.given ? mathHTML(x.given) : "(אין)"}</div>${x.ok !== true && e.answer ? `<div><b>התשובה הנכונה: ${mathHTML(e.answer)}</b></div>` : ""}
+        ${e.explanation ? `<div class="muted">${mathHTML(e.explanation)}</div>` : ""}</div></div>`; }).join("")}</div>`;
+  },
+};
+
+/* ============ actions ============ */
+const newSess = (set) => ({ set, i: 0, answers: {}, last: {}, first: {}, wrong: {}, hint: {}, sol: {}, self: {}, confirm: null });
+const startSet = (set) => go("session", { sess: newSess(set) });
+function finish() {
+  const s = S.sess, test = s.set.kind === "TEST";
+  const items = s.set.exercises.map((e) => { const g = s.answers[e.id] || ""; const ok = e.answer == null ? (s.self[e.id] ?? null) : test ? isCorrect(e.answer, g) : (s.first[e.id] ?? false); return { id: e.id, given: g, ok }; });
+  const r = { title: s.set.title, kind: s.set.kind, at: Date.now(), items, graded: items.filter((x) => x.ok !== null).length, correct: items.filter((x) => x.ok === true).length };
+  results.unshift({ title: r.title, kind: r.kind, at: r.at, graded: r.graded, correct: r.correct }); results = results.slice(0, 50); store.set("results", results);
+  go("result", { result: r, resultSet: s.set, sess: null });
+}
+function check() {
+  const s = S.sess, e = s.set.exercises[s.i]; const ok = isCorrect(e.answer, s.answers[e.id] || "");
+  s.last[e.id] = ok; if (!(e.id in s.first)) s.first[e.id] = ok; if (!ok) s.wrong[e.id] = (s.wrong[e.id] || 0) + 1; render();
+}
+
+async function loadPdfJs() {
+  if (window.pdfjsLib) return window.pdfjsLib;
+  await new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"; sc.onload = res; sc.onerror = () => rej(new Error("pdf")); document.head.appendChild(sc); });
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  return window.pdfjsLib;
+}
+async function pdfToBlobs(file) {
+  const lib = await loadPdfJs(); const doc = await lib.getDocument({ data: await file.arrayBuffer() }).promise; const out = [];
+  for (let i = 1; i <= Math.min(doc.numPages, 6); i++) {
+    const page = await doc.getPage(i); const v1 = page.getViewport({ scale: 1 }); const vp = page.getViewport({ scale: 1400 / Math.max(v1.width, v1.height) });
+    const c = document.createElement("canvas"); c.width = vp.width; c.height = vp.height; const ctx = c.getContext("2d"); ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, c.width, c.height);
+    await page.render({ canvasContext: ctx, viewport: vp }).promise; out.push(await new Promise((r) => c.toBlob(r, "image/jpeg", 0.88)));
+  }
+  return out;
+}
+async function onFile(file) {
+  S.error = ""; S.files.forEach((f) => URL.revokeObjectURL(f.url)); S.files = [];
+  try {
+    const blobs = file.type === "application/pdf" || /\.pdf$/i.test(file.name) ? await pdfToBlobs(file) : [file];
+    S.files = blobs.map((b) => ({ blob: b, url: URL.createObjectURL(b) }));
+  } catch { S.error = "לא הצלחנו לפתוח את הקובץ. נסו תמונה או PDF אחר."; }
+  render();
+}
+const PROMPT = (n, note) => `You help an Israeli 6th-grade student practice math. The ${n > 1 ? n + " images are the pages, in order," : "image is a page"} of a worksheet, homework or test. Extract every exercise, in order, as a separate item.
+For each exercise give:
+- prompt: the full question as the student should see it, in the page's language (usually Hebrew). Keep numbers, fractions (write a/b, mixed numbers "2 3/4"), units and any data from tables or drawings needed to solve it. Split sub-parts (א, ב, ג) into separate items and repeat the shared context. Write math in left-to-right order exactly as printed.
+- answer: the correct short final answer (number, fraction, "כן"/"לא", or a word). Use the page's answer key if shown, otherwise solve it yourself. Use "" when there is no single checkable answer (drawing, explaining, measuring on a grid not described in text).
+- choices: the options if the page lists them, else []. For "fill in the sign" items give [">", "<", "="]. The answer must then be the exact text of one choice.
+- hint: one short encouraging hint in Hebrew that does not reveal the answer.
+- explanation: a brief step-by-step solution in Hebrew for an 11–12 year old.
+- topic: one of ${TOPICS.map((t) => t[0]).join(", ")}, OTHER.
+Use Israeli notation (":" for division, "·" or "×" for multiplication). Ignore names, dates and decorations.
+${note ? "Note from the student: " + note + "\n" : ""}Reply with JSON only: {"title": short Hebrew title, "kind": "TEST" if it is clearly a test/quiz (מבחן, בוחן) else "EXERCISES", "exercises": [{"prompt","answer","choices","hint","explanation","topic"}]}`;
+async function extract() {
+  if (!sample) { S.error = "קריאת דפים עובדת כשפותחים את הדף הזה ב-claude.ai."; return render(); }
+  S.busy = true; S.error = ""; render();
+  try {
+    const data = await sample.json(PROMPT(S.files.length, S.note.trim()), { images: S.files.map((f) => f.blob), modelTier: "default" });
+    const list = Array.isArray(data?.exercises) ? data.exercises : [];
+    const exs = list.filter((e) => e && String(e.prompt || "").trim()).map((e) => ({ id: uid(), prompt: String(e.prompt).trim(), answer: String(e.answer ?? "").trim() || null,
+      choices: Array.isArray(e.choices) ? e.choices.map(String).map((c) => c.trim()).filter(Boolean) : [], hint: String(e.hint || "").trim() || null,
+      explanation: String(e.explanation || "").trim() || null, topic: String(e.topic || "OTHER") }));
+    if (!exs.length) throw { code: "empty" };
+    S.files.forEach((f) => URL.revokeObjectURL(f.url)); S.files = []; S.note = ""; S.busy = false;
+    go("review", { draft: { id: uid(), title: String(data.title || "דף עבודה"), kind: data.kind === "TEST" ? "TEST" : "EXERCISES", exercises: exs } });
+  } catch (e) {
+    S.busy = false;
+    S.error = ({ not_granted: "צריך לאשר ל-Claude לקרוא את הדף כדי להמשיך.", rate_limited: "יותר מדי בקשות כרגע. נסו שוב בעוד דקה.", images_unavailable: "שליחת תמונות לא זמינה בתצוגה הזו.",
+      image_rejected: "התמונה לא התקבלה. נסו קובץ JPG או PNG.", empty: "לא נמצאו תרגילים. נסו צילום חד יותר.", cancelled: "" })[e?.code] ?? "הקריאה נכשלה. נסו שוב.";
+    render();
+  }
+}
+const saveDraft = () => { const d = S.draft; d.exercises = d.exercises.filter((e) => e.prompt.trim()); const i = sets.findIndex((s) => s.id === d.id); if (i >= 0) sets[i] = d; else sets.unshift(d); saveSets(); return d; };
+
+function bind() {
+  const $ = (id) => document.getElementById(id), on = (id, fn) => { const el = $(id); if (el) el.onclick = fn; };
+  const all = (sel, fn) => document.querySelectorAll(sel).forEach((el) => { el.onclick = () => fn(el); });
+  if (S.view === "home") {
+    const f = $("file"); if (f) f.onchange = () => f.files[0] && onFile(f.files[0]);
+    const n = $("note"); if (n) n.oninput = () => { S.note = n.value; };
+    on("extract", extract); on("clearFiles", () => { S.files = []; S.error = ""; render(); }); on("mixed", () => startSet(mixedTest()));
+    all("[data-topic]", (b) => startSet(genSet(b.dataset.topic, b.dataset.kind)));
+    all("[data-start]", (b) => { const s = sets.find((x) => x.id === b.dataset.start); if (s && s.exercises.length) startSet(s); });
+    all("[data-edit]", (b) => go("review", { draft: structuredClone(sets.find((x) => x.id === b.dataset.edit)) }));
+    all("[data-del]", (b) => { if (b.dataset.armed) { sets = sets.filter((x) => x.id !== b.dataset.del); saveSets(); render(); } else { b.dataset.armed = "1"; b.textContent = "למחוק?"; b.style.color = "var(--bad)"; } });
+  }
+  if (S.view === "review") {
+    const d = S.draft; $("title").oninput = (e) => { d.title = e.target.value; };
+    document.querySelectorAll("[data-f]").forEach((el) => { el.oninput = () => { const ex = d.exercises[+el.dataset.i], v = el.value;
+      if (el.dataset.f === "choices") ex.choices = v.split(";").map((c) => c.trim()).filter(Boolean); else if (el.dataset.f === "answer") ex.answer = v.trim() || null; else ex.prompt = v; }; });
+    all("[data-kindsel]", (b) => { d.kind = b.dataset.kindsel; render(); });
+    all("[data-rm]", (b) => { d.exercises.splice(+b.dataset.rm, 1); render(); });
+    on("addQ", () => { d.exercises.push({ id: uid(), prompt: "", answer: null, choices: [], hint: null, explanation: null, topic: "OTHER" }); render(); });
+    on("back", () => go("home")); on("saveOnly", () => { saveDraft(); go("home"); }); on("saveStart", () => startSet(saveDraft()));
+  }
+  if (S.view === "session") {
+    const s = S.sess, e = s.set.exercises[s.i]; const a = $("ans");
+    if (a) { a.oninput = () => { s.answers[e.id] = a.value; const c = $("check"); if (c) c.disabled = !a.value.trim(); };
+      a.onkeydown = (k) => { if (k.key === "Enter") { if (s.set.kind === "TEST") { if (s.i < s.set.exercises.length - 1) { s.i++; render(); } } else if (e.answer && a.value.trim()) check(); } };
+      if (!a.disabled) a.focus({ preventScroll: true }); }
+    all("[data-choice]", (b) => { s.answers[e.id] = e.choices[+b.dataset.choice]; render(); });
+    on("check", check); on("hintB", () => { s.hint[e.id] = true; render(); });
+    on("solB", () => { s.sol[e.id] = true; if (e.answer && !(e.id in s.first)) s.first[e.id] = false; render(); });
+    all("[data-self]", (b) => { s.self[e.id] = b.dataset.self === "1"; render(); });
+    on("prev", () => { s.i--; s.confirm = null; render(); }); on("next", () => { s.i++; s.confirm = null; render(); });
+    on("finish", () => { if (s.set.kind !== "TEST") return finish(); const left = s.set.exercises.filter((q) => !(s.answers[q.id] || "").trim()).length;
+      s.confirm = left ? `נשארו עוד ${left} שאלות בלי תשובה. להגיש בכל זאת?` : "ענית על כל השאלות. להגיש את המבחן?"; s.onYes = finish; render(); });
+    on("quit", () => { s.confirm = "לצאת? ההתקדמות באימון הזה לא תישמר."; s.onYes = () => go("home", { sess: null }); render(); });
+    on("confirmYes", () => s.onYes()); on("confirmNo", () => { s.confirm = null; render(); });
+  }
+  if (S.view === "result") {
+    on("home", () => go("home"));
+    on("redo", () => { const bad = new Set(S.result.items.filter((x) => x.ok === false).map((x) => x.id));
+      startSet({ ...S.resultSet, kind: "EXERCISES", title: S.resultSet.title + " – תיקון טעויות", exercises: S.resultSet.exercises.filter((q) => bad.has(q.id)) }); });
+  }
+}
+
+render();
+(async () => { try { sample = (await window.claude?.use?.("sample")) || null; } catch { sample = null; } })();
+</script>

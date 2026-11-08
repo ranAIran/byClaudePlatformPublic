@@ -171,3 +171,14 @@ class BidiTextTest {
         assertEquals("3/4 + 1/8 = ?", BidiText.isolateMath("3/4 + 1/8 = ?")) // no Hebrew: untouched
     }
 }
+
+class BuiltInSheetsExportTest {
+    /** Writes the built-in sheets as JSON (build/builtins.json) so the web version can embed the same content. */
+    @Test fun exportJson() {
+        val json = kotlinx.serialization.json.Json { prettyPrint = false }
+        val text = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(ExerciseSet.serializer()), BuiltInSheets.all)
+        java.io.File("build").mkdirs()
+        java.io.File("build/builtins.json").writeText(text)
+        assertTrue(text.contains("builtin-weekly-4"))
+    }
+}

@@ -29,6 +29,14 @@ exercises so they can solve them on the phone, with instant feedback or as a gra
   order of operations, divisibility (GCD/LCM), area & perimeter, simple equations – plus a mixed test.
 - **Progress history**, "practise my mistakes", works fully offline without a key.
 
+## Web version
+
+`web/index.html` is a browser version of the same app (Hebrew, RTL, no install), published as a
+claude.ai page: https://claude.ai/artifact/LDQX1f5gjozmUBtjp52ZwY . Uploaded images/PDFs are read
+by Claude on the viewer's own Claude account (no API key). Progress is kept in the browser.
+`web/index.src.html` is the source; `index.html` = source + the built-in sheets JSON exported by
+`CORE_ONLY=1 ./gradlew :core:test` (`core/build/builtins.json`), injected at `/*BUILTINS*/`.
+
 ## Project layout
 
 | Module | What it contains |
