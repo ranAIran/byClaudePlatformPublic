@@ -47,6 +47,7 @@ td a.ltr{white-space:nowrap}
 .st.ok{background:var(--ok-soft);color:var(--ok)}
 .st.warn{background:var(--warn-soft);color:var(--warn)}
 .st.todo{background:var(--todo-soft);color:var(--todo)}
+.oss{display:inline-block;font-size:11.5px;font-weight:700;border-radius:99px;padding:1px 8px;margin-inline-start:6px;background:var(--ok-soft);color:var(--ok);white-space:nowrap}
 .st.new{background:var(--new-soft);color:var(--new)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
 .loop .card{margin:0}
@@ -137,10 +138,10 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <thead><tr><th>מוצר</th><th>מה הוא עושה</th><th>היקף (הערכות צד שלישי)</th><th>הלקח עבורנו</th><th>להורדה</th></tr></thead>
 <tbody>
 <tr><td><a href="https://en.wikipedia.org/wiki/Notion_(productivity_software)">Notion</a></td><td>דפים ומאגרי נתונים, ה"מוח השני" הנפוץ</td><td>100 מיליון משתמשים (הוכרז ב-2024)</td><td>אנשים רוצים מקום אחד לחיים, אבל ההקמה דורשת עבודה. תבניות חשובות</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=notion.id">Google Play</a></td></tr>
-<tr><td><a href="https://appgoblin.info/apps/com.habitrpg.android.habitica">Habitica</a></td><td>רשימת משימות כמשחק תפקידים</td><td>כ-8 מיליון התקנות באנדרואיד, כ-193 אלף פעילים בחודש</td><td>המשחק מושך, ואז מראה מיושן ושחיקה מאבדים אנשים</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.habitrpg.android.habitica">Google Play</a></td></tr>
+<tr><td><a href="https://appgoblin.info/apps/com.habitrpg.android.habitica">Habitica</a><span class="oss">קוד פתוח</span></td><td>רשימת משימות כמשחק תפקידים</td><td>כ-8 מיליון התקנות באנדרואיד, כ-193 אלף פעילים בחודש</td><td>המשחק מושך, ואז מראה מיושן ושחיקה מאבדים אנשים</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.habitrpg.android.habitica">Google Play</a></td></tr>
 <tr><td><a href="https://adapty.io/paywall-library/finch/">Finch</a></td><td>חיית מחמד שגדלה כשמבצעים משימות קטנות</td><td>כמיליון דולר בחודש; 40–70 דולר לשנה</td><td>חום ודמות עובדים יותר מנקודות. עדין, אף פעם לא מעניש</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.finch.finch">Google Play</a></td></tr>
 <tr><td><a href="https://tech-insider.org/obsidian-vs-notion-2026/">Obsidian</a></td><td>פתקי Markdown מקומיים שמקושרים כגרף</td><td>כ-1.5 מיליון משתמשים</td><td>משתמשים מתקדמים משלמים על נתונים מקומיים, פרטיים וניתנים לייצוא</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=md.obsidian">Google Play</a></td></tr>
-<tr><td>LifeUp, Do It Now</td><td>ניהול משימות כמשחק תפקידים, עם כישורים ורמות</td><td>קטנות, נישה</td><td>לרעיון יש מעריצים, אבל בלי עיצוב טוב הוא נשאר נישה</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=net.sarasarasa.lifeup">Google Play</a> (LifeUp)</td></tr>
+<tr><td>LifeUp, Do It Now<br><span class="note">ל-LifeUp יש SDK ו-API פתוחים; האפליקציה עצמה לא אומתה כקוד פתוח</span></td><td>ניהול משימות כמשחק תפקידים, עם כישורים ורמות</td><td>קטנות, נישה</td><td>לרעיון יש מעריצים, אבל בלי עיצוב טוב הוא נשאר נישה</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=net.sarasarasa.lifeup">Google Play</a> (LifeUp)</td></tr>
 <tr><td>Sweepy, Tody</td><td>ניקיון הבית כמשחק, לפי חדרים</td><td>נישה</td><td>חדרים עם משימות ומצב משלהם הם דפוס מוכח ואהוב</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=app.sweepy.sweepy">Sweepy</a> · <a class="ltr" href="https://play.google.com/store/apps/details?id=com.looploop.tody">Tody</a></td></tr>
 <tr><td>Lumosity, Elevate</td><td>משחקי מוח</td><td>גדולות, אבל ראו את תיק ה-FTC מ-2016</td><td>חידונים כהנאה בלבד, לעולם לא כבריאות</td><td>—</td></tr>
 </tbody></table></div>
@@ -157,6 +158,18 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <tr><td>Nous</td><td>סוכן AI לחשבונות ולהוצאות של משק הבית (בריטניה)</td><td>לא נמצאה אפליקציה ב-Google Play; "Nous Smart" שם היא אפליקציית בית חכם אחרת</td><td>—</td></tr>
 </tbody></table></div>
 <p class="note">לא אומתו קישורים ל-Townscaper, Sortly, Elevate, Lumosity ו-Do It Now; חפשו אותן לפי השם ב-Google Play.</p>
+
+<h3>חלופות בקוד פתוח (מקור להשראה, וייתכן גם לשימוש חוזר)</h3>
+<p>מכל המוצרים שבטבלאות למעלה, רק Habitica היא קוד פתוח. בתחום עצמו יש כמה פרויקטים פתוחים שמכסים חלקים ממה שאנחנו בונים, בלי שכבת משחק:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>פרויקט</th><th>מה הוא מכסה</th><th>טלפון</th><th>קישור</th></tr></thead>
+<tbody>
+<tr><td>Habitica<span class="oss">קוד פתוח</span></td><td>משימות והרגלים כמשחק תפקידים (GPL-3.0)</td><td>אפליקציית אנדרואיד רשמית</td><td><a class="ltr" href="https://github.com/HabitRPG/habitica">GitHub</a></td></tr>
+<tr><td>Grocy<span class="oss">קוד פתוח</span></td><td>ניהול משק בית: מלאי, קניות, מטלות, סוללות של מכשירים; סריקת ברקודים ו-API</td><td>אפליקציה ב-<a href="https://f-droid.org/packages/xyz.zedler.patrick.grocy/">F-Droid</a> (GPL-3.0), דורשת שרת</td><td><a class="ltr" href="https://github.com/grocy/grocy">GitHub</a></td></tr>
+<tr><td>HomeBox<span class="oss">קוד פתוח</span></td><td>מלאי ביתי פשוט: פריטים, מיקומים, אחריות</td><td>דרך הדפדפן</td><td><a class="ltr" href="https://medium.com/daniels-tech-world/getting-my-life-organised-with-homebox-open-source-inventory-management-d5583d4c4248">סקירה</a></td></tr>
+<tr><td>Paperless-ngx<span class="oss">קוד פתוח</span></td><td>ארכיון מסמכים סרוקים עם זיהוי טקסט ותיוג אוטומטי</td><td>דרך הדפדפן ואפליקציות קהילה</td><td><a class="ltr" href="https://github.com/paperless-ngx/paperless-ngx">GitHub</a></td></tr>
+</tbody></table></div>
+<p class="note">ההבדל שלנו: הם כלים שמותקנים על שרת ביתי, בשביל משתמשים טכניים. Life Archipelago עובדת בטלפון בלי שרת, עם שכבת משחק. מהם אפשר לקחת מודל נתונים (Grocy, HomeBox) ורעיונות לתיוג מסמכים (Paperless-ngx).</p>
 <p class="note">המספרים לקוחים מאתרי ניתוח אפליקציות ואתרי השוואה, לא מדוחות רשמיים של החברות, והם סותרים זה את זה. יש להתייחס אליהם כסדרי גודל.</p>
 </section>
 
@@ -180,8 +193,8 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <div class="table-wrap"><table>
 <thead><tr><th>רכיב</th><th>שימוש</th></tr></thead>
 <tbody>
-<tr><td><a href="https://web.dev/blog/webgpu-supported-major-browsers">WebGPU בכל הדפדפנים הגדולים</a></td><td>מנוע תלת-ממדי אחד (three.js) לווב ולאנדרואיד, עם WebGL2 כגיבוי</td></tr>
-<tr><td><a href="https://developers.google.com/ml-kit/vision/doc-scanner">ML Kit Document Scanner</a></td><td>סריקת חשבונות וטפסים במכשיר עצמו (R9)</td></tr>
+<tr><td><a href="https://web.dev/blog/webgpu-supported-major-browsers">WebGPU בכל הדפדפנים הגדולים</a></td><td>מנוע תלת-ממדי אחד (<a href="https://github.com/mrdoob/three.js">three.js</a><span class="oss">קוד פתוח</span>, רישיון MIT) לווב ולאנדרואיד, עם WebGL2 כגיבוי</td></tr>
+<tr><td><a href="https://developers.google.com/ml-kit/vision/doc-scanner">ML Kit Document Scanner</a><br><span class="note">חינמי, לא קוד פתוח</span></td><td>סריקת חשבונות וטפסים במכשיר עצמו (R9)</td></tr>
 <tr><td><a href="https://developers.google.com/location-context/sleep">Google Sleep API</a></td><td>בסיס לשעון מעורר חכם ולמעקב שינה (R12, R13)</td></tr>
 <tr><td><a href="https://developers.google.com/health/about">Google Health API</a></td><td>מחליף את Google Fit (<a href="https://docs.tryterra.co/help-center/help-topics/data-api-sdk/account-config-environments-and-going-live/google-fit-2026-deprecation.md">שמסתיים ב-2026</a>); לכן נתוני בריאות נכנסים דרך הטלפון ולא דרך שרת</td></tr>
 </tbody></table></div>
