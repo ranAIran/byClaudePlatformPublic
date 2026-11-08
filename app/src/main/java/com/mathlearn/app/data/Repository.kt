@@ -29,6 +29,14 @@ class Repository(context: Context) {
         get() = prefs.getString("model", null)?.takeIf { it.isNotBlank() } ?: com.mathlearn.core.ClaudeExtractor.DEFAULT_MODEL
         set(v) = prefs.edit().putString("model", v.trim()).apply()
 
+    var autoRead: Boolean
+        get() = prefs.getBoolean("auto_read", false)
+        set(v) = prefs.edit().putBoolean("auto_read", v).apply()
+
+    var slowSpeech: Boolean
+        get() = prefs.getBoolean("slow_speech", false)
+        set(v) = prefs.edit().putBoolean("slow_speech", v).apply()
+
     /** Built-in sheets already offered once, so a sheet the user deleted does not come back. */
     var builtInsAdded: Set<String>
         get() = prefs.getStringSet("builtins_added", emptySet()) ?: emptySet()

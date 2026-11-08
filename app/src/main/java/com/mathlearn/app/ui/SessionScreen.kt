@@ -26,7 +26,9 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.FilterChip
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mathlearn.app.AppViewModel
 import com.mathlearn.app.SessionState
+import com.mathlearn.app.data.Speaker
 import com.mathlearn.core.Exercise
 import com.mathlearn.core.SetKind
 import kotlinx.coroutines.delay
@@ -76,10 +79,20 @@ fun SessionScreen(vm: AppViewModel, state: SessionState) {
             LinearProgressIndicator(progress = { (state.index + 1f) / total }, modifier = Modifier.fillMaxWidth())
 
             Card(Modifier.fillMaxWidth()) {
-                Text(mathText(ex.prompt), fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium,
-                    style = LocalTextStyle.current.copy(textDirection = mathDirection(ex.prompt)),
-                    modifier = Modifier.fillMaxWidth().padding(20.dp))
+                ReadAloudText(
+                    vm.speaker, "q-${ex.id}", ex.prompt,
+                    style = LocalTextStyle.current.copy(fontSize = 22.sp, lineHeight = 32.sp, fontWeight = FontWeight.Medium),
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                )
             }
+            ReadAloudControls(vm.speaker, "q-${ex.id}", ex.prompt, onToggleSlow = vm::toggleSlow) {
+                FilterChip(selected = vm.autoRead, onClick = { vm.updateAutoRead(!vm.autoRead) }, label = { Text("הקראה אוטומטית") })
+            }
+            // Read each new question automatically when the child chose that; stop when leaving it.
+            LaunchedEffect(ex.id, vm.speaker.status, vm.autoRead) {
+                if (vm.autoRead) vm.speaker.speak("q-${ex.id}", ex.prompt)
+            }
+            DisposableEffect(ex.id) { onDispose { vm.speaker.stop() } }
 
             if (isTest) TestQuestion(vm, state, ex) else PracticeQuestion(vm, state, ex)
 
@@ -123,7 +136,7 @@ fun SessionScreen(vm: AppViewModel, state: SessionState) {
 
 /** Free-text answer box (with handy symbol buttons) or multiple-choice options. */
 @Composable
-private fun AnswerInput(state: SessionState, ex: Exercise, enabled: Boolean, onDone: () -> Unit) {
+private fun AnswerInput(speaker: Speaker, state: SessionState, ex: Exercise, enabled: Boolean, onDone: () -> Unit) {
     if (ex.choices.isNotEmpty()) {
         Column {
             ex.choices.forEach { choice ->
@@ -135,7 +148,9 @@ private fun AnswerInput(state: SessionState, ex: Exercise, enabled: Boolean, onD
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(selected = selected, onClick = { state.answers[ex.id] = choice }, enabled = enabled)
-                    Text(mathText(choice), fontSize = 18.sp, style = LocalTextStyle.current.copy(textDirection = mathDirection(choice)))
+                    ReadAloudText(speaker, "c-${ex.id}-$choice", choice, style = LocalTextStyle.current.copy(fontSize = 18.sp),
+                        modifier = Modifier.weight(1f))
+                    SpeakButton(speaker, "c-${ex.id}-$choice", choice)
                 }
             }
         }
@@ -169,7 +184,7 @@ private fun AnswerInput(state: SessionState, ex: Exercise, enabled: Boolean, onD
 
 @Composable
 private fun TestQuestion(vm: AppViewModel, state: SessionState, ex: Exercise) {
-    AnswerInput(state, ex, enabled = true, onDone = { if (!state.isLast) state.index++ })
+    AnswerInput(vm.speaker, state, ex, enabled = true, onDone = { if (!state.isLast) state.index++ })
     if (ex.answer == null) {
         Text("לשאלה הזו אין מפתח תשובות – המורה יבדוק אותה.",
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
@@ -182,7 +197,7 @@ private fun PracticeQuestion(vm: AppViewModel, state: SessionState, ex: Exercise
     val wrongs = state.wrongAttempts[ex.id] ?: 0
     val showSolution = state.solutionShown[ex.id] == true
 
-    AnswerInput(state, ex, enabled = !solved && !showSolution, onDone = { if (ex.answer != null) vm.check(state) })
+    AnswerInput(vm.speaker, state, ex, enabled = !solved && !showSolution, onDone = { if (ex.answer != null) vm.check(state) })
 
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         if (!ex.hint.isNullOrBlank() && !solved) {
@@ -203,14 +218,14 @@ private fun PracticeQuestion(vm: AppViewModel, state: SessionState, ex: Exercise
     }
 
     if (state.hintShown[ex.id] == true && !ex.hint.isNullOrBlank()) {
-        FeedbackCard(MaterialTheme.colorScheme.secondaryContainer, "💡 ${ex.hint}")
+        FeedbackCard(vm.speaker, "h-${ex.id}", MaterialTheme.colorScheme.secondaryContainer, "💡 ${ex.hint}")
     }
 
     when (state.lastCheck[ex.id]) {
-        true -> FeedbackCard(Correct.copy(alpha = 0.15f),
+        true -> FeedbackCard(vm.speaker, "ok-${ex.id}", Correct.copy(alpha = 0.15f),
             listOf("🎉 נכון!", "⭐ כל הכבוד!", "✅ בדיוק!", "👏 מצוין!")[ex.id.hashCode().mod(4)] +
                 (ex.explanation?.let { "\n\n$it" } ?: ""))
-        false -> if (!showSolution) FeedbackCard(Wrong.copy(alpha = 0.12f),
+        false -> if (!showSolution) FeedbackCard(vm.speaker, "no-${ex.id}", Wrong.copy(alpha = 0.12f),
             if (wrongs >= 2) "עדיין לא. אפשר לנסות שוב או להסתכל בפתרון."
             else "לא בדיוק – נסו שוב! אתם יכולים 💪")
         null -> {}
@@ -222,7 +237,7 @@ private fun PracticeQuestion(vm: AppViewModel, state: SessionState, ex: Exercise
             ex.explanation?.let { if (isNotEmpty()) append("\n\n"); append(it) }
             if (isEmpty()) append("אין מפתח תשובות לשאלה הזו. השוו עם המורה או עם דף התשובות.")
         }
-        FeedbackCard(MaterialTheme.colorScheme.tertiaryContainer, text)
+        FeedbackCard(vm.speaker, "s-${ex.id}", MaterialTheme.colorScheme.tertiaryContainer, text)
         if (ex.answer == null) {
             Text("איך הלך?", fontWeight = FontWeight.SemiBold)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -239,8 +254,12 @@ private fun PracticeQuestion(vm: AppViewModel, state: SessionState, ex: Exercise
 }
 
 @Composable
-private fun FeedbackCard(color: Color, text: String) {
+private fun FeedbackCard(speaker: Speaker, key: String, color: Color, text: String) {
     Card(colors = CardDefaults.cardColors(containerColor = color), modifier = Modifier.fillMaxWidth()) {
-        Text(text, modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.bodyLarge)
+        Row(Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp), verticalAlignment = Alignment.Top) {
+            ReadAloudText(speaker, key, text, style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f).padding(top = 8.dp))
+            SpeakButton(speaker, key, text)
+        }
     }
 }

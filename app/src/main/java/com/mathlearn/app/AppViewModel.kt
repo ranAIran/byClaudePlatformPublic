@@ -13,6 +13,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.mathlearn.app.data.ImageTools
 import com.mathlearn.app.data.Repository
+import com.mathlearn.app.data.Speaker
 import com.mathlearn.core.AnswerChecker
 import com.mathlearn.core.AnswerRecord
 import com.mathlearn.core.BuiltInSheets
@@ -65,6 +66,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = Repository(app)
     private val generator = ExerciseGenerator()
 
+    /** Hebrew read-aloud with word highlighting, shared by all screens. */
+    val speaker = Speaker(app).apply { slow = repo.slowSpeech }
+
+    /** Read each new question aloud automatically. */
+    var autoRead by mutableStateOf(repo.autoRead)
+        private set
+
+    fun updateAutoRead(on: Boolean) { autoRead = on; repo.autoRead = on }
+    fun toggleSlow() { speaker.slow = !speaker.slow; repo.slowSpeech = speaker.slow }
+
+    override fun onCleared() { speaker.shutdown() }
+
     val backStack = mutableStateListOf<Screen>(Screen.Home)
     val screen: Screen get() = backStack.last()
 
@@ -97,8 +110,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     // ---------- navigation ----------
-    fun navigate(s: Screen) { backStack.add(s) }
+    fun navigate(s: Screen) { speaker.stop(); backStack.add(s) }
     fun back(): Boolean {
+        speaker.stop()
         if (backStack.size <= 1) return false
         backStack.removeAt(backStack.lastIndex)
         return true

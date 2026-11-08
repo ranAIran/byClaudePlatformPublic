@@ -182,3 +182,45 @@ class BuiltInSheetsExportTest {
         assertTrue(text.contains("builtin-weekly-4"))
     }
 }
+
+class SpeechTextTest {
+    private fun say(s: String) = SpeechText.plan(s).spoken
+
+    @Test fun readsMathInHebrew() {
+        assertEquals("3 רבעים ועוד שמינית שווה כמה", say("3/4 + 1/8 = ?"))
+        assertEquals("פותחים סוגריים 63 פחות 36 סוגרים סוגריים חלקי 9 שווה כמה", say("(63 − 36) : 9 = ?"))
+        assertEquals("מינוס 7 כפול מינוס 4 שווה כמה", say("(-7) · (-4) = ?"))
+        assertEquals("2 ו3 רבעים", say("2 3/4"))
+        assertEquals("3467 ועוד 2815", say("3,467 + 2,815"))
+        assertEquals("0.56 משבצת 0.098", say("0.56 ☐ 0.098"))
+        assertEquals("כמה הם 25 אחוז מתוך 80?", say("כמה הם 25% מתוך 80?"))
+        assertEquals("3 איקס ועוד 2 שווה 11. מהו איקס?", say("3x + 2 = 11. מהו x?"))
+        assertEquals("אורך 5 סנטימטר. השטח במטר רבוע", say("אורך 5 ס״מ. השטח במ״ר"))
+        assertEquals("3 מחברות ו2 עטים", say("3 מחברות ו-2 עטים"))
+        assertEquals("שאלה. 7 ועוד 1", say("שאלה\n7 + 1"))
+        assertEquals("נכון!", say("🎉 נכון!").trim())
+    }
+
+    @Test fun mapsSpokenOffsetsBackToScreenWords() {
+        val text = "3/4 + 1/8 = ?"
+        val plan = SpeechText.plan(text)
+        assertEquals(5, plan.tokens.size)
+        val iOn = plan.spoken.indexOf("ועוד")
+        val t = plan.tokens[plan.tokenAtSpoken(iOn)]
+        assertEquals("+", text.substring(t.displayStart, t.displayEnd))
+        val t2 = plan.tokens[plan.tokenAtSpoken(plan.spoken.indexOf("שמינית"))]
+        assertEquals("1/8", text.substring(t2.displayStart, t2.displayEnd))
+        assertEquals(2, plan.tokenAtDisplay(text.indexOf("1/8") + 1))
+        assertEquals(-1, plan.tokenAtDisplay(3)) // the space between words
+    }
+}
+
+class BidiMappingTest {
+    @Test fun mapsOriginalIndexesIntoIsolatedText() {
+        val text = "סימן: 0.56 ☐ 0.098"
+        val (shown, map) = BidiText.isolateMathMapped(text)
+        val s = text.indexOf("0.098")
+        assertEquals("0.098", shown.substring(map(s), map(s) + 5))
+        assertEquals("סימן", shown.substring(map(0), map(4)))
+    }
+}

@@ -15,11 +15,26 @@ object BidiText {
     fun containsHebrew(text: String): Boolean = hebrew.containsMatchIn(text)
 
     /** Returns [text] with math runs isolated; text without Hebrew is returned unchanged. */
-    fun isolateMath(text: String): String {
-        if (!containsHebrew(text) || text.indexOf(LRI) >= 0) return text
-        return mathRun.replace(text) { m ->
+    fun isolateMath(text: String): String = isolateMathMapped(text).first
+
+    /**
+     * Like [isolateMath], plus a function from an index in [text] to the same position in the
+     * returned string, so a highlight computed on the original text lands on the right characters.
+     */
+    fun isolateMathMapped(text: String): Pair<String, (Int) -> Int> {
+        if (!containsHebrew(text) || text.indexOf(LRI) >= 0) return text to { i: Int -> i }
+        val inserts = mutableListOf<Int>() // positions in the original text where a mark was inserted
+        val out = StringBuilder()
+        var last = 0
+        for (m in mathRun.findAll(text)) {
             // A lone number needs no isolation; only runs mixing numbers with operators do.
-            if (m.value.all { it.isDigit() || it == '.' || it == ',' }) m.value else "$LRI${m.value}$PDI"
+            if (m.value.all { it.isDigit() || it == '.' || it == ',' }) continue
+            out.append(text, last, m.range.first).append(LRI).append(m.value).append(PDI)
+            inserts += m.range.first
+            inserts += m.range.last + 1
+            last = m.range.last + 1
         }
+        out.append(text, last, text.length)
+        return out.toString() to { i: Int -> i + inserts.count { it <= i } }
     }
 }
