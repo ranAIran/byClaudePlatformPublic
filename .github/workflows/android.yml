@@ -22,6 +22,15 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # The Gradle download sometimes fails with a temporary 504; retry with back-off.
+      - name: Download Gradle (with retries)
+        run: |
+          for i in 1 2 3 4 5; do
+            ./gradlew --version --console=plain && exit 0
+            echo "Gradle download failed (attempt $i), retrying in $((i * 30))s"; sleep $((i * 30))
+          done
+          exit 1
+
       - name: Unit tests (math engine, parser, Claude extractor)
         run: ./gradlew :core:test --console=plain
 
