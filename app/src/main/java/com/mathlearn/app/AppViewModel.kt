@@ -52,11 +52,31 @@ class SessionState(val set: ExerciseSet) {
     /** First-attempt correctness, which is what the score counts. */
     val firstTry = mutableStateMapOf<String, Boolean>()
     val wrongAttempts = mutableStateMapOf<String, Int>()
-    val hintShown = mutableStateMapOf<String, Boolean>()
+    /** How many rungs of the hint ladder are open, per question. */
+    val hintLevel = mutableStateMapOf<String, Int>()
     val solutionShown = mutableStateMapOf<String, Boolean>()
     /** Self-grades for exercises without an answer key. */
     val selfGrade = mutableStateMapOf<String, Boolean>()
     val startedAt: Long = System.currentTimeMillis()
+
+    /** Milliseconds spent on each question so far (all visits added up). */
+    val timeMs = mutableStateMapOf<String, Long>()
+    private var openId: String? = null
+    private var openSince = 0L
+
+    /** The screen shows question [id] from now on. */
+    fun enter(id: String) { leave(); openId = id; openSince = System.currentTimeMillis() }
+
+    /** The current question is no longer on screen: add the time it was shown. */
+    fun leave() {
+        val id = openId ?: return
+        timeMs[id] = (timeMs[id] ?: 0L) + (System.currentTimeMillis() - openSince)
+        openId = null
+    }
+
+    /** Time on [id] including the visit in progress. */
+    fun msOn(id: String, now: Long = System.currentTimeMillis()): Long =
+        (timeMs[id] ?: 0L) + if (id == openId) now - openSince else 0L
 
     val current: Exercise get() = set.exercises[index]
     val isLast: Boolean get() = index == set.exercises.lastIndex
@@ -141,6 +161,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun finish(state: SessionState) {
+        state.leave()
         val records = state.set.exercises.map { ex ->
             val given = state.answers[ex.id].orEmpty()
             val correct: Boolean? = when {
@@ -148,7 +169,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 state.set.kind == SetKind.EXERCISES -> state.firstTry[ex.id] ?: false
                 else -> AnswerChecker.isCorrect(ex.answer!!, given)
             }
-            AnswerRecord(ex.id, given, correct)
+            AnswerRecord(ex.id, given, correct, seconds = ((state.timeMs[ex.id] ?: 0L) / 1000).toInt())
         }
         val result = SessionResult(
             id = UUID.randomUUID().toString(),
@@ -157,6 +178,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             kind = state.set.kind,
             finishedAt = System.currentTimeMillis(),
             answers = records,
+            totalSeconds = ((System.currentTimeMillis() - state.startedAt) / 1000).toInt(),
         )
         results.add(0, result)
         repo.saveResults(results.toList())

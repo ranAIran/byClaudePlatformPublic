@@ -12,13 +12,40 @@ object BuiltInSheets {
         choices: List<String> = emptyList(),
     ) = Exercise("weekly4-$id", prompt, answer, choices, hint, explanation, topic)
 
+    /** Second and third rungs of the hint ladder for sheet #4, by question id. */
+    private val weekly4MoreHints = mapOf(
+        "1" to listOf("אם מוסיפים למספר אחד 200, צריך להוריד 200 מהמספר השני כדי שהסכום יישאר אותו דבר."),
+        "2" to listOf("9 מחברות הן פי 3 מ-3 מחברות, ו-6 עטים הם פי 3 מ-2 עטים."),
+        "3" to listOf("3 ק״מ = 3,000 מטרים. מה עושים עם 650 המטרים שגיל לא רץ?"),
+        "4a" to listOf("240 : 8 – כמה פעמים 8 נכנס ב-24?"),
+        "4b" to listOf("חשבו קודם 36 : 4."),
+        "4c" to listOf("47 · 20 = 940. כמה זה 47 · 3?"),
+        "4d" to listOf("63 − 36 = 27. עכשיו חלקו ב-9."),
+        "5a" to listOf("כתבו את שני המספרים עם אותו מספר ספרות אחרי הנקודה: 0.560 ו-0.098."),
+        "5b" to listOf("השוו 3.09 ל-3.10: מי גדול יותר?"),
+        "5d" to listOf("4/5 = 8/10 = 0.8."),
+        "5e" to listOf("חפשו מספר בין 0.5 ל-0.75, למשל עם ספרה אחת אחרי הנקודה."),
+        "6a" to listOf("11 : 4 = 2 ועוד שארית 3, כלומר 2 3/4."),
+        "6b" to listOf("4/3 = 1 ועוד 1/3."),
+        "6c" to listOf("5/2 = 2 ועוד חצי."),
+        "6d" to listOf("3/4 זה פחות משלם אחד."),
+        "7" to listOf("3/4 = 9/12 ו-1/3 = 4/12. כמה זה ביחד?"),
+        "8" to listOf("מה גדול יותר: חתיכה אחת מעוגה שחילקו ל-6, או מעוגה שחילקו ל-8?"),
+        "9" to listOf("זווית קהה גדולה מזווית ישרה (90°). נסו לשים את הקודקוד השלישי מחוץ לקטע, בצד."),
+        "10" to listOf("18 · 10 = 180 מ״ר לכל החצר. עכשיו חשבו את השטח של הערוגה ושל פינת הישיבה."),
+        "11a" to listOf("נסו כל מחיר: 120 : 32? 120 : 45? 120 : 40? 120 : 35?"),
+        "11b" to listOf("כמה פעמים 40 נכנס ב-120?"),
+        "11c" to listOf("5 · 32 = 160 ₪. כמה מארזים של 40 ₪ אפשר לקנות ב-160 ₪?"),
+        "12" to listOf("כדי למצוא את היקף המלבן ספרו כמה משבצות באורך וכמה ברוחב."),
+    )
+
     val weekly4 = ExerciseSet(
         id = "builtin-weekly-4",
         title = "דף תרגול שבועי – מס׳ 4",
         kind = SetKind.EXERCISES,
         source = SetSource.MANUAL,
         createdAt = 1_793_836_800_000, // 2026-11-05
-        exercises = listOf(
+        exercises = listOf<Exercise>(
             q("1", Topic.ORDER_OF_OPERATIONS,
                 "1. השלימו את המספר החסר (בלי לחשב את תוצאות התרגילים):\n3,467 + 2,815 = 3,267 + ?",
                 "3015",
@@ -107,7 +134,7 @@ object BuiltInSheets {
                 null,
                 "שטח = מספר המשבצות בתוך הצורה. היקף = מספר צלעות המשבצות לאורך השפה.",
                 "היקף מלבן = 2 · (אורך + רוחב). לשטח: ספרו משבצות שלמות בכל מצולע והשוו למלבן. להיקף: הלכו לאורך השפה של כל מצולע וספרו צלעות של משבצות."),
-        ),
+        ).map { e -> e.copy(hints = weekly4MoreHints[e.id.removePrefix("weekly4-")].orEmpty()) },
     )
 
     val all: List<ExerciseSet> = listOf(weekly4)

@@ -49,6 +49,9 @@ import com.mathlearn.app.AppViewModel
 import com.mathlearn.app.SessionState
 import com.mathlearn.app.data.Speaker
 import com.mathlearn.core.Exercise
+import com.mathlearn.core.HintLadder
+import com.mathlearn.core.formatDuration
+import androidx.compose.ui.text.style.TextAlign
 import com.mathlearn.core.SetKind
 import kotlinx.coroutines.delay
 
@@ -61,13 +64,14 @@ fun SessionScreen(vm: AppViewModel, state: SessionState) {
 
     // Elapsed-time clock for tests.
     var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    if (isTest) LaunchedEffect(state) { while (true) { delay(1000); now = System.currentTimeMillis() } }
-    val elapsed = (now - state.startedAt) / 1000
+    LaunchedEffect(state) { while (true) { delay(1000); now = System.currentTimeMillis() } }
+    val elapsed = ((now - state.startedAt) / 1000).toInt()
+    // Count the time each question is on screen.
+    DisposableEffect(ex.id) { state.enter(ex.id); onDispose { state.leave() } }
 
     ScreenScaffold(
         title = state.set.title,
         onBack = { confirmQuit = true },
-        actions = { if (isTest) Text("⏱ %d:%02d".format(elapsed / 60, elapsed % 60), modifier = Modifier.padding(end = 16.dp)) },
     ) { pad ->
         Column(
             Modifier.padding(pad).padding(16.dp).verticalScroll(rememberScrollState()),
@@ -110,6 +114,11 @@ fun SessionScreen(vm: AppViewModel, state: SessionState) {
                     ) { Text(if (isTest) "הגשת המבחן" else "סיום") }
                 }
             }
+            Text(
+                "⏱ ${formatDuration(elapsed)} מתחילת התרגול  ·  בשאלה הזו ${formatDuration((state.msOn(ex.id, now) / 1000).toInt())}",
+                style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline,
+                textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            )
         }
     }
 
@@ -199,15 +208,20 @@ private fun PracticeQuestion(vm: AppViewModel, state: SessionState, ex: Exercise
 
     AnswerInput(vm.speaker, state, ex, enabled = !solved && !showSolution, onDone = { if (ex.answer != null) vm.check(state) })
 
+    val ladder = remember(ex) { HintLadder.steps(ex) }
+    val level = state.hintLevel[ex.id] ?: 0
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (!ex.hint.isNullOrBlank() && !solved) {
-            OutlinedButton(onClick = { state.hintShown[ex.id] = true }) { Text("💡 רמז") }
+        if (level < ladder.size && !solved) {
+            OutlinedButton(onClick = { state.hintLevel[ex.id] = level + 1 }) {
+                Text(if (level == 0) "💡 רמז" else "💡 רמז נוסף (${level + 1}/${ladder.size})")
+            }
         }
         if (ex.answer != null) {
             Button(onClick = { vm.check(state) }, enabled = !solved && !showSolution && !state.answers[ex.id].isNullOrBlank()) {
                 Text("בדיקה ✓")
             }
-            if (!solved && (wrongs >= 2 || showSolution)) {
+            // The full solution opens after two wrong tries, or once every hint has been used.
+            if (!solved && (wrongs >= 2 || showSolution || (ladder.isNotEmpty() && level >= ladder.size))) {
                 OutlinedButton(onClick = { state.solutionShown[ex.id] = true; if (ex.id !in state.firstTry) state.firstTry[ex.id] = false }) {
                     Text("הצגת הפתרון")
                 }
@@ -217,8 +231,9 @@ private fun PracticeQuestion(vm: AppViewModel, state: SessionState, ex: Exercise
         }
     }
 
-    if (state.hintShown[ex.id] == true && !ex.hint.isNullOrBlank()) {
-        FeedbackCard(vm.speaker, "h-${ex.id}", MaterialTheme.colorScheme.secondaryContainer, "💡 ${ex.hint}")
+    ladder.take(level).forEachIndexed { i, h ->
+        FeedbackCard(vm.speaker, "h$i-${ex.id}", MaterialTheme.colorScheme.secondaryContainer,
+            if (ladder.size > 1) "💡 רמז ${i + 1}: $h" else "💡 $h")
     }
 
     when (state.lastCheck[ex.id]) {

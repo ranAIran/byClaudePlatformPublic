@@ -224,3 +224,40 @@ class BidiMappingTest {
         assertEquals("סימן", shown.substring(map(0), map(4)))
     }
 }
+
+class HintLadderTest {
+    @Test fun buildsLadderFromHintsAndFirstStep() {
+        val e = Exercise("1", "3/4 + 1/8 = ?", "7/8", hint = "מצאו מכנה משותף.", hints = listOf("8 מתחלק ב-4."),
+            explanation = "מכנה משותף: 8. 6/8 + 1/8 = 7/8")
+        assertEquals(listOf("מצאו מכנה משותף.", "8 מתחלק ב-4.", "צעד ראשון: מכנה משותף: 8"), HintLadder.steps(e))
+    }
+
+    @Test fun singleStepExplanationIsNotOfferedAsAHint() {
+        assertNull(HintLadder.firstStep("x = 12 − 5 = 7"))
+        assertEquals("3,467 גדול מ-3,267 ב-200", HintLadder.firstStep("3,467 גדול מ-3,267 ב-200, לכן המספר החסר קטן ב-200."))
+    }
+
+    @Test fun everyBuiltInAndGeneratedQuestionHasAtLeastOneHint() {
+        BuiltInSheets.weekly4.exercises.forEach { assertTrue(HintLadder.steps(it).isNotEmpty(), it.id) }
+        val gen = ExerciseGenerator(kotlin.random.Random(1))
+        Topic.practiceTopics.forEach { t -> repeat(50) { assertTrue(HintLadder.steps(gen.generate(t)).isNotEmpty()) } }
+    }
+
+    @Test fun formatsDurations() {
+        assertEquals("0:07", formatDuration(7)); assertEquals("3:05", formatDuration(185)); assertEquals("1:00:00", formatDuration(3600))
+    }
+
+    @Test fun extractorSplitsHintLadder() {
+        val set = ClaudeExtractor(apiKey = "test").toExerciseSet(
+            """{"title":"t","kind":"EXERCISES","exercises":[{"prompt":"p","answer":"1","choices":[],"hints":["a","b","c"],"explanation":"","topic":"OTHER"}]}""")
+        assertEquals("a", set.exercises[0].hint); assertEquals(listOf("b", "c"), set.exercises[0].hints)
+    }
+}
+
+class BuiltInHintsTest {
+    @Test fun weeklySheetHasLadders() {
+        val q1 = BuiltInSheets.weekly4.exercises.first()
+        assertTrue(q1.hints.isNotEmpty())
+        assertTrue(HintLadder.steps(q1).size >= 3, HintLadder.steps(q1).toString())
+    }
+}

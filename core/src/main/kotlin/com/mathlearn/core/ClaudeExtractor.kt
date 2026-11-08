@@ -41,11 +41,12 @@ class ClaudeExtractor(
               string only if the exercise has no single checkable answer (e.g. "draw", "explain").
             - choices: the multiple-choice options if the page lists them, otherwise an empty list.
               When there are choices, the answer must be the exact text of the correct choice.
-            - hint: one short, encouraging hint that does not give the answer away.
+            - hints: 2–3 graduated hints, from a gentle nudge to a concrete first step, none of which
+              gives the final answer away. A child who struggles with reading opens them one by one.
             - explanation: a brief step-by-step solution suitable for an 11–12 year old.
             - topic: the best-matching topic.
 
-            The student is Israeli and the app's language is Hebrew: write the hint, the explanation
+            The student is Israeli and the app's language is Hebrew: write the hints, the explanation
             and the title in Hebrew, and keep each prompt in the language printed on the page (usually
             Hebrew). Use Israeli school notation where natural (":" for division, "·" or "×" for
             multiplication). For yes/no answers use "כן" or "לא".
@@ -75,12 +76,12 @@ class ClaudeExtractor(
                     "items" to obj(
                         "type" to "object",
                         "additionalProperties" to false,
-                        "required" to listOf("prompt", "answer", "choices", "hint", "explanation", "topic"),
+                        "required" to listOf("prompt", "answer", "choices", "hints", "explanation", "topic"),
                         "properties" to obj(
                             "prompt" to obj("type" to "string"),
                             "answer" to obj("type" to "string"),
                             "choices" to obj("type" to "array", "items" to obj("type" to "string")),
-                            "hint" to obj("type" to "string"),
+                            "hints" to obj("type" to "array", "items" to obj("type" to "string")),
                             "explanation" to obj("type" to "string"),
                             "topic" to obj("type" to "string", "enum" to Topic.entries.map { it.name }),
                         ),
@@ -98,6 +99,7 @@ class ClaudeExtractor(
         val answer: String = "",
         val choices: List<String> = emptyList(),
         val hint: String = "",
+        val hints: List<String> = emptyList(),
         val explanation: String = "",
         val topic: String = "OTHER",
     )
@@ -197,7 +199,8 @@ class ClaudeExtractor(
                     prompt = it.prompt.trim(),
                     answer = it.answer.trim().ifEmpty { null },
                     choices = it.choices.map(String::trim).filter(String::isNotEmpty),
-                    hint = it.hint.trim().ifEmpty { null },
+                    hint = (listOf(it.hint) + it.hints).map(String::trim).firstOrNull { h -> h.isNotEmpty() },
+                    hints = (listOf(it.hint) + it.hints).map(String::trim).filter(String::isNotEmpty).drop(1),
                     explanation = it.explanation.trim().ifEmpty { null },
                     topic = Topic.fromName(it.topic),
                 )

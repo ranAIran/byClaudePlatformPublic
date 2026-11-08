@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.mathlearn.app.AppViewModel
 import com.mathlearn.core.ExerciseSet
 import com.mathlearn.core.SessionResult
+import com.mathlearn.core.formatDuration
 
 @Composable
 fun ResultScreen(vm: AppViewModel, result: SessionResult, set: ExerciseSet) {
@@ -49,6 +50,12 @@ fun ResultScreen(vm: AppViewModel, result: SessionResult, set: ExerciseSet) {
                     Text("${result.correctCount} נכונות מתוך ${result.gradedCount}" +
                         if (result.gradedCount < result.answers.size) " · ${result.answers.size - result.gradedCount} לא נבדקו" else "")
                     Text(message, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 4.dp))
+                    if (result.totalSeconds > 0) {
+                        val avg = result.answers.map { it.seconds }.average().toInt()
+                        Text("⏱ זמן כולל ${formatDuration(result.totalSeconds)}  ·  ממוצע לשאלה ${formatDuration(avg)}",
+                            style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(top = 6.dp))
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (mistakes > 0) {
@@ -61,6 +68,7 @@ fun ResultScreen(vm: AppViewModel, result: SessionResult, set: ExerciseSet) {
                 Spacer(Modifier.height(8.dp))
                 Text("סקירה", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
+            val slowest = result.answers.maxByOrNull { it.seconds }?.takeIf { it.seconds > 0 }?.exerciseId
             items(result.answers) { rec ->
                 val ex = byId[rec.exerciseId] ?: return@items
                 val color = when (rec.correct) {
@@ -73,6 +81,11 @@ fun ResultScreen(vm: AppViewModel, result: SessionResult, set: ExerciseSet) {
                         Text((when (rec.correct) { true -> "✅ "; false -> "❌ "; null -> "❔ " }) + mathText(ex.prompt), fontWeight = FontWeight.SemiBold,
                             style = LocalTextStyle.current.copy(textDirection = mathDirection(ex.prompt)))
                         Text("התשובה שלך: ${rec.given.ifBlank { "(אין)" }}")
+                        if (result.totalSeconds > 0) {
+                            Text("⏱ ${formatDuration(rec.seconds)} בשאלה הזו" + if (rec.exerciseId == slowest) "  ·  השאלה שלקחה הכי הרבה זמן" else "",
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = if (rec.exerciseId == slowest) FontWeight.Bold else FontWeight.Normal)
+                        }
                         if (rec.correct != true && ex.answer != null) Text("התשובה הנכונה: ${ex.answer}", fontWeight = FontWeight.Bold)
                         ex.explanation?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     }

@@ -43,6 +43,8 @@ data class Exercise(
     val hint: String? = null,
     val explanation: String? = null,
     val topic: Topic = Topic.OTHER,
+    /** Further hints after [hint], each a little more specific (a "hint ladder"). */
+    val hints: List<String> = emptyList(),
 )
 
 @Serializable
@@ -61,6 +63,8 @@ data class AnswerRecord(
     val given: String,
     /** `null` when the exercise had no answer key and was not self-graded. */
     val correct: Boolean?,
+    /** Time spent on this question, in seconds (all visits added up). */
+    val seconds: Int = 0,
 )
 
 @Serializable
@@ -71,6 +75,8 @@ data class SessionResult(
     val kind: SetKind,
     val finishedAt: Long,
     val answers: List<AnswerRecord>,
+    /** Time from the start of the session to the end, in seconds. */
+    val totalSeconds: Int = 0,
 ) {
     val gradedCount: Int get() = answers.count { it.correct != null }
     val correctCount: Int get() = answers.count { it.correct == true }

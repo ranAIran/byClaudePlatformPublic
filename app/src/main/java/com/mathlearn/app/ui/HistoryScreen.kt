@@ -34,7 +34,8 @@ fun HistoryScreen(vm: AppViewModel) {
                     Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(r.setTitle, fontWeight = FontWeight.SemiBold)
-                            Text("${if (r.kind == SetKind.TEST) "מבחן" else "תרגול"} · ${fmt.format(Date(r.finishedAt))}",
+                            Text("${if (r.kind == SetKind.TEST) "מבחן" else "תרגול"} · ${fmt.format(Date(r.finishedAt))}" +
+                                if (r.totalSeconds > 0) " · ⏱ ${com.mathlearn.core.formatDuration(r.totalSeconds)}" else "",
                                 style = MaterialTheme.typography.bodySmall)
                         }
                         Text(r.scorePercent?.let { "$it%" } ?: "–", style = MaterialTheme.typography.titleLarge,
