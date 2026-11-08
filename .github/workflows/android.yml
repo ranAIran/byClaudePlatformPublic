@@ -32,10 +32,22 @@ jobs:
           exit 1
 
       - name: Unit tests (math engine, parser, Claude extractor)
-        run: ./gradlew :core:test --console=plain
+        # Retries only help with temporary download errors (504); a real compile error fails all 3.
+        run: |
+          for i in 1 2 3; do
+            ./gradlew :core:test --console=plain && exit 0
+            echo "Attempt $i failed, retrying in $((i * 30))s"; sleep $((i * 30))
+          done
+          exit 1
 
       - name: Build APK
-        run: ./gradlew :app:assembleDebug --console=plain
+        # Retries only help with temporary download errors (504); a real compile error fails all 3.
+        run: |
+          for i in 1 2 3; do
+            ./gradlew :app:assembleDebug --console=plain && exit 0
+            echo "Attempt $i failed, retrying in $((i * 30))s"; sleep $((i * 30))
+          done
+          exit 1
 
       - uses: actions/upload-artifact@v4
         with:
