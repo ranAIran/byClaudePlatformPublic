@@ -71,5 +71,6 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 - **Done:** quest 1.4.0: Hebrew words in the tokens puzzle (player picks English/עברית); admin shortcut (tap the version 5 times, PIN in `CONFIG.admin.pin`, skip islands; not security, the PIN is in the source).
 - **Done:** two independent APKs from `life/android` via product flavors `life` (com.lifearchipelago.app) and `quest` (com.latentarchipelago.quest); CI publishes both in each release.
 - **Done (0.1.3):** bedroom redesign: bed, computer table, two terrariums 60×60×45 and 60×45×45 cm (`terrarium()` and `cm()` in `life/app/scenes.js`, 1 unit ≈ 80 cm; test R17). Fixed back-to-map showing the house (test "R4 back to map").
+- **Preview (awaiting approval):** R18 life map as a city (`life/proto/?shot=city`, `shotCity()` in `life/proto/proto.js`). Requirements doc in Hebrew with live statuses, the city preview and the market review: `life/docs/requirements.html` (R16–R18 are only there, not yet in the Claude Doc).
 - **Not yet verified on a real phone:** scanner, camera, voice, share-in, WebGPU performance.
 - **Next candidates:** device check of APK 0.1.1 and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.

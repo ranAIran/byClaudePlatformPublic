@@ -213,6 +213,10 @@ async function shotMap() {
   // ---- overlay ----
   const lbl = (id, name, badge, color) => { const d = isles.find((i) => i.id === id); return { v: new THREE.Vector3(d.pos[0], id === "work" ? 5.2 : 3.4, d.pos[1]), name, badge, color }; };
   const labels = [lbl("home", "Home", "5 tasks", "#ffc94d"), lbl("family", "Family", "call grandma", "#ff8fb1"), lbl("paperwork", "Paperwork", "2 due this week", "#ff6b6b"), lbl("work", "Work", "3 meetings", "#b48cff"), lbl("health", "Health", "gym 18:30", "#4ee08a")];
+  return mapHud(labels);
+}
+
+function mapHud(labels) {
   return () => {
     ui.innerHTML = `
     <div class="panel" style="position:absolute;top:12px;left:12px;right:12px;padding:12px 14px">
@@ -531,8 +535,125 @@ async function shotAlarm() {
   };
 }
 
+
+// =====================================================================
+// SHOT: the life map as a small city (SimCity-style districts on a street grid)
+// =====================================================================
+async function shotCity() {
+  const cfg = { ...CONFIG, world: { ...CONFIG.world } };
+  scene.background = new THREE.Color(cfg.world.sky); scene.fog = new THREE.Fog(cfg.world.fog.color, 90, 200);
+  const target = new THREE.Vector3(-1.6, 0, -1.6);
+  sky(cfg, target); lights({ target, size: 20, sunOff: [-12, 20, 10] });
+  const water = W.makeWater(cfg); water.position.set(0, 0, 0); scene.add(water); updaters.push((t) => water.userData.update(t));
+  const P = 6, B = 4.5, Y = 0.26; // block pitch, block size, top of the sidewalk
+  const cells = [[0, 0, "work"], [1, 0, "health"], [0, 1, "family"], [1, 1, "paperwork"], [2, 1, "shops"], [1, 2, "park"], [2, 2, "home"]];
+  const at = (i, j) => [(i - 1) * P, (j - 1) * P];
+  const D = {};
+  for (const [i, j, id] of cells) {
+    const [cx, cz] = at(i, j);
+    put(bx(P, 1.6, P, "#c9b48a"), cx, -0.8, cz);                       // earth
+    const road = put(bx(P, 0.12, P, "#5f6673"), cx, 0.06, cz); road.castShadow = false;
+    put(bx(B, 0.14, B, "#d8d3c6"), cx, 0.19, cz);                     // sidewalk / curb
+    for (const [ex, ez, rot] of [[P / 2, 0, 0], [-P / 2, 0, 0], [0, P / 2, 1], [0, -P / 2, 1]])
+      for (let k = -2; k <= 2; k++) { const d = bx(rot ? 0.5 : 0.08, 0.02, rot ? 0.08 : 0.5, "#f4f1e6"); d.castShadow = false; put(d, cx + ex + (rot ? k * 1.1 : 0), 0.13, cz + ez + (rot ? 0 : k * 1.1)); }
+    const g = new THREE.Group(); g.position.set(cx, Y, cz); scene.add(g); D[id] = g;
+  }
+  const lawn = (g, c, w = B - 0.3, d = B - 0.3) => { const l = put(bx(w, 0.06, d, c), 0, 0.03, 0, g); l.castShadow = false; return l; };
+  const house = (wall, roof, s = 1) => {
+    const h = new THREE.Group();
+    put(bx(2.2 * s, 1.4 * s, 1.8 * s, wall), 0, 0.7 * s, 0, h);
+    put(prism(2.6 * s, 1.0 * s, 2.1 * s, roof), 0, 1.4 * s, 0, h);
+    put(bx(0.42 * s, 0.76 * s, 0.05, "#7a4a2a"), 0.5 * s, 0.38 * s, 0.92 * s, h);
+    put(bx(0.44 * s, 0.38 * s, 0.05, glow("#ffd58a", 1.3)), -0.5 * s, 0.86 * s, 0.92 * s, h);
+    put(bx(0.05, 0.38 * s, 0.44 * s, glow("#ffd58a", 1.3)), 1.12 * s, 0.86 * s, 0.3 * s, h);
+    return h;
+  };
+  const add = (g, o, x, z, ry = 0) => { o.position.set(x, 0.06, z); o.rotation.y = ry; g.add(o); return o; };
+  const car = (c) => { const k = new THREE.Group(); put(bx(0.95, 0.28, 0.48, c), 0, 0.26, 0, k); put(bx(0.5, 0.24, 0.42, m("#dfe9f5", { roughness: 0.2, metalness: 0.3 })), -0.05, 0.52, 0, k);
+    for (const [x, z] of [[-0.3, -0.24], [0.3, -0.24], [-0.3, 0.24], [0.3, 0.24]]) { const w = cy(0.12, 0.12, 0.08, "#1f1f26", 12); w.rotation.x = Math.PI / 2; put(w, x, 0.12, z, k); } return k; };
+  const lamp = (x, z) => { put(cy(0.04, 0.05, 1.5, "#3b4250", 8), x, 0.85, z); put(sp(0.12, glow("#ffe6a8", 2.2), 10), x, 1.65, z); };
+
+  // Work: downtown towers with lit floors.
+  const work = D.work; lawn(work, "#c9ccd3");
+  for (const [x, z, w, h, c] of [[-0.95, -0.95, 1.6, 6.2, "#5d6f8f"], [1.05, -0.9, 1.4, 4.6, "#6f8fa8"], [-0.95, 1.1, 1.4, 3.4, "#7d8db0"], [1.1, 1.15, 1.2, 2.4, "#8a9bc0"]]) {
+    put(bx(w, h, w, m(c, { metalness: 0.35, roughness: 0.3 })), x, h / 2, z, work);
+    for (let y = 0.5; y < h - 0.2; y += 0.55) { const b = bx(w + 0.02, 0.14, w + 0.02, glow("#bfe3ff", 0.75)); b.castShadow = false; put(b, x, y, z, work); }
+  }
+  put(cy(0.03, 0.03, 0.9, "#cfd6e6", 6), -0.95, 6.65, -0.95, work); put(sp(0.08, glow("#ff6b6b", 2.6), 8), -0.95, 7.12, -0.95, work);
+
+  // Health: a park with a gym, a running track and a pond.
+  const hl = D.health; lawn(hl, "#7fcf7a");
+  const gym = new THREE.Group(); put(bx(1.8, 0.95, 1.3, "#eef2f6"), 0, 0.48, 0, gym); put(bx(2.0, 0.14, 1.5, "#e0504b"), 0, 1.02, 0, gym);
+  const barM = cy(0.04, 0.04, 0.9, "#3a3a3a", 10); barM.rotation.z = Math.PI / 2; put(barM, 0, 1.35, 0, gym);
+  for (const dx of [-0.4, 0.4]) { const pl = cy(0.2, 0.2, 0.1, "#2b2b2b", 18); pl.rotation.z = Math.PI / 2; put(pl, dx, 1.35, 0, gym); }
+  add(hl, gym, -0.95, -1.1);
+  const tg = new THREE.RingGeometry(0.7, 1.0, 40); tg.rotateX(-Math.PI / 2); const track = new THREE.Mesh(tg, m("#d9654b")); track.position.set(0.95, 0.07, -0.9); hl.add(track);
+  const pond = put(cy(0.95, 0.95, 0.04, m("#5fb7e6", { roughness: 0.15, metalness: 0.2 }), 28), -0.9, 0.08, 1.0, hl); pond.castShadow = false;
+  for (const [x, z, s] of [[1.4, 1.3, 0.8], [0.4, 1.6, 0.65], [1.6, 0.3, 0.6]]) add(hl, tree(s), x, z);
+  const runner = person(["#4ee08a", "#e9c9a8", "#1f2d4a"], { hat: "cap", hair: "#3b2a20" }); runner.scale.setScalar(0.8); add(hl, runner, 1.9, -0.9, Math.PI);
+  updaters.push((t, dt) => runner.userData.animate(t, dt, { walking: true }));
+
+  // Family: the parents' street with a picnic table.
+  const fm = D.family; lawn(fm, "#9ccf72");
+  add(fm, house("#ffe2d1", "#7d5fd3", 0.62), -1.1, -1.1); add(fm, house("#e2f0ff", "#3e8fb0", 0.58), 1.05, -1.2, -0.2); add(fm, house("#fff3c4", "#e0884b", 0.55), -1.15, 1.05, 0.2);
+  put(bx(1.0, 0.06, 0.55, "#a8774c"), 0.95, 0.55, 1.0, fm); for (const dz of [-0.45, 0.45]) put(bx(1.0, 0.05, 0.2, "#8a5a3a"), 0.95, 0.32, 1.0 + dz, fm);
+  const p1 = person(["#e56b8a", "#f1cfae", "#7a3b3b"], { hat: "none", hair: "#c9c2b8" }); p1.scale.setScalar(0.85); add(fm, p1, 0.2, 1.4, 0.9);
+  const p2 = person(["#3e8fb0", "#e8c39e", "#1f2d4a"], { hat: "cap", hair: "#2b2b2b" }); p2.scale.setScalar(0.75); add(fm, p2, 1.8, 0.6, -0.4);
+
+  // Paperwork: city hall with columns, a dome and a flag, a fountain on the plaza.
+  const pw = D.paperwork; lawn(pw, "#e6dfcf");
+  const hall = new THREE.Group();
+  put(bx(3.0, 0.22, 2.1, "#d9d2c2"), 0, 0.11, 0, hall); put(bx(2.7, 0.14, 1.8, "#e4ddce"), 0, 0.29, 0, hall);
+  put(bx(2.5, 1.3, 1.3, "#f2ede2"), 0, 1.0, -0.15, hall);
+  for (let k = 0; k < 6; k++) put(cy(0.09, 0.09, 1.25, "#fbf8f1", 12), -1.05 + k * 0.42, 0.98, 0.68, hall);
+  put(bx(2.7, 0.16, 1.75, "#e9e3d6"), 0, 1.68, 0, hall);
+  put(prism(2.7, 0.5, 0.3, "#f2ede2"), 0, 1.76, 0.72, hall);
+  put(cy(0.6, 0.6, 0.35, "#e9e3d6", 24), 0, 1.93, -0.2, hall);
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), m("#7ad1ff", { metalness: 0.4, roughness: 0.35 })); put(dome, 0, 2.1, -0.2, hall);
+  put(cy(0.025, 0.025, 1.1, "#cfd6e6", 6), 0, 3.15, -0.2, hall); put(bx(0.4, 0.24, 0.02, "#ffc94d"), 0.2, 3.55, -0.2, hall);
+  add(pw, hall, 0, -0.6);
+  put(cy(0.5, 0.55, 0.22, "#d9d2c2", 24), -1.3, 0.11, 1.45, pw); put(cy(0.42, 0.42, 0.03, glow("#9fe3ff", 0.6), 24), -1.3, 0.23, 1.45, pw); put(cy(0.06, 0.08, 0.4, "#d9d2c2", 10), -1.3, 0.4, 1.45, pw);
+  put(bx(0.25, 0.45, 0.22, "#e0504b"), 1.6, 0.25, 1.6, pw);
+
+  // Shops: a row with coloured awnings.
+  const sh = D.shops; lawn(sh, "#d8d3c6");
+  [["#ffd166", "#e0504b"], ["#bfe3ff", "#3e8fb0"], ["#ffd0e0", "#8fbf5a"]].forEach(([wall, aw], k) => {
+    const z = -1.4 + k * 1.4; put(bx(1.8, 1.2, 1.2, wall), -0.6, 0.6, z, sh);
+    const a = bx(0.5, 0.06, 1.2, aw); a.rotation.z = -0.35; put(a, 0.45, 0.95, z, sh);
+    put(bx(0.04, 0.5, 0.8, glow("#fff1c4", 0.9)), 0.31, 0.45, z, sh);
+  });
+  add(sh, tree(0.6), 1.6, -1.5); add(sh, tree(0.55), 1.6, 1.4);
+
+  // Green: a small park with a playground.
+  const pk = D.park; lawn(pk, "#8ccf6e");
+  for (const [x, z, s] of [[-1.3, -1.2, 1.0], [1.2, -1.4, 0.8], [-1.4, 1.3, 0.85], [0.3, 0.2, 0.7]]) add(pk, tree(s), x, z);
+  put(bx(0.9, 0.06, 0.45, "#e0504b"), 1.2, 0.55, 1.0, pk); put(bx(0.06, 0.6, 0.06, "#3b4250"), 0.8, 0.3, 1.0, pk); put(bx(0.06, 0.6, 0.06, "#3b4250"), 1.6, 0.3, 1.0, pk);
+
+  // Home: your house, garden, fence, a car in the driveway, and you.
+  const hm = D.home; lawn(hm, "#86c46e");
+  add(hm, house("#f6ead4", "#d0573f", 0.95), -0.7, -0.6, 0.0);
+  add(hm, tree(0.9), -1.6, 1.4); for (const [x, z, c] of [[0.2, 1.2, "#ff8fb1"], [0.5, 1.4, "#ffd166"], [0.8, 1.2, "#b48cff"]]) put(sp(0.12, c, 10), x, 0.14, z, hm);
+  for (let k = 0; k < 9; k++) put(bx(0.07, 0.36, 0.07, "#f3ead8"), -2.0 + k * 0.5, 0.2, 2.05, hm);
+  const drive = put(bx(1.1, 0.03, 2.0, "#b9b3a6"), 1.45, 0.07, 0.6, hm); drive.castShadow = false;
+  add(hm, car("#e56b6f"), 1.45, 0.4, Math.PI / 2);
+  const me = person(CONFIG.playerLook.colors, { hat: "straw", hair: "#5a3a22", lanternColor: "#ffe08a" }); me.scale.setScalar(0.9); add(hm, me, 0.4, 0.5, 0.8);
+  updaters.push((t, dt) => { me.userData.animate(t, dt, { wave: true }); p1.userData.animate(t, dt, { wave: true }); p2.userData.animate(t, dt, {}); });
+
+  // Street life: cars on the roads, street lamps at the corners.
+  for (const [x, z, ry, c] of [[3.35, -1.0, Math.PI / 2, "#5fb7e6"], [2.65, 4.4, -Math.PI / 2, "#ffd166"], [-1.0, 2.65, 0, "#8fe388"], [-4.2, -2.65, Math.PI, "#b48cff"], [0.6, -3.35, 0, "#ff9f6b"]]) { const k = car(c); k.position.set(x, 0.12, z); k.rotation.y = ry; scene.add(k); }
+  for (const [x, z] of [[2.4, -2.4], [-2.4, 2.4], [2.4, 3.6], [3.6, 2.4], [-3.6, -2.4], [8.4, 3.6]]) lamp(x, z);
+  for (const [x, z, s] of [[-9, 3, 1.3], [8, -8, 1], [-3, -15, 1.1]]) {
+    const c = new THREE.Group();
+    for (let i = 0; i < 5; i++) put(sp(0.9 * s * (1 - i * 0.08), m("#ffffff", { roughness: 1, transparent: true, opacity: 0.85 }), 16), i * 0.8 * s - 1.6 * s, Math.sin(i) * 0.25, Math.cos(i * 2) * 0.4, c);
+    c.position.set(x, 9, z); c.traverse((o) => { o.castShadow = false; }); scene.add(c);
+  }
+  cam = isoCam(target, +(params.get("v") || 35));
+  const lbl = (id, name, badge, color, y = 2.6) => { const p = D[id].position; return { v: new THREE.Vector3(p.x, y, p.z), name, badge, color }; };
+  return mapHud([lbl("work", "Work", "3 meetings", "#b48cff", 7.6), lbl("health", "Health", "gym 18:30", "#4ee08a", 2.6), lbl("family", "Family", "call grandma", "#ff8fb1", 2.4), lbl("paperwork", "Paperwork", "2 due this week", "#ff6b6b", 3.6), lbl("home", "Home", "5 tasks", "#ffc94d", 2.6)]);
+}
+
 // ---------- run ----------
-const build = { map: shotMap, home: shotHome, scan: shotScan, identify: shotIdentify, alarm: shotAlarm }[shot] || shotMap;
+const build = { map: shotMap, city: shotCity, home: shotHome, scan: shotScan, identify: shotIdentify, alarm: shotAlarm }[shot] || shotMap;
 const drawUI = await build();
 const post = new THREE.PostProcessing(renderer);
 const sp0 = pass(scene, cam), col = sp0.getTextureNode("output");
