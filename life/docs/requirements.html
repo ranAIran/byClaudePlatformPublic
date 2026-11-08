@@ -42,6 +42,7 @@ th{font-size:13px;color:var(--muted);font-weight:600;background:color-mix(in srg
 tr:last-child td{border-bottom:0}
 td.id{font-weight:700;white-space:nowrap;direction:ltr;text-align:right}
 .ltr{direction:ltr;unicode-bidi:isolate}
+td a.ltr{white-space:nowrap}
 .st{display:inline-block;white-space:nowrap;font-size:12.5px;font-weight:600;border-radius:99px;padding:2px 9px}
 .st.ok{background:var(--ok-soft);color:var(--ok)}
 .st.warn{background:var(--warn-soft);color:var(--warn)}
@@ -133,30 +134,42 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <h2>מחקר שוק</h2>
 <p class="lead">אף אחד לא משלב עולם חזותי, מלאי של החיים ומשימות ניירת אמיתיות. כל שכן מוכיח חצי: משחקים גורמים לאנשים לחזור, וכלי "מוח שני" שומרים את הנתונים שלהם, אבל אף אחד לא עושה את שניהם היטב.</p>
 <div class="table-wrap"><table>
-<thead><tr><th>מוצר</th><th>מה הוא עושה</th><th>היקף (הערכות צד שלישי)</th><th>הלקח עבורנו</th></tr></thead>
+<thead><tr><th>מוצר</th><th>מה הוא עושה</th><th>היקף (הערכות צד שלישי)</th><th>הלקח עבורנו</th><th>להורדה</th></tr></thead>
 <tbody>
-<tr><td><a href="https://en.wikipedia.org/wiki/Notion_(productivity_software)">Notion</a></td><td>דפים ומאגרי נתונים, ה"מוח השני" הנפוץ</td><td>100 מיליון משתמשים (הוכרז ב-2024)</td><td>אנשים רוצים מקום אחד לחיים, אבל ההקמה דורשת עבודה. תבניות חשובות</td></tr>
-<tr><td><a href="https://appgoblin.info/apps/com.habitrpg.android.habitica">Habitica</a></td><td>רשימת משימות כמשחק תפקידים</td><td>כ-8 מיליון התקנות באנדרואיד, כ-193 אלף פעילים בחודש</td><td>המשחק מושך, ואז מראה מיושן ושחיקה מאבדים אנשים</td></tr>
-<tr><td><a href="https://adapty.io/paywall-library/finch/">Finch</a></td><td>חיית מחמד שגדלה כשמבצעים משימות קטנות</td><td>כמיליון דולר בחודש; 40–70 דולר לשנה</td><td>חום ודמות עובדים יותר מנקודות. עדין, אף פעם לא מעניש</td></tr>
-<tr><td><a href="https://tech-insider.org/obsidian-vs-notion-2026/">Obsidian</a></td><td>פתקי Markdown מקומיים שמקושרים כגרף</td><td>כ-1.5 מיליון משתמשים</td><td>משתמשים מתקדמים משלמים על נתונים מקומיים, פרטיים וניתנים לייצוא</td></tr>
-<tr><td>LifeUp, Do It Now</td><td>ניהול משימות כמשחק תפקידים, עם כישורים ורמות</td><td>קטנות, נישה</td><td>לרעיון יש מעריצים, אבל בלי עיצוב טוב הוא נשאר נישה</td></tr>
-<tr><td>Sweepy, Tody</td><td>ניקיון הבית כמשחק, לפי חדרים</td><td>נישה</td><td>חדרים עם משימות ומצב משלהם הם דפוס מוכח ואהוב</td></tr>
-<tr><td>Lumosity, Elevate</td><td>משחקי מוח</td><td>גדולות, אבל ראו את תיק ה-FTC מ-2016</td><td>חידונים כהנאה בלבד, לעולם לא כבריאות</td></tr>
+<tr><td><a href="https://en.wikipedia.org/wiki/Notion_(productivity_software)">Notion</a></td><td>דפים ומאגרי נתונים, ה"מוח השני" הנפוץ</td><td>100 מיליון משתמשים (הוכרז ב-2024)</td><td>אנשים רוצים מקום אחד לחיים, אבל ההקמה דורשת עבודה. תבניות חשובות</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=notion.id">Google Play</a></td></tr>
+<tr><td><a href="https://appgoblin.info/apps/com.habitrpg.android.habitica">Habitica</a></td><td>רשימת משימות כמשחק תפקידים</td><td>כ-8 מיליון התקנות באנדרואיד, כ-193 אלף פעילים בחודש</td><td>המשחק מושך, ואז מראה מיושן ושחיקה מאבדים אנשים</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.habitrpg.android.habitica">Google Play</a></td></tr>
+<tr><td><a href="https://adapty.io/paywall-library/finch/">Finch</a></td><td>חיית מחמד שגדלה כשמבצעים משימות קטנות</td><td>כמיליון דולר בחודש; 40–70 דולר לשנה</td><td>חום ודמות עובדים יותר מנקודות. עדין, אף פעם לא מעניש</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.finch.finch">Google Play</a></td></tr>
+<tr><td><a href="https://tech-insider.org/obsidian-vs-notion-2026/">Obsidian</a></td><td>פתקי Markdown מקומיים שמקושרים כגרף</td><td>כ-1.5 מיליון משתמשים</td><td>משתמשים מתקדמים משלמים על נתונים מקומיים, פרטיים וניתנים לייצוא</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=md.obsidian">Google Play</a></td></tr>
+<tr><td>LifeUp, Do It Now</td><td>ניהול משימות כמשחק תפקידים, עם כישורים ורמות</td><td>קטנות, נישה</td><td>לרעיון יש מעריצים, אבל בלי עיצוב טוב הוא נשאר נישה</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=net.sarasarasa.lifeup">Google Play</a> (LifeUp)</td></tr>
+<tr><td>Sweepy, Tody</td><td>ניקיון הבית כמשחק, לפי חדרים</td><td>נישה</td><td>חדרים עם משימות ומצב משלהם הם דפוס מוכח ואהוב</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=app.sweepy.sweepy">Sweepy</a> · <a class="ltr" href="https://play.google.com/store/apps/details?id=com.looploop.tody">Tody</a></td></tr>
+<tr><td>Lumosity, Elevate</td><td>משחקי מוח</td><td>גדולות, אבל ראו את תיק ה-FTC מ-2016</td><td>חידונים כהנאה בלבד, לעולם לא כבריאות</td><td>—</td></tr>
 </tbody></table></div>
 <div class="card"><b>המיקום שלנו:</b> החום של Finch והחדרים של Sweepy, על בסיס בעלות על הנתונים כמו ב-Obsidian, ומה שמייחד אותנו: ניירת אמיתית כמשימות.<br><b>מי משלם קודם:</b> מבוגרים עסוקים שמנהלים משק בית (חידושים, ניירת של הילדים, אחריות) ואוהבים משחקים.<br><b>מבנה מחיר:</b> מפה ותיק בחינם; מנוי שנתי בטווח של Finch לסנכרון, אינטגרציות וקליטה עם AI.</div>
+
+<h3>אפליקציות לניהול משק הבית ב-Google Play (המתחרים הישירים)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>אפליקציה</th><th>מה היא עושה</th><th>הערה</th><th>להורדה</th></tr></thead>
+<tbody>
+<tr><td>Ohai.ai</td><td>עוזר למשפחה: יומן, משימות, תזכורות, תפריטים ורשימות קניות</td><td>מעט ביקורות (11, ממוצע 3.3) בזמן הבדיקה</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=ai.ohai.app">Google Play</a></td></tr>
+<tr><td>Nooli Household</td><td>תרופות, תשלומי חשבונות ומטלות לכל בני הבית</td><td>חדשה</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.nooli.household">Google Play</a></td></tr>
+<tr><td>HoKee</td><td>רשימת חשבונות משותפת למשק הבית, בלי חיבור לבנק</td><td></td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=eu.maxmarkus.hokee">Google Play</a></td></tr>
+<tr><td>Find my stuff</td><td>מלאי ביתי: מה נמצא איפה</td><td></td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.miquelcms.homeorganizer">Google Play</a></td></tr>
+<tr><td>Nous</td><td>סוכן AI לחשבונות ולהוצאות של משק הבית (בריטניה)</td><td>לא נמצאה אפליקציה ב-Google Play; "Nous Smart" שם היא אפליקציית בית חכם אחרת</td><td>—</td></tr>
+</tbody></table></div>
+<p class="note">לא אומתו קישורים ל-Townscaper, Sortly, Elevate, Lumosity ו-Do It Now; חפשו אותן לפי השם ב-Google Play.</p>
 <p class="note">המספרים לקוחים מאתרי ניתוח אפליקציות ואתרי השוואה, לא מדוחות רשמיים של החברות, והם סותרים זה את זה. יש להתייחס אליהם כסדרי גודל.</p>
 </section>
 
 <section id="refs">
 <h2>משחקי ייחוס בסגנון בניית ערים (השראה גרפית)</h2>
 <div class="table-wrap"><table>
-<thead><tr><th>משחק</th><th>איפה</th><th>מה מיוחד</th></tr></thead>
+<thead><tr><th>משחק</th><th>איפה</th><th>מה מיוחד</th><th>להורדה</th></tr></thead>
 <tbody>
-<tr><td><a href="https://apps.apple.com/gb/app/pocket-city-2/id1533709428">Pocket City 2</a></td><td>iPhone ו-Android</td><td>הכי קרוב ל-SimCity בטלפון: עיר תלת-ממדית, תשלום חד-פעמי, עובד בלי אינטרנט (<a href="https://gamingonphone.com/reviews/pocket-city-2-game-review">ביקורת</a>)</td></tr>
-<tr><td>SimCity BuildIt</td><td>iPhone ו-Android</td><td>הגרסה הרשמית של EA. חינמי, אבל מבוסס טיימרים ודורש אינטרנט</td></tr>
-<tr><td><a href="https://148apps.com/reviews/theotown-review">TheoTown</a></td><td>iPhone ו-Android</td><td>עמוק מאוד, בסגנון רטרו, עקומת למידה תלולה</td></tr>
-<tr><td>Townscaper</td><td>iPhone ו-Android</td><td>בנייה מרגיעה ולא סימולציה. מראה מעוצב, הכי קרוב לכיוון שלנו</td></tr>
-<tr><td><a href="https://www.crazygames.com/game/supercity-3d">SuperCity 3D</a></td><td>דפדפן</td><td>Unity 6 (2026). בדפדפן רץ רק במחשב, לא בטלפון</td></tr>
+<tr><td><a href="https://apps.apple.com/gb/app/pocket-city-2/id1533709428">Pocket City 2</a></td><td>iPhone ו-Android</td><td>הכי קרוב ל-SimCity בטלפון: עיר תלת-ממדית, תשלום חד-פעמי, עובד בלי אינטרנט (<a href="https://gamingonphone.com/reviews/pocket-city-2-game-review">ביקורת</a>)</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.codebrewgames.pocketcity2">Google Play</a></td></tr>
+<tr><td>SimCity BuildIt</td><td>iPhone ו-Android</td><td>הגרסה הרשמית של EA. חינמי, אבל מבוסס טיימרים ודורש אינטרנט</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=com.ea.game.simcitymobile_row">Google Play</a></td></tr>
+<tr><td><a href="https://148apps.com/reviews/theotown-review">TheoTown</a></td><td>iPhone ו-Android</td><td>עמוק מאוד, בסגנון רטרו, עקומת למידה תלולה</td><td><a class="ltr" href="https://play.google.com/store/apps/details?id=info.flowersoft.theotown.theotown">Google Play</a></td></tr>
+<tr><td>Townscaper</td><td>iPhone ו-Android</td><td>בנייה מרגיעה ולא סימולציה. מראה מעוצב, הכי קרוב לכיוון שלנו</td><td>לא אומת</td></tr>
+<tr><td><a href="https://www.crazygames.com/game/supercity-3d">SuperCity 3D</a></td><td>דפדפן</td><td>Unity 6 (2026). בדפדפן רץ רק במחשב, לא בטלפון</td><td>דפדפן</td></tr>
 </tbody></table></div>
 <p>רשימות נוספות: <a href="https://www.pocketgamer.com/articles/084226/top-15-best-city-builder-games-for-android/">Pocket Gamer: 15 משחקי בניית ערים לאנדרואיד</a> · <a href="https://www.mistplay.com/blog/best-city-building-games">Mistplay: משחקי בניית ערים</a></p>
 <p class="note">אנחנו לוקחים מהם השראה לסגנון בלבד (מבט איזומטרי, רבעים, פרטים קטנים). כל המודלים והגרפיקה באפליקציה מקוריים.</p>
