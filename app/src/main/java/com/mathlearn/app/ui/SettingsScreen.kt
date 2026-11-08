@@ -47,7 +47,7 @@ fun SettingsScreen(vm: AppViewModel) {
                 SkinOption(s, selected = vm.skin == s, onClick = { vm.updateSkin(s) })
             }
 
-            Text("קריאה חכמה של דפים (לא חובה)", modifier = Modifier.padding(top = 16.dp),, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text("קריאה חכמה של דפים (לא חובה)", modifier = Modifier.padding(top = 16.dp), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             Text(
                 "עם מפתח API של Anthropic, הדפים שמעלים נקראים על ידי Claude – הוא מבין עברית, כתב יד, " +
                     "בעיות מילוליות ושרטוטים, ומכין מפתח תשובות עם רמזים ופתרונות. " +
