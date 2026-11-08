@@ -280,6 +280,29 @@ function speak(key, tokenIndex = -1) {
 }
 if (speech.ok) { try { speechSynthesis.onvoiceschanged = pickVoice; } catch {} }
 
+/* ============ hint ladder + time (port of the app's HintLadder) ============ */
+function firstStep(ex) {
+  const t = String(ex || "").trim(); if (!t) return null;
+  const parts = t.split(/(?<=[.;])\s+|;\s*|,\s+/).map((p) => p.trim().replace(/[.,;]+$/, "")).filter(Boolean);
+  return parts.length < 2 ? null : parts[0];
+}
+function hintSteps(e) {
+  const written = [e.hint, ...(e.hints || [])].map((h) => String(h || "").trim()).filter(Boolean);
+  const st = firstStep(e.explanation); if (st) written.push("צעד ראשון: " + st);
+  return [...new Set(written)];
+}
+const dur = (sec) => { sec = Math.max(0, Math.round(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s2 = sec % 60;
+  return h ? `${h}:${String(m).padStart(2, "0")}:${String(s2).padStart(2, "0")}` : `${m}:${String(s2).padStart(2, "0")}`; };
+function enterQ(s, id) { leaveQ(s); s.openId = id; s.since = Date.now(); }
+function leaveQ(s) { if (!s || !s.openId) return; s.t[s.openId] = (s.t[s.openId] || 0) + Date.now() - s.since; s.openId = null; }
+const msOn = (s, id) => (s.t[id] || 0) + (s.openId === id ? Date.now() - s.since : 0);
+function tickClock() {
+  const s = S.sess, el = document.getElementById("clock"); if (!s || !el) return;
+  const e = s.set.exercises[s.i];
+  el.textContent = `⏱ ${dur((Date.now() - s.start) / 1000)} מתחילת התרגול  ·  בשאלה הזו ${dur(msOn(s, e.id) / 1000)}`;
+}
+setInterval(tickClock, 1000);
+
 /* ============ content ============ */
 const TOPICS = [
   ["FRACTIONS", "שברים", "½"], ["DECIMALS", "שברים עשרוניים", "0.5"], ["PERCENT", "אחוזים", "%"],
@@ -412,7 +435,7 @@ const VIEWS = {
         <div class="row"><button data-topic="${k}" data-kind="EXERCISES">תרגול</button><button class="ghost" data-topic="${k}" data-kind="TEST">מבחן</button></div></div>`).join("")}</div>
     </section>
 
-    ${results.length ? `<section class="list" aria-labelledby="h-h"><h2 id="h-h">ההתקדמות שלי</h2>${results.slice(0, 8).map((r) => `<div class="item"><div class="grow">${esc(r.title)}<div class="muted">${r.kind === "TEST" ? "מבחן" : "תרגול"} · ${new Date(r.at).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" })}</div></div><span class="m" style="font-size:1.2rem;color:var(--pen)">${r.graded ? Math.round(r.correct * 100 / r.graded) + "%" : "–"}</span></div>`).join("")}</section>` : ""}
+    ${results.length ? `<section class="list" aria-labelledby="h-h"><h2 id="h-h">ההתקדמות שלי</h2>${results.slice(0, 8).map((r) => `<div class="item"><div class="grow">${esc(r.title)}<div class="muted">${r.kind === "TEST" ? "מבחן" : "תרגול"} · ${new Date(r.at).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" })}${r.total ? " · ⏱ " + dur(r.total) : ""}</div></div><span class="m" style="font-size:1.2rem;color:var(--pen)">${r.graded ? Math.round(r.correct * 100 / r.graded) + "%" : "–"}</span></div>`).join("")}</section>` : ""}
     <p class="muted">ההתקדמות ודפי העבודה נשמרים בדפדפן הזה בלבד.</p>
     <p class="muted version">${esc(SITE_VERSION)}</p>`;
   },
@@ -437,7 +460,8 @@ const VIEWS = {
     const locked = !test && (solved || sol);
     let fb = "";
     if (!test) {
-      if (s.hint[e.id] && e.hint) fb += fbBox("hint", "h-" + e.id, "רמז: " + e.hint, "💡 ");
+      const ladder = hintSteps(e), level = s.hint[e.id] || 0;
+      ladder.slice(0, level).forEach((h, k) => { fb += fbBox("hint", `h${k}-${e.id}`, (ladder.length > 1 ? `רמז ${k + 1}: ` : "רמז: ") + h, "💡 "); });
       if (chk === true) { s.cheer = s.cheer || {}; s.cheer[e.id] = s.cheer[e.id] || pick(["נכון!", "כל הכבוד!", "בדיוק!", "מצוין!"]);
         fb += fbBox("good", "ok-" + e.id, s.cheer[e.id] + (e.explanation ? "\n" + e.explanation : ""), "⭐ "); }
       else if (chk === false && !sol) fb += fbBox("bad", "no-" + e.id, wrongs >= 2 ? "עדיין לא. אפשר לנסות שוב או להסתכל בפתרון." : "לא בדיוק. נסו שוב, אתם יכולים!");
@@ -455,12 +479,13 @@ const VIEWS = {
       ${sayBar("q-" + e.id)}
       ${input}
       ${test ? (e.answer ? "" : `<div class="muted">לשאלה הזו אין מפתח תשובות – המורה יבדוק אותה.</div>`) : `<div class="row">
-        ${e.hint && !solved ? `<button class="ghost" id="hintB">💡 רמז</button>` : ""}
-        ${e.answer ? `<button class="primary" id="check" ${locked || !given ? "disabled" : ""}>בדיקה</button>${!solved && (wrongs >= 2 || sol) ? `<button id="solB">הצגת הפתרון</button>` : ""}`
+        ${(() => { const L = hintSteps(e), lv = s.hint[e.id] || 0; return lv < L.length && !solved ? `<button class="ghost" id="hintB">${lv ? `💡 רמז נוסף (${lv + 1}/${L.length})` : "💡 רמז"}</button>` : ""; })()}
+        ${e.answer ? `<button class="primary" id="check" ${locked || !given ? "disabled" : ""}>בדיקה</button>${!solved && (wrongs >= 2 || sol || (hintSteps(e).length && (s.hint[e.id] || 0) >= hintSteps(e).length)) ? `<button id="solB">הצגת הפתרון</button>` : ""}`
           : `<button class="primary" id="solB" ${sol ? "disabled" : ""}>סיימתי – אבדוק לבד</button>`}</div>`}
       ${fb}
       <div class="row" style="justify-content:space-between;margin-top:8px"><button id="prev" ${s.i === 0 ? "disabled" : ""}>→ הקודמת</button>
         ${s.i < n - 1 ? `<button class="primary" id="next">הבאה ←</button>` : `<button class="primary" id="finish">${test ? "הגשת המבחן" : "סיום"}</button>`}</div>
+      <p id="clock" class="muted version" aria-live="off"></p>
       ${s.confirm ? `<div class="fb sol"><span class="body">${s.confirm}</span><div class="row" style="margin-top:8px"><button class="primary" id="confirmYes">כן</button><button id="confirmNo">ביטול</button></div></div>` : ""}`;
   },
 
@@ -470,23 +495,25 @@ const VIEWS = {
     const mistakes = r.items.filter((x) => x.ok === false).length;
     return `<header class="top"><h1>תוצאות</h1></header>
       <div class="sheet" style="text-align:center"><div style="font-size:2.6rem">${emo}</div><div class="big">${pct === null ? "–" : pct + "%"}</div>
-        <div>${r.correct} נכונות מתוך ${r.graded}${r.graded < r.items.length ? ` · ${r.items.length - r.graded} לא נבדקו` : ""}</div><h2 style="margin-top:6px">${msg}</h2></div>
+        <div>${r.correct} נכונות מתוך ${r.graded}${r.graded < r.items.length ? ` · ${r.items.length - r.graded} לא נבדקו` : ""}</div><h2 style="margin-top:6px">${msg}</h2>
+        <div class="muted" style="margin-top:6px">⏱ זמן כולל ${dur(r.total)}  ·  ממוצע לשאלה ${dur(r.items.reduce((t, x) => t + x.sec, 0) / Math.max(1, r.items.length))}</div></div>
       <div class="row">${mistakes ? `<button class="primary" id="redo">לתרגל את הטעויות (${mistakes})</button>` : ""}<button id="home">למסך הראשי</button></div>
-      <h2>סקירה</h2><div class="list">${r.items.map((x) => { const e = set.exercises.find((q) => q.id === x.id); return `<div class="item res ${x.ok === true ? "ok" : x.ok === false ? "no" : ""}"><div class="grow">
+      <h2>סקירה</h2><div class="list">${r.items.map((x, _k, all) => { const slow = Math.max(...all.map((y) => y.sec)); const isSlow = x.sec > 0 && x.sec === slow; const e = set.exercises.find((q) => q.id === x.id); return `<div class="item res ${x.ok === true ? "ok" : x.ok === false ? "no" : ""}"><div class="grow">
         <div style="white-space:pre-line"><b>${x.ok === true ? "✅" : x.ok === false ? "❌" : "❔"} ${mathHTML(e.prompt)}</b></div>
-        <div>התשובה שלך: ${x.given ? mathHTML(x.given) : "(אין)"}</div>${x.ok !== true && e.answer ? `<div><b>התשובה הנכונה: ${mathHTML(e.answer)}</b></div>` : ""}
+        <div>התשובה שלך: ${x.given ? mathHTML(x.given) : "(אין)"}</div>
+        <div class="muted" style="${isSlow ? "font-weight:700;color:var(--ink)" : ""}">⏱ ${dur(x.sec)} בשאלה הזו${isSlow ? " · השאלה שלקחה הכי הרבה זמן" : ""}</div>${x.ok !== true && e.answer ? `<div><b>התשובה הנכונה: ${mathHTML(e.answer)}</b></div>` : ""}
         ${e.explanation ? `<div class="muted">${mathHTML(e.explanation)}</div>` : ""}</div></div>`; }).join("")}</div>`;
   },
 };
 
 /* ============ actions ============ */
-const newSess = (set) => ({ set, i: 0, answers: {}, last: {}, first: {}, wrong: {}, hint: {}, sol: {}, self: {}, confirm: null });
+const newSess = (set) => ({ set, i: 0, answers: {}, last: {}, first: {}, wrong: {}, hint: {}, sol: {}, self: {}, confirm: null, t: {}, openId: null, since: 0, start: Date.now() });
 const startSet = (set) => go("session", { sess: newSess(set) });
 function finish() {
-  const s = S.sess, test = s.set.kind === "TEST";
-  const items = s.set.exercises.map((e) => { const g = s.answers[e.id] || ""; const ok = e.answer == null ? (s.self[e.id] ?? null) : test ? isCorrect(e.answer, g) : (s.first[e.id] ?? false); return { id: e.id, given: g, ok }; });
-  const r = { title: s.set.title, kind: s.set.kind, at: Date.now(), items, graded: items.filter((x) => x.ok !== null).length, correct: items.filter((x) => x.ok === true).length };
-  results.unshift({ title: r.title, kind: r.kind, at: r.at, graded: r.graded, correct: r.correct }); results = results.slice(0, 50); store.set("results", results);
+  const s = S.sess, test = s.set.kind === "TEST"; leaveQ(s);
+  const items = s.set.exercises.map((e) => { const g = s.answers[e.id] || ""; const ok = e.answer == null ? (s.self[e.id] ?? null) : test ? isCorrect(e.answer, g) : (s.first[e.id] ?? false); return { id: e.id, given: g, ok, sec: Math.round((s.t[e.id] || 0) / 1000) }; });
+  const r = { title: s.set.title, kind: s.set.kind, at: Date.now(), items, graded: items.filter((x) => x.ok !== null).length, correct: items.filter((x) => x.ok === true).length, total: Math.round((Date.now() - s.start) / 1000) };
+  results.unshift({ title: r.title, kind: r.kind, at: r.at, graded: r.graded, correct: r.correct, total: r.total }); results = results.slice(0, 50); store.set("results", results);
   go("result", { result: r, resultSet: s.set, sess: null });
 }
 function check() {
@@ -522,11 +549,11 @@ For each exercise give:
 - prompt: the full question as the student should see it, in the page's language (usually Hebrew). Keep numbers, fractions (write a/b, mixed numbers "2 3/4"), units and any data from tables or drawings needed to solve it. Split sub-parts (א, ב, ג) into separate items and repeat the shared context. Write math in left-to-right order exactly as printed.
 - answer: the correct short final answer (number, fraction, "כן"/"לא", or a word). Use the page's answer key if shown, otherwise solve it yourself. Use "" when there is no single checkable answer (drawing, explaining, measuring on a grid not described in text).
 - choices: the options if the page lists them, else []. For "fill in the sign" items give [">", "<", "="]. The answer must then be the exact text of one choice.
-- hint: one short encouraging hint in Hebrew that does not reveal the answer.
+- hints: 2–3 graduated hints in Hebrew, from a gentle nudge to a concrete first step; none reveals the final answer.
 - explanation: a brief step-by-step solution in Hebrew for an 11–12 year old.
 - topic: one of ${TOPICS.map((t) => t[0]).join(", ")}, OTHER.
 Use Israeli notation (":" for division, "·" or "×" for multiplication). Ignore names, dates and decorations.
-${note ? "Note from the student: " + note + "\n" : ""}Reply with JSON only: {"title": short Hebrew title, "kind": "TEST" if it is clearly a test/quiz (מבחן, בוחן) else "EXERCISES", "exercises": [{"prompt","answer","choices","hint","explanation","topic"}]}`;
+${note ? "Note from the student: " + note + "\n" : ""}Reply with JSON only: {"title": short Hebrew title, "kind": "TEST" if it is clearly a test/quiz (מבחן, בוחן) else "EXERCISES", "exercises": [{"prompt","answer","choices","hints","explanation","topic"}]}`;
 async function extract() {
   if (!sample) { S.error = "קריאת דפים עובדת כשפותחים את הדף הזה ב-claude.ai."; return render(); }
   S.busy = true; S.error = ""; render();
@@ -534,7 +561,7 @@ async function extract() {
     const data = await sample.json(PROMPT(S.files.length, S.note.trim()), { images: S.files.map((f) => f.blob), modelTier: "default" });
     const list = Array.isArray(data?.exercises) ? data.exercises : [];
     const exs = list.filter((e) => e && String(e.prompt || "").trim()).map((e) => ({ id: uid(), prompt: String(e.prompt).trim(), answer: String(e.answer ?? "").trim() || null,
-      choices: Array.isArray(e.choices) ? e.choices.map(String).map((c) => c.trim()).filter(Boolean) : [], hint: String(e.hint || "").trim() || null,
+      choices: Array.isArray(e.choices) ? e.choices.map(String).map((c) => c.trim()).filter(Boolean) : [], ...(() => { const hs = [e.hint, ...(Array.isArray(e.hints) ? e.hints : [])].map((h) => String(h || "").trim()).filter(Boolean); return { hint: hs[0] || null, hints: hs.slice(1) }; })(),
       explanation: String(e.explanation || "").trim() || null, topic: String(e.topic || "OTHER") }));
     if (!exs.length) throw { code: "empty" };
     S.files.forEach((f) => URL.revokeObjectURL(f.url)); S.files = []; S.note = ""; S.busy = false;
@@ -579,7 +606,8 @@ function bind() {
       a.onkeydown = (k) => { if (k.key === "Enter") { if (s.set.kind === "TEST") { if (s.i < s.set.exercises.length - 1) { s.i++; render(); } } else if (e.answer && a.value.trim()) check(); } };
       if (!a.disabled) a.focus({ preventScroll: true }); }
     all("[data-choice]", (b) => { s.answers[e.id] = e.choices[+b.dataset.choice]; render(); });
-    on("check", check); on("hintB", () => { s.hint[e.id] = true; render(); });
+    on("check", check); on("hintB", () => { s.hint[e.id] = (s.hint[e.id] || 0) + 1; render(); });
+    if (s.openId !== e.id) enterQ(s, e.id); tickClock();
     on("solB", () => { s.sol[e.id] = true; if (e.answer && !(e.id in s.first)) s.first[e.id] = false; render(); });
     all("[data-self]", (b) => { s.self[e.id] = b.dataset.self === "1"; render(); });
     on("prev", () => { stopSpeech(); s.i--; s.confirm = null; render(); }); on("next", () => { stopSpeech(); s.i++; s.confirm = null; render(); });

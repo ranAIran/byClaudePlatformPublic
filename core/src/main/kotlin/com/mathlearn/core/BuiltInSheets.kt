@@ -14,7 +14,7 @@ object BuiltInSheets {
 
     /** Second and third rungs of the hint ladder for sheet #4, by question id. */
     private val weekly4MoreHints = mapOf(
-        "1" to listOf("אם מוסיפים למספר אחד 200, צריך להוריד 200 מהמספר השני כדי שהסכום יישאר אותו דבר."),
+        "1" to listOf("כשמקטינים מספר אחד ב-200, צריך להגדיל את המספר השני ב-200 כדי שהסכום יישאר אותו דבר."),
         "2" to listOf("9 מחברות הן פי 3 מ-3 מחברות, ו-6 עטים הם פי 3 מ-2 עטים."),
         "3" to listOf("3 ק״מ = 3,000 מטרים. מה עושים עם 650 המטרים שגיל לא רץ?"),
         "4a" to listOf("240 : 8 – כמה פעמים 8 נכנס ב-24?"),
