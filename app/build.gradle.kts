@@ -13,8 +13,11 @@ android {
         applicationId = "com.mathlearn.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // CI build number -> 1.0.<n>, matching the GitHub Release tag v1.0.<n>.
+        val build = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = build
+        versionName = "1.0.$build"
+        buildConfigField("String", "BUILD_SHA", "\"${System.getenv("GITHUB_SHA")?.take(7) ?: "local"}\"")
     }
 
     buildTypes {
@@ -34,6 +37,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     packaging {
         resources {

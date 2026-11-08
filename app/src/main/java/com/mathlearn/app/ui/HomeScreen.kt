@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mathlearn.app.AppViewModel
+import com.mathlearn.app.BuildConfig
 import com.mathlearn.app.Screen
 import com.mathlearn.core.ExerciseSet
 import com.mathlearn.core.SetKind
@@ -130,7 +131,14 @@ fun HomeScreen(vm: AppViewModel) {
                     }
                 }
             }
-            item { Spacer(Modifier.height(24.dp)) }
+            item {
+                Text(
+                    "גרסה ${BuildConfig.VERSION_NAME} · ${BuildConfig.BUILD_SHA}",
+                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline,
+                    textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                )
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 

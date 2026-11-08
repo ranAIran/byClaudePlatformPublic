@@ -61,6 +61,7 @@ input[type=text], textarea { width: 100%; box-sizing: border-box; border: 1.5px 
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 .muted { color: var(--pencil); font-size: .92rem; }
 .err { color: var(--bad); font-weight: 600; }
+.version { text-align: center; font-size: .8rem; margin: 0; font-variant-numeric: tabular-nums; }
 
 header.top { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap;
   padding-block: 20px 4px; border-bottom: 2px solid var(--margin); }
@@ -287,6 +288,7 @@ const TOPICS = [
 ];
 const topicTitle = (k) => (TOPICS.find((t) => t[0] === k) || [k, "אחר"])[1];
 const BUILTINS = /*BUILTINS*/[];
+const SITE_VERSION = /*VERSION*/"";
 
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -411,7 +413,8 @@ const VIEWS = {
     </section>
 
     ${results.length ? `<section class="list" aria-labelledby="h-h"><h2 id="h-h">ההתקדמות שלי</h2>${results.slice(0, 8).map((r) => `<div class="item"><div class="grow">${esc(r.title)}<div class="muted">${r.kind === "TEST" ? "מבחן" : "תרגול"} · ${new Date(r.at).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" })}</div></div><span class="m" style="font-size:1.2rem;color:var(--pen)">${r.graded ? Math.round(r.correct * 100 / r.graded) + "%" : "–"}</span></div>`).join("")}</section>` : ""}
-    <p class="muted">ההתקדמות ודפי העבודה נשמרים בדפדפן הזה בלבד.</p>`;
+    <p class="muted">ההתקדמות ודפי העבודה נשמרים בדפדפן הזה בלבד.</p>
+    <p class="muted version">${esc(SITE_VERSION)}</p>`;
   },
 
   review() {

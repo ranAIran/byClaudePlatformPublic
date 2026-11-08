@@ -34,8 +34,12 @@ exercises so they can solve them on the phone, with instant feedback or as a gra
 `web/index.html` is a browser version of the same app (Hebrew, RTL, no install), published as a
 claude.ai page: https://claude.ai/artifact/LDQX1f5gjozmUBtjp52ZwY . Uploaded images/PDFs are read
 by Claude on the viewer's own Claude account (no API key). Progress is kept in the browser.
-`web/index.src.html` is the source; `index.html` = source + the built-in sheets JSON exported by
-`CORE_ONLY=1 ./gradlew :core:test` (`core/build/builtins.json`), injected at `/*BUILTINS*/`.
+`web/index.src.html` is the source. Build with `python3 web/build.py --bump` (after
+`CORE_ONLY=1 ./gradlew :core:test`, which exports `core/build/builtins.json`): it injects the built-in
+sheets and the site version shown at the bottom of the main page.
+
+The app shows its version (1.0.<CI build number>, same as the Release tag) at the bottom of the main
+screen and in Settings.
 
 ## Project layout
 

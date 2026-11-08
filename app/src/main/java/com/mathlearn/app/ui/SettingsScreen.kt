@@ -56,6 +56,9 @@ fun SettingsScreen(vm: AppViewModel) {
             Text("נתונים", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 16.dp))
             OutlinedButton(onClick = { vm.clearHistory() }) { Text("מחיקת היסטוריית ההתקדמות") }
+            Text("גרסה ${com.mathlearn.app.BuildConfig.VERSION_NAME} (${com.mathlearn.app.BuildConfig.BUILD_SHA})",
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline,
+                modifier = Modifier.padding(top = 16.dp))
         }
     }
 }
