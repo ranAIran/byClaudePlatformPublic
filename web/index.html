@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&family=Fredoka:wght@500;700&family=Press+Start+2P&display=swap">
 <style>
 /* Layout: a squared math notebook (מחברת חשבון) — graph-paper cards with a red margin rule, school-pen blue ink. */
 :root {
@@ -75,7 +75,9 @@ header.top { display: flex; align-items: flex-end; justify-content: space-betwee
   padding: 18px 44px 18px 18px; }
 .sheet::before { content: ""; position: absolute; top: 0; bottom: 0; right: 30px; width: 2px; background: var(--margin); opacity: .7; }
 
-.upload { display: grid; gap: 12px; }
+.upload { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+.drop { min-width: 0; overflow-wrap: anywhere; }
+.drop input { max-width: 100%; }
 .drop { border: 2px dashed var(--pen); border-radius: 12px; padding: 18px; text-align: center; background: var(--pen-soft); }
 .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
 .thumbs img { height: 120px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
@@ -112,6 +114,51 @@ header.top { display: flex; align-items: flex-end; justify-content: space-betwee
 .editor { display: grid; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 details summary { cursor: pointer; color: var(--pen); font-weight: 600; }
 @media (prefers-reduced-motion: no-preference) { .fb { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.98); opacity: .6 } } }
+
+/* ===== looks: נוכחית (classic, above) · כהה · גיימרים — chosen by data-skin on <html> ===== */
+:root { --radius: 10px; --btn-shadow: none; --num: var(--mono); }
+:root[data-skin="dark"] {
+  --paper: #07090f; --sheet: #0e121c; --grid: #161d2c; --ink: #dde3f0; --pencil: #8c96ae;
+  --pen: #8fb0ff; --pen-soft: #1b2747; --margin: #c9636b; --good: #6fd39a; --good-soft: #10261d;
+  --bad: #ff8a80; --bad-soft: #2a1414; --hint-soft: #2a2416; --line: #1f2738; --marker: #e8c468;
+  --radius: 14px; color-scheme: dark; }
+:root[data-skin="gamer"] {
+  --paper: #0d0620; --sheet: #160b33; --grid: #2a1652; --ink: #f2eaff; --pencil: #b9a6e6;
+  --pen: #ff3ec8; --pen-soft: #3a1046; --margin: #26e6ff; --good: #b6ff3b; --good-soft: #1d2e08;
+  --bad: #ff5c8a; --bad-soft: #3a0f22; --hint-soft: #0d3a4a; --line: #3b2470; --marker: #b6ff3b;
+  --display: "Fredoka", "Assistant", sans-serif; --body: "Fredoka", "Assistant", sans-serif; --num: "Press Start 2P", var(--mono);
+  --radius: 0px; --btn-shadow: 0 0 12px rgba(255, 62, 200, .55); color-scheme: dark; }
+button, .tile, .item, .editor, .drop, input[type=text], textarea { border-radius: var(--radius); }
+.stats b, .big { font-family: var(--num); }
+
+/* gamer: neon glow, cut corners, arcade grid */
+:root[data-skin="gamer"] body { background:
+  radial-gradient(1200px 500px at 85% -10%, rgba(255, 62, 200, .22), transparent 60%),
+  radial-gradient(900px 500px at 0% 110%, rgba(38, 230, 255, .18), transparent 60%), var(--paper); }
+:root[data-skin="gamer"] h1 { background: linear-gradient(90deg, #ff3ec8, #26e6ff); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: .02em; }
+:root[data-skin="gamer"] header.top { border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, #26e6ff, #ff3ec8, #b6ff3b) 1; }
+:root[data-skin="gamer"] button { clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); font-weight: 700; }
+:root[data-skin="gamer"] button.primary { background: linear-gradient(135deg, #ff3ec8, #8a3cff); color: #fff; border-color: transparent; box-shadow: var(--btn-shadow); }
+:root[data-skin="gamer"] button.mini, :root[data-skin="gamer"] button.ghost { clip-path: none; }
+:root[data-skin="gamer"] .sheet { border-color: #26e6ff; box-shadow: 0 0 0 1px rgba(38, 230, 255, .25), 0 0 22px rgba(38, 230, 255, .18); }
+:root[data-skin="gamer"] .tile, :root[data-skin="gamer"] .item { border-color: var(--line); background: linear-gradient(160deg, #1e0f45, #140a2e); }
+:root[data-skin="gamer"] .tile .sym { color: #b6ff3b; text-shadow: 0 0 8px rgba(182, 255, 59, .6); }
+:root[data-skin="gamer"] .progress { height: 10px; background: #241447; }
+:root[data-skin="gamer"] .progress > i { background: linear-gradient(90deg, #b6ff3b, #26e6ff, #ff3ec8); box-shadow: 0 0 10px rgba(38, 230, 255, .7); }
+:root[data-skin="gamer"] .big { font-size: 2.2rem; color: #b6ff3b; text-shadow: 0 0 14px rgba(182, 255, 59, .6); }
+:root[data-skin="gamer"] .stats b { font-size: .95rem; color: #26e6ff; }
+:root[data-skin="gamer"] .fb.good { box-shadow: inset 0 0 0 1px #b6ff3b; }
+:root[data-skin="gamer"] .fb.bad { box-shadow: inset 0 0 0 1px #ff5c8a; }
+:root[data-skin="gamer"] .choice[aria-pressed="true"] { box-shadow: 0 0 12px rgba(255, 62, 200, .5); }
+:root[data-skin="gamer"] .w.on { color: #0d0620; }
+/* dark: softer, rounder */
+:root[data-skin="dark"] .sheet { border-color: #1f2738; }
+:root[data-skin="dark"] header.top { border-bottom-color: #2a3550; }
+
+.skins { display: flex; gap: 6px; flex-wrap: wrap; }
+.skins button { padding: 5px 12px; font-size: .9rem; }
+.skins button[aria-pressed="true"] { background: var(--pen); color: var(--sheet); }
+@media (prefers-reduced-motion: no-preference) { :root[data-skin="gamer"] button.primary:hover { filter: brightness(1.15); } }
 </style>
 
 <div class="wrap" id="app"></div>
@@ -254,6 +301,7 @@ function markWord() {
   document.querySelectorAll(".w").forEach((el) => { if (el.dataset.k === speech.key && +el.dataset.t === speech.tok) el.classList.add("on"); });
 }
 function refreshSpeechUI() {
+  document.querySelectorAll("[data-skin-pick]").forEach((b) => { b.onclick = () => { setSkin(b.dataset.skinPick); render(); }; });
   document.querySelectorAll("[data-say]").forEach((b) => { const on = b.dataset.say === speech.key; b.setAttribute("aria-pressed", on); b.textContent = b.classList.contains("mini") ? (on ? "■" : "🔊") : (on ? "■ עצירה" : "🔊 הקראה"); });
   const n = document.getElementById("noVoice"); if (n) n.hidden = !(speech.voicesKnown && !speech.voice);
   markWord();
@@ -311,7 +359,7 @@ const TOPICS = [
 ];
 const topicTitle = (k) => (TOPICS.find((t) => t[0] === k) || [k, "אחר"])[1];
 const BUILTINS = [{"id":"builtin-weekly-4","title":"דף תרגול שבועי – מס׳ 4","kind":"EXERCISES","source":"MANUAL","createdAt":1793836800000,"exercises":[{"id":"weekly4-1","prompt":"1. השלימו את המספר החסר (בלי לחשב את תוצאות התרגילים):\n3,467 + 2,815 = 3,267 + ?","answer":"3015","hint":"השוו את המספרים הראשונים בכל צד: בכמה 3,267 קטן מ-3,467?","explanation":"3,267 קטן מ-3,467 ב-200, לכן המספר החסר צריך להיות גדול מ-2,815 ב-200: 2,815 + 200 = 3,015.","topic":"ORDER_OF_OPERATIONS","hints":["כשמקטינים מספר אחד ב-200, צריך להגדיל את המספר השני ב-200 כדי שהסכום יישאר אותו דבר."]},{"id":"weekly4-2","prompt":"2. המחיר של 3 מחברות ו-2 עטים הוא 28 ₪. מה המחיר של 9 מחברות ו-6 עטים (בש״ח)?","answer":"84","hint":"פי כמה גדלה הכמות של המחברות ושל העטים?","explanation":"9 מחברות ו-6 עטים הם פי 3 מ-3 מחברות ו-2 עטים, לכן המחיר פי 3: 28 · 3 = 84 ₪.","topic":"RATIO","hints":["9 מחברות הן פי 3 מ-3 מחברות, ו-6 עטים הם פי 3 מ-2 עטים."]},{"id":"weekly4-3","prompt":"3. מסלול הריצה בפארק הוא באורך 3 ק״מ. גיל התחיל לרוץ מנקודת ההתחלה ועצר 650 מטרים לפני נקודת הסיום. כמה מטרים רץ גיל?","answer":"2350","hint":"המירו קודם קילומטרים למטרים: בקילומטר יש 1,000 מטרים.","explanation":"3 ק״מ = 3,000 מטרים. 3,000 − 650 = 2,350 מטרים.","topic":"DECIMALS","hints":["3 ק״מ = 3,000 מטרים. מה עושים עם 650 המטרים שגיל לא רץ?"]},{"id":"weekly4-4a","prompt":"4א. 2,400 : 80 = ?","answer":"30","hint":"אפשר לחלק את שני המספרים ב-10.","explanation":"2,400 : 80 = 240 : 8 = 30.","topic":"DIVISIBILITY","hints":["240 : 8 – כמה פעמים 8 נכנס ב-24?"]},{"id":"weekly4-4b","prompt":"4ב. 63 − 36 : 4 = ?","answer":"54","hint":"קודם חילוק, אחר כך חיסור.","explanation":"36 : 4 = 9, ואז 63 − 9 = 54.","topic":"ORDER_OF_OPERATIONS","hints":["חשבו קודם 36 : 4."]},{"id":"weekly4-4c","prompt":"4ג. 47 × 23 = ?","answer":"1081","hint":"אפשר לפרק: 47 · 20 + 47 · 3.","explanation":"47 · 20 = 940, 47 · 3 = 141, ו-940 + 141 = 1,081.","topic":"ORDER_OF_OPERATIONS","hints":["47 · 20 = 940. כמה זה 47 · 3?"]},{"id":"weekly4-4d","prompt":"4ד. (63 − 36) : 9 = ?","answer":"3","hint":"קודם מה שבסוגריים.","explanation":"63 − 36 = 27, ואז 27 : 9 = 3.","topic":"ORDER_OF_OPERATIONS","hints":["63 − 36 = 27. עכשיו חלקו ב-9."]},{"id":"weekly4-5a","prompt":"5א. איזה סימן מתאים?\n0.56 ☐ 0.098","answer":">","choices":[">","<","="],"hint":"השוו ספרה אחרי ספרה, מהעשיריות.","explanation":"בעשיריות: 5 לעומת 0, לכן 0.56 > 0.098.","topic":"DECIMALS","hints":["כתבו את שני המספרים עם אותו מספר ספרות אחרי הנקודה: 0.560 ו-0.098."]},{"id":"weekly4-5b","prompt":"5ב. איזה סימן מתאים?\n3.09 ☐ 3.1","answer":"<","choices":[">","<","="],"hint":"3.1 זה כמו 3.10.","explanation":"3.09 < 3.10, כי 9 מאיות קטן מ-10 מאיות (עשירית אחת).","topic":"DECIMALS","hints":["השוו 3.09 ל-3.10: מי גדול יותר?"]},{"id":"weekly4-5c","prompt":"5ג. איזה סימן מתאים?\n1.7 ☐ 1.70","answer":"=","choices":[">","<","="],"hint":"אפס בסוף החלק העשרוני משנה את הערך?","explanation":"1.70 = 1.7, אפס בסוף המספר העשרוני לא משנה את ערכו.","topic":"DECIMALS"},{"id":"weekly4-5d","prompt":"5ד. איזה סימן מתאים?\n4/5 ☐ 0.75","answer":">","choices":[">","<","="],"hint":"המירו את 4/5 למספר עשרוני.","explanation":"4/5 = 8/10 = 0.8, ו-0.8 > 0.75.","topic":"FRACTIONS","hints":["4/5 = 8/10 = 0.8."]},{"id":"weekly4-5e","prompt":"5ה. כתבו מספר עשרוני גדול מ-1/2 וקטן מ-3/4.","hint":"1/2 = 0.5 ו-3/4 = 0.75.","explanation":"כל מספר בין 0.5 ל-0.75 נכון, למשל 0.6 או 0.7 או 0.65.","topic":"DECIMALS","hints":["חפשו מספר בין 0.5 ל-0.75, למשל עם ספרה אחת אחרי הנקודה."]},{"id":"weekly4-6a","prompt":"6. על ישר המספרים, בין אילו מספרים שלמים נמצא 11/4?","answer":"בין 2 ל-3","choices":["בין 0 ל-1","בין 1 ל-2","בין 2 ל-3"],"hint":"המירו למספר מעורב.","explanation":"11/4 = 2 3/4 = 2.75, כלומר בין 2 ל-3 (קרוב ל-3).","topic":"FRACTIONS","hints":["11 : 4 = 2 ועוד שארית 3, כלומר 2 3/4."]},{"id":"weekly4-6b","prompt":"6. על ישר המספרים, בין אילו מספרים שלמים נמצא 4/3?","answer":"בין 1 ל-2","choices":["בין 0 ל-1","בין 1 ל-2","בין 2 ל-3"],"hint":"המונה גדול מהמכנה – השבר גדול מ-1.","explanation":"4/3 = 1 1/3, כלומר בין 1 ל-2.","topic":"FRACTIONS","hints":["4/3 = 1 ועוד 1/3."]},{"id":"weekly4-6c","prompt":"6. על ישר המספרים, בין אילו מספרים שלמים נמצא 5/2?","answer":"בין 2 ל-3","choices":["בין 0 ל-1","בין 1 ל-2","בין 2 ל-3"],"hint":"כמה חצאים יש ב-2?","explanation":"5/2 = 2 1/2 = 2.5, בדיוק באמצע בין 2 ל-3.","topic":"FRACTIONS","hints":["5/2 = 2 ועוד חצי."]},{"id":"weekly4-6d","prompt":"6. על ישר המספרים, בין אילו מספרים שלמים נמצא 3/4?","answer":"בין 0 ל-1","choices":["בין 0 ל-1","בין 1 ל-2","בין 2 ל-3"],"hint":"המונה קטן מהמכנה – השבר קטן מ-1.","explanation":"3/4 = 0.75, כלומר בין 0 ל-1.","topic":"FRACTIONS","hints":["3/4 זה פחות משלם אחד."]},{"id":"weekly4-7","prompt":"7. שני אחים קנו שקית אדמה. האח הגדול צריך 3/4 מהשקית והאח הצעיר צריך 1/3 מהשקית. האם שקית אחת תספיק לשניהם?","answer":"לא","choices":["כן","לא"],"hint":"חברו את שני השברים ובדקו אם התוצאה גדולה מ-1.","explanation":"3/4 + 1/3 = 9/12 + 4/12 = 13/12, וזה יותר משקית שלמה (12/12). לכן שקית אחת לא תספיק.","topic":"FRACTIONS","hints":["3/4 = 9/12 ו-1/3 = 4/12. כמה זה ביחד?"]},{"id":"weekly4-8","prompt":"8. איזה משפט נכון?","answer":"5/6 גדול מ-5/8","choices":["5/6 גדול מ-5/8","5/6 קטן מ-5/8"],"hint":"כשהמונים שווים, בודקים לכמה חלקים חילקו את השלם.","explanation":"המונים שווים (5). שישית גדולה משמינית, כי מחלקים לפחות חלקים, לכן 5/6 > 5/8.","topic":"FRACTIONS","hints":["מה גדול יותר: חתיכה אחת מעוגה שחילקו ל-6, או מעוגה שחילקו ל-8?"]},{"id":"weekly4-9","prompt":"9. סרטטו בדף משולש קהה-זווית שהקטע המסורטט הוא אחת הצלעות שלו. (תרגיל בדף – בדקו את עצמכם)","hint":"משולש קהה-זווית הוא משולש שאחת הזוויות שלו גדולה מ-90°.","explanation":"בחרו נקודה שלישית מעל הקטע, אבל מחוץ לתחום שמעל הקטע (למשל מעבר לאחד הקצוות). אז הזווית שליד הקצוות תהיה גדולה מזווית ישרה.","topic":"GEOMETRY","hints":["זווית קהה גדולה מזווית ישרה (90°). נסו לשים את הקודקוד השלישי מחוץ לקטע, בצד."]},{"id":"weekly4-10","prompt":"10. חצר מלבנית במידות 18 × 10 מטרים. בפינה אחת ערוגה ריבועית 4 × 4 מ׳, ובפינה אחרת פינת ישיבה 6 × 3 מ׳. השאר מכוסה בדשא. מה שטח הדשא (במ״ר)?","answer":"146","hint":"חשבו את שטח כל החצר, ואז הפחיתו את השטחים שאינם דשא.","explanation":"שטח החצר: 18 · 10 = 180. ערוגה: 4 · 4 = 16. פינת ישיבה: 6 · 3 = 18. דשא: 180 − 16 − 18 = 146 מ״ר.","topic":"GEOMETRY","hints":["18 · 10 = 180 מ״ר לכל החצר. עכשיו חשבו את השטח של הערוגה ושל פינת הישיבה."]},{"id":"weekly4-11a","prompt":"11א. מחירון: תותים 32 ₪, דובדבנים 45 ₪, ענבים 40 ₪, אוכמניות 35 ₪. רונית קנתה כמה מארזים מאותו סוג ושילמה בדיוק 120 ₪. מאיזה סוג קנתה?","answer":"ענבים","choices":["תותים","דובדבנים","ענבים","אוכמניות"],"hint":"בדקו איזה מחיר מחלק את 120 בלי שארית.","explanation":"120 : 40 = 3 בדיוק. שאר המחירים לא מחלקים את 120 (120 : 32, 120 : 45, 120 : 35 יוצאים עם שארית). לכן 3 מארזי ענבים.","topic":"DIVISIBILITY","hints":["נסו כל מחיר: 120 : 32? 120 : 45? 120 : 40? 120 : 35?"]},{"id":"weekly4-11b","prompt":"11א. כמה מארזים קנתה רונית?","answer":"3","hint":"120 : 40 = ?","explanation":"120 : 40 = 3 מארזים.","topic":"DIVISIBILITY","hints":["כמה פעמים 40 נכנס ב-120?"]},{"id":"weekly4-11c","prompt":"11ב. אבי קנה 5 מארזי תותים (32 ₪ כל אחד), ודנה קנתה מארזי ענבים (40 ₪ כל אחד). שניהם שילמו אותו סכום. כמה מארזי ענבים קנתה דנה?","answer":"4","hint":"חשבו כמה שילם אבי, ואז חלקו במחיר מארז ענבים.","explanation":"אבי שילם 5 · 32 = 160 ₪. 160 : 40 = 4 מארזי ענבים.","topic":"RATIO","hints":["5 · 32 = 160 ₪. כמה מארזים של 40 ₪ אפשר לקנות ב-160 ₪?"]},{"id":"weekly4-12","prompt":"12. ענו בדף לפי השרטוט על המשבצות: א. מה היקף המלבן? ב. לאיזה מצולע שטח שווה לשטח המלבן? ג. לאיזה מצולע היקף שווה להיקף המלבן? (בדקו את עצמכם)","hint":"שטח = מספר המשבצות בתוך הצורה. היקף = מספר צלעות המשבצות לאורך השפה.","explanation":"היקף מלבן = 2 · (אורך + רוחב). לשטח: ספרו משבצות שלמות בכל מצולע והשוו למלבן. להיקף: הלכו לאורך השפה של כל מצולע וספרו צלעות של משבצות.","topic":"GEOMETRY","hints":["כדי למצוא את היקף המלבן ספרו כמה משבצות באורך וכמה ברוחב."]}]}];
-const SITE_VERSION = "גרסת אתר 4 · 08.11.2026";
+const SITE_VERSION = "גרסת אתר 5 · 08.11.2026";
 
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
@@ -389,6 +437,10 @@ speech.slow = store.get("slow", false); speech.auto = store.get("auto", false);
 
 /* ============ state + render ============ */
 const S = { view: "home", files: [], note: "", busy: false, error: "", draft: null, sess: null, result: null };
+const SKINS = [["classic", "נוכחית"], ["dark", "כהה"], ["gamer", "גיימרים"]];
+const skinNow = () => document.documentElement.dataset.skin || "classic";
+function setSkin(k) { if (k === "classic") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = k; store.set("skin", k); }
+setSkin(store.get("skin", "classic"));
 const app = document.getElementById("app");
 let sample = null;
 function render() { app.innerHTML = VIEWS[S.view](); bind(); refreshSpeechUI(); autoRead(); }
@@ -409,8 +461,9 @@ const VIEWS = {
     const scored = results.filter((r) => r.graded > 0);
     const avg = scored.length ? Math.round(scored.reduce((t, r) => t + r.correct * 100 / r.graded, 0) / scored.length) + "%" : "–";
     return `
-    <header class="top"><h1>מתמטיקה ו׳</h1>
+    <header class="top"><h1>${document.documentElement.dataset.skin === "gamer" ? "🎮 " : ""}מתמטיקה ו׳</h1>
       <div class="stats"><span><b>${results.length}</b>אימונים</span><span><b>${avg}</b>ממוצע</span><span><b>${results.reduce((t, r) => t + r.correct, 0)}</b>נפתרו</span></div></header>
+    <div class="skins" role="group" aria-label="מראה"><span class="muted">מראה:</span>${SKINS.map(([k, t]) => `<button data-skin-pick="${k}" aria-pressed="${skinNow() === k}">${t}</button>`).join("")}</div>
 
     <section class="sheet upload" aria-labelledby="up-h">
       <h2 id="up-h">העלאת דף עבודה או מבחן</h2>

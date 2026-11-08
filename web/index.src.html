@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Suez+One&family=Assistant:wght@400;600;700&family=IBM+Plex+Mono:wght@500&family=Fredoka:wght@500;700&family=Press+Start+2P&display=swap">
 <style>
 /* Layout: a squared math notebook (מחברת חשבון) — graph-paper cards with a red margin rule, school-pen blue ink. */
 :root {
@@ -75,7 +75,9 @@ header.top { display: flex; align-items: flex-end; justify-content: space-betwee
   padding: 18px 44px 18px 18px; }
 .sheet::before { content: ""; position: absolute; top: 0; bottom: 0; right: 30px; width: 2px; background: var(--margin); opacity: .7; }
 
-.upload { display: grid; gap: 12px; }
+.upload { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+.drop { min-width: 0; overflow-wrap: anywhere; }
+.drop input { max-width: 100%; }
 .drop { border: 2px dashed var(--pen); border-radius: 12px; padding: 18px; text-align: center; background: var(--pen-soft); }
 .thumbs { display: flex; gap: 8px; flex-wrap: wrap; }
 .thumbs img { height: 120px; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
@@ -112,6 +114,51 @@ header.top { display: flex; align-items: flex-end; justify-content: space-betwee
 .editor { display: grid; gap: 8px; background: var(--sheet); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 details summary { cursor: pointer; color: var(--pen); font-weight: 600; }
 @media (prefers-reduced-motion: no-preference) { .fb { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.98); opacity: .6 } } }
+
+/* ===== looks: נוכחית (classic, above) · כהה · גיימרים — chosen by data-skin on <html> ===== */
+:root { --radius: 10px; --btn-shadow: none; --num: var(--mono); }
+:root[data-skin="dark"] {
+  --paper: #07090f; --sheet: #0e121c; --grid: #161d2c; --ink: #dde3f0; --pencil: #8c96ae;
+  --pen: #8fb0ff; --pen-soft: #1b2747; --margin: #c9636b; --good: #6fd39a; --good-soft: #10261d;
+  --bad: #ff8a80; --bad-soft: #2a1414; --hint-soft: #2a2416; --line: #1f2738; --marker: #e8c468;
+  --radius: 14px; color-scheme: dark; }
+:root[data-skin="gamer"] {
+  --paper: #0d0620; --sheet: #160b33; --grid: #2a1652; --ink: #f2eaff; --pencil: #b9a6e6;
+  --pen: #ff3ec8; --pen-soft: #3a1046; --margin: #26e6ff; --good: #b6ff3b; --good-soft: #1d2e08;
+  --bad: #ff5c8a; --bad-soft: #3a0f22; --hint-soft: #0d3a4a; --line: #3b2470; --marker: #b6ff3b;
+  --display: "Fredoka", "Assistant", sans-serif; --body: "Fredoka", "Assistant", sans-serif; --num: "Press Start 2P", var(--mono);
+  --radius: 0px; --btn-shadow: 0 0 12px rgba(255, 62, 200, .55); color-scheme: dark; }
+button, .tile, .item, .editor, .drop, input[type=text], textarea { border-radius: var(--radius); }
+.stats b, .big { font-family: var(--num); }
+
+/* gamer: neon glow, cut corners, arcade grid */
+:root[data-skin="gamer"] body { background:
+  radial-gradient(1200px 500px at 85% -10%, rgba(255, 62, 200, .22), transparent 60%),
+  radial-gradient(900px 500px at 0% 110%, rgba(38, 230, 255, .18), transparent 60%), var(--paper); }
+:root[data-skin="gamer"] h1 { background: linear-gradient(90deg, #ff3ec8, #26e6ff); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: .02em; }
+:root[data-skin="gamer"] header.top { border-bottom: 2px solid transparent; border-image: linear-gradient(90deg, #26e6ff, #ff3ec8, #b6ff3b) 1; }
+:root[data-skin="gamer"] button { clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); font-weight: 700; }
+:root[data-skin="gamer"] button.primary { background: linear-gradient(135deg, #ff3ec8, #8a3cff); color: #fff; border-color: transparent; box-shadow: var(--btn-shadow); }
+:root[data-skin="gamer"] button.mini, :root[data-skin="gamer"] button.ghost { clip-path: none; }
+:root[data-skin="gamer"] .sheet { border-color: #26e6ff; box-shadow: 0 0 0 1px rgba(38, 230, 255, .25), 0 0 22px rgba(38, 230, 255, .18); }
+:root[data-skin="gamer"] .tile, :root[data-skin="gamer"] .item { border-color: var(--line); background: linear-gradient(160deg, #1e0f45, #140a2e); }
+:root[data-skin="gamer"] .tile .sym { color: #b6ff3b; text-shadow: 0 0 8px rgba(182, 255, 59, .6); }
+:root[data-skin="gamer"] .progress { height: 10px; background: #241447; }
+:root[data-skin="gamer"] .progress > i { background: linear-gradient(90deg, #b6ff3b, #26e6ff, #ff3ec8); box-shadow: 0 0 10px rgba(38, 230, 255, .7); }
+:root[data-skin="gamer"] .big { font-size: 2.2rem; color: #b6ff3b; text-shadow: 0 0 14px rgba(182, 255, 59, .6); }
+:root[data-skin="gamer"] .stats b { font-size: .95rem; color: #26e6ff; }
+:root[data-skin="gamer"] .fb.good { box-shadow: inset 0 0 0 1px #b6ff3b; }
+:root[data-skin="gamer"] .fb.bad { box-shadow: inset 0 0 0 1px #ff5c8a; }
+:root[data-skin="gamer"] .choice[aria-pressed="true"] { box-shadow: 0 0 12px rgba(255, 62, 200, .5); }
+:root[data-skin="gamer"] .w.on { color: #0d0620; }
+/* dark: softer, rounder */
+:root[data-skin="dark"] .sheet { border-color: #1f2738; }
+:root[data-skin="dark"] header.top { border-bottom-color: #2a3550; }
+
+.skins { display: flex; gap: 6px; flex-wrap: wrap; }
+.skins button { padding: 5px 12px; font-size: .9rem; }
+.skins button[aria-pressed="true"] { background: var(--pen); color: var(--sheet); }
+@media (prefers-reduced-motion: no-preference) { :root[data-skin="gamer"] button.primary:hover { filter: brightness(1.15); } }
 </style>
 
 <div class="wrap" id="app"></div>
@@ -254,6 +301,7 @@ function markWord() {
   document.querySelectorAll(".w").forEach((el) => { if (el.dataset.k === speech.key && +el.dataset.t === speech.tok) el.classList.add("on"); });
 }
 function refreshSpeechUI() {
+  document.querySelectorAll("[data-skin-pick]").forEach((b) => { b.onclick = () => { setSkin(b.dataset.skinPick); render(); }; });
   document.querySelectorAll("[data-say]").forEach((b) => { const on = b.dataset.say === speech.key; b.setAttribute("aria-pressed", on); b.textContent = b.classList.contains("mini") ? (on ? "■" : "🔊") : (on ? "■ עצירה" : "🔊 הקראה"); });
   const n = document.getElementById("noVoice"); if (n) n.hidden = !(speech.voicesKnown && !speech.voice);
   markWord();
@@ -389,6 +437,10 @@ speech.slow = store.get("slow", false); speech.auto = store.get("auto", false);
 
 /* ============ state + render ============ */
 const S = { view: "home", files: [], note: "", busy: false, error: "", draft: null, sess: null, result: null };
+const SKINS = [["classic", "נוכחית"], ["dark", "כהה"], ["gamer", "גיימרים"]];
+const skinNow = () => document.documentElement.dataset.skin || "classic";
+function setSkin(k) { if (k === "classic") delete document.documentElement.dataset.skin; else document.documentElement.dataset.skin = k; store.set("skin", k); }
+setSkin(store.get("skin", "classic"));
 const app = document.getElementById("app");
 let sample = null;
 function render() { app.innerHTML = VIEWS[S.view](); bind(); refreshSpeechUI(); autoRead(); }
@@ -409,8 +461,9 @@ const VIEWS = {
     const scored = results.filter((r) => r.graded > 0);
     const avg = scored.length ? Math.round(scored.reduce((t, r) => t + r.correct * 100 / r.graded, 0) / scored.length) + "%" : "–";
     return `
-    <header class="top"><h1>מתמטיקה ו׳</h1>
+    <header class="top"><h1>${document.documentElement.dataset.skin === "gamer" ? "🎮 " : ""}מתמטיקה ו׳</h1>
       <div class="stats"><span><b>${results.length}</b>אימונים</span><span><b>${avg}</b>ממוצע</span><span><b>${results.reduce((t, r) => t + r.correct, 0)}</b>נפתרו</span></div></header>
+    <div class="skins" role="group" aria-label="מראה"><span class="muted">מראה:</span>${SKINS.map(([k, t]) => `<button data-skin-pick="${k}" aria-pressed="${skinNow() === k}">${t}</button>`).join("")}</div>
 
     <section class="sheet upload" aria-labelledby="up-h">
       <h2 id="up-h">העלאת דף עבודה או מבחן</h2>
