@@ -45,7 +45,7 @@ await p.waitForTimeout(900); await p.screenshot({ path: `${out}/v-home.png` });
 check(flyMs < 1200, `R4 fly into Home took ${flyMs} ms`);
 check((await colours(p)) > 40, "R5 home frame is not blank");
 const tanks = JSON.stringify(await p.evaluate(() => window.__life.terrariums()));
-check(tanks === "[[60,60,45],[60,45,45]]", `R17 bedroom has two terrariums 60×60×45 and 60×45×45 cm (${tanks})`);
+check(tanks === '[[60,60,45,"lizard 22cm"],[60,45,45]]', `R17 bedroom has two terrariums 60×60×45 (with a small lizard) and 60×45×45 cm (${tanks})`);
 // Complete a task for XP.
 const xp0 = await p.evaluate(() => window.__life.store.xp());
 const box = await p.$('#sheetBody [data-act="toggle"]'); if (box) { await box.tap(); await p.waitForTimeout(200); }

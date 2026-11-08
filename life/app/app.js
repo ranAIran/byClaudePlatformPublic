@@ -11,7 +11,7 @@ import { initBridge } from "./bridge.js";
 import { buildFeedback } from "./core/feedback.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.1.3";
+export const VERSION = "0.1.4";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -44,7 +44,7 @@ seedExamples();
 
 // ---------- renderer and the two worlds ----------
 const coarse = window.matchMedia?.("(pointer: coarse)").matches;
-const renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: params.has("webgl") });
+const renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: "high-performance", forceWebGL: params.has("webgl") });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -365,5 +365,5 @@ renderer.setAnimationLoop(() => {
   if (frames === 10) (w === map ? home : map).post.render();
   w.post.render();
   placeLabels();
-  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName, terrariums: () => { const out = []; home.scene.traverse((o) => { if (o.name === "terrarium") { const { w, h, d } = o.userData.size; out.push([w, h, d].map((v) => Math.round(v * 80))); } }); return out; } }; }
+  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName, terrariums: () => { const out = []; home.scene.traverse((o) => { if (o.name === "terrarium") { const { w, h, d } = o.userData.size; const lz = o.getObjectByName("lizard"); out.push([w, h, d].map((v) => Math.round(v * 80)).concat(lz ? [`lizard ${Math.round(lz.userData.length * 80)}cm`] : [])); } }); return out; } }; }
 });

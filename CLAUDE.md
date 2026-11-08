@@ -38,7 +38,9 @@ npm run test:visual      # Playwright: life/test/visual.mjs (R4 fly < 1.2 s, R5 
 bash life/android/copy-web.sh   # copies life/app + quest engine into the APK assets (CI does this)
 ```
 
-The quest has its own checks (Playwright scripts used in earlier sessions; see `quest/README.md`).
+```bash
+node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate keeper, Q3 admin taps + PIN
+```
 
 ## Environment limits (cloud session)
 
@@ -49,6 +51,7 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 ## Lessons (do not repeat)
 
 - **Never call `renderer.compileAsync()` before the first frame** with the post-processing pass: it left the whole scene blank (quest v1.3.2).
+- **Bridge walk zones must reach a fixed distance into islands**, not a percentage of the bridge length: irregular coastlines left a gap (quest 1.4.0). `quest/check.mjs` Q1 scans every bridge.
 - **Service workers must be network-first** for game files. Cache-first plus a versioned registration URL froze phones on an old version (quest v1.3.2 → fixed in 1.3.4).
 - **Quest version bump = 3 places:** `CONFIG.version` in `quest/content.js`, the two `v…` texts in `quest/index.html`, `SW_BUILD` in `quest/sw.js`.
 - **Life version:** `VERSION` in `life/app/app.js`; the APK `versionName` is `0.1.<CI run number>`.
@@ -72,5 +75,6 @@ The quest has its own checks (Playwright scripts used in earlier sessions; see `
 - **Done:** two independent APKs from `life/android` via product flavors `life` (com.lifearchipelago.app) and `quest` (com.latentarchipelago.quest); CI publishes both in each release.
 - **Done (0.1.3):** bedroom redesign: bed, computer table, two terrariums 60×60×45 and 60×45×45 cm (`terrarium()` and `cm()` in `life/app/scenes.js`, 1 unit ≈ 80 cm; test R17). Fixed back-to-map showing the house (test "R4 back to map").
 - **Preview (awaiting approval):** R18 life map as a city (`life/proto/?shot=city`, `shotCity()` in `life/proto/proto.js`). Requirements doc in Hebrew with live statuses, the city preview and the market review: `life/docs/requirements.html` (R16–R18 are only there, not yet in the Claude Doc).
+- **Done (life 0.1.4, quest 1.4.1):** small gecko (22 cm) in the big terrarium; quest bridge walk zone reaches 1.6 units into each island (the Alignment Gate entrance had a gap and blocked the player); admin taps window 5 s with a countdown toast after the 3rd tap; renderers ask for the high-performance GPU.
 - **Not yet verified on a real phone:** scanner, camera, voice, share-in, WebGPU performance.
 - **Next candidates:** device check of APK 0.1.1 and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.

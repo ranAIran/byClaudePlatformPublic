@@ -32,7 +32,7 @@ const tr = (x) => (x == null ? "" : typeof x === "string" ? x : (x[S.lang] ?? x.
 let renderer;
 try {
   // ?webgl forces the WebGL2 backend, a fallback if a device has WebGPU trouble.
-  renderer = new THREE.WebGPURenderer({ antialias: true, forceWebGL: new URLSearchParams(location.search).has("webgl") });
+  renderer = new THREE.WebGPURenderer({ antialias: true, powerPreference: "high-performance", forceWebGL: new URLSearchParams(location.search).has("webgl") });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MOBILE ? CONFIG.mobileQuality?.pixelRatio || 1.5 : 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
@@ -159,7 +159,10 @@ function walkable(x, z) {
     const { start: a, end: e } = b.mesh.userData;
     const vx = e.x - a.x, vz = e.y - a.y, L2 = vx * vx + vz * vz;
     const t = ((x - a.x) * vx + (z - a.y) * vz) / L2;
-    if (t < -0.15 || t > 1.15) continue;
+    // Reach a fixed 1.6 units into each island: a percentage left a gap on short bridges where the
+    // coastline dips (the Alignment Gate entrance blocked the player in 1.4.0).
+    const ext = 1.6 / Math.sqrt(L2);
+    if (t < -ext || t > 1 + ext) continue;
     const px = a.x + vx * t, pz = a.y + vz * t;
     if ((x - px) ** 2 + (z - pz) ** 2 < 0.7 ** 2) return true;
   }
@@ -252,8 +255,9 @@ function applyLang() {
 // Tap the version number CONFIG.admin.taps times within 3 seconds, enter the PIN, then skip islands.
 let adminTaps = [];
 function adminTap() {
-  const now = Date.now(); adminTaps = adminTaps.filter((t) => now - t < 3000); adminTaps.push(now);
-  if (adminTaps.length >= (CONFIG.admin?.taps || 5)) { adminTaps = []; openAdminPin(); }
+  const now = Date.now(), need = CONFIG.admin?.taps || 5; adminTaps = adminTaps.filter((t) => now - t < 5000); adminTaps.push(now);
+  if (adminTaps.length >= need) { adminTaps = []; openAdminPin(); }
+  else if (adminTaps.length >= 3) toast(`Admin: ${need - adminTaps.length} more`);
 }
 function adminCard(...kids) {
   const card = h("div", { class: "card puzzle", role: "dialog", "aria-label": "Admin" },

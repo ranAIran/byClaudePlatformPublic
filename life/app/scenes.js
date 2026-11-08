@@ -114,8 +114,23 @@ function terrarium(g, x, y, z, w, h, d, o = {}) {
   if (o.rock) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.11, 0), m("#8b8f96", { flatShading: true })); r.scale.set(1.4, 0.7, 1); put(r, w * 0.2, top + 0.05, 0.02, t); }
   if (o.cactus) { put(cy(0.05, 0.06, h * 0.45, o.plant), -w * 0.18, top + h * 0.22, -0.04, t); put(cy(0.03, 0.03, h * 0.18, o.plant), -w * 0.18 + 0.07, top + h * 0.28, -0.04, t); put(sp(0.06, "#d8c08f", 8), w * 0.22, top + 0.03, 0.06, t); }
   else for (let i = 0; i < 5; i++) { const l = sp(0.09, o.plant || "#4fa35a", 10); l.scale.set(0.6, 1.6, 0.6); l.rotation.z = Math.cos(i * 1.7) * 0.6; put(l, -w * 0.2 + Math.cos(i) * 0.06, top + 0.13, -0.05 + Math.sin(i) * 0.06, t); }
+  if (o.lizard) { const lz = lizard(); lz.position.set(-0.04, top, 0.08); lz.rotation.y = -0.5; t.add(lz); }
   put(bx(w * 0.7, 0.03, 0.07, glow("#fff1c4", 1.6)), 0, h + 0.01, -d * 0.15, t);
   return t;
+}
+// A small spotted gecko, about 22 cm nose to tail, facing +x. Its head looks around and its tail sways.
+function lizard(skin = "#e8c25a", spot = "#5a4632") {
+  const L = cm(22), g = new THREE.Group(); g.name = "lizard"; g.userData.length = L;
+  const body = sp(L * 0.16, skin, 14); body.scale.set(2.0, 0.7, 1.0); put(body, 0, L * 0.12, 0, g);
+  const head = new THREE.Group(); head.position.set(L * 0.36, L * 0.14, 0); g.add(head);
+  const skull = sp(L * 0.11, skin, 12); skull.scale.set(1.5, 0.8, 1.05); put(skull, L * 0.05, 0, 0, head);
+  for (const s of [-1, 1]) put(sp(L * 0.03, "#15161a", 8), L * 0.08, L * 0.035, s * L * 0.09, head);
+  const tail = new THREE.Group(); tail.position.set(-L * 0.3, L * 0.1, 0); g.add(tail);
+  const tc = new THREE.Mesh(new THREE.ConeGeometry(L * 0.09, L * 0.55, 10), m(skin)); tc.rotation.z = Math.PI / 2; put(tc, -L * 0.27, 0, 0, tail);
+  for (const [lx, lz] of [[0.2, 1], [0.2, -1], [-0.18, 1], [-0.18, -1]]) { const leg = cy(L * 0.025, L * 0.025, L * 0.16, skin, 6); leg.rotation.x = lz * 1.0; put(leg, lx * L, L * 0.06, lz * L * 0.15, g); }
+  for (const [sx, sz] of [[0.1, 0.05], [-0.05, -0.06], [-0.18, 0.04], [0.22, -0.03]]) put(sp(L * 0.035, spot, 6), sx * L, L * 0.21, sz * L, g);
+  updaters.push((t) => { head.rotation.y = Math.sin(t * 0.6) * 0.45 * (Math.sin(t * 0.17) > 0 ? 1 : 0.2); tail.rotation.y = Math.sin(t * 1.3) * 0.25; });
+  return g;
 }
 function nightstand(g, x, z, lampOn = true) {
   put(bx(0.6, 0.6, 0.55, "#a8774c"), x, 0.3, z, g);
@@ -236,7 +251,7 @@ function buildHomeInto() {
   const standH = 0.62, standZ = -4.45 + 0.32;
   put(bx(1.9, standH, 0.62, "#3a3f4a"), -4.75, standH / 2, standZ, g);
   put(bx(1.92, 0.04, 0.64, "#2a2e36"), -4.75, standH + 0.02, standZ, g);
-  terrarium(g, -5.23, standH + 0.04, standZ, cm(60), cm(60), cm(45), { plant: "#4fa35a", sub: "#8a6440", rock: true });
+  terrarium(g, -5.23, standH + 0.04, standZ, cm(60), cm(60), cm(45), { plant: "#4fa35a", sub: "#8a6440", rock: true, lizard: true });
   terrarium(g, -4.27, standH + 0.04, standZ, cm(60), cm(45), cm(45), { plant: "#7cc46a", sub: "#c9a46a", cactus: true });
   // Computer table with monitor, keyboard, tower and chair; the window sits above it.
   const dX = -1.55, dZ = -4.07;
