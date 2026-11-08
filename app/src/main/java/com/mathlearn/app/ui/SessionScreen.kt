@@ -76,7 +76,7 @@ fun SessionScreen(vm: AppViewModel, state: SessionState) {
             LinearProgressIndicator(progress = { (state.index + 1f) / total }, modifier = Modifier.fillMaxWidth())
 
             Card(Modifier.fillMaxWidth()) {
-                Text(ex.prompt, fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium,
+                Text(mathText(ex.prompt), fontSize = 22.sp, lineHeight = 30.sp, fontWeight = FontWeight.Medium,
                     style = LocalTextStyle.current.copy(textDirection = mathDirection(ex.prompt)),
                     modifier = Modifier.fillMaxWidth().padding(20.dp))
             }
@@ -135,7 +135,7 @@ private fun AnswerInput(state: SessionState, ex: Exercise, enabled: Boolean, onD
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(selected = selected, onClick = { state.answers[ex.id] = choice }, enabled = enabled)
-                    Text(choice, fontSize = 18.sp, style = LocalTextStyle.current.copy(textDirection = mathDirection(choice)))
+                    Text(mathText(choice), fontSize = 18.sp, style = LocalTextStyle.current.copy(textDirection = mathDirection(choice)))
                 }
             }
         }

@@ -50,6 +50,10 @@ class ClaudeExtractor(
             Hebrew). Use Israeli school notation where natural (":" for division, "·" or "×" for
             multiplication). For yes/no answers use "כן" or "לא".
 
+            A question that must be answered on paper (drawing, measuring on a grid that is not fully
+            described in text) gets an empty answer and an explanation of how to check it. Give each
+            sub-question of a "fill in the sign" or "which is correct" item as multiple choice.
+
             Set kind to "TEST" if the page is clearly a test/quiz/exam (מבחן, בוחן), otherwise "EXERCISES".
             Give the set a short title describing the page. Ignore page numbers, names and decorations.
         """.trimIndent()
@@ -110,8 +114,12 @@ class ClaudeExtractor(
      * @param mediaType  e.g. "image/jpeg".
      * @param extraInstructions optional note from the student/parent, e.g. "only page 2, questions 1–5".
      */
-    fun extract(imageBytes: ByteArray, mediaType: String = "image/jpeg", extraInstructions: String = ""): ExerciseSet {
-        val params = buildParams(imageBytes, mediaType, extraInstructions)
+    fun extract(imageBytes: ByteArray, mediaType: String = "image/jpeg", extraInstructions: String = ""): ExerciseSet =
+        extract(listOf(imageBytes), mediaType, extraInstructions)
+
+    /** Several pages (e.g. a multi-page PDF rendered to images) are read in one request, in order. */
+    fun extract(pages: List<ByteArray>, mediaType: String, extraInstructions: String): ExerciseSet {
+        val params = buildParams(pages, mediaType, extraInstructions)
 
         val response = try {
             client.messages().create(params)
@@ -128,14 +136,19 @@ class ClaudeExtractor(
         return toExerciseSet(text)
     }
 
-    internal fun buildParams(imageBytes: ByteArray, mediaType: String, extraInstructions: String): MessageCreateParams {
-        val image = Base64ImageSource.builder()
-            .data(Base64.getEncoder().encodeToString(imageBytes))
-            .mediaType(Base64ImageSource.MediaType.of(mediaType))
-            .build()
+    internal fun buildParams(pages: List<ByteArray>, mediaType: String, extraInstructions: String): MessageCreateParams {
+        require(pages.isNotEmpty()) { "No pages to read" }
+        val images = pages.map { bytes ->
+            ContentBlockParam.ofImage(
+                Base64ImageSource.builder()
+                    .data(Base64.getEncoder().encodeToString(bytes))
+                    .mediaType(Base64ImageSource.MediaType.of(mediaType))
+                    .build(),
+            )
+        }
 
         val userText = buildString {
-            append("Extract the exercises from this page.")
+            append(if (pages.size == 1) "Extract the exercises from this page." else "Extract the exercises from these ${pages.size} pages, in order.")
             if (extraInstructions.isNotBlank()) append("\nNote from the student: ").append(extraInstructions.trim())
         }
 
@@ -144,7 +157,7 @@ class ClaudeExtractor(
             .maxTokens(16000L)
             .system(SYSTEM_PROMPT)
             .addUserMessageOfContentBlockParams(
-                listOf(ContentBlockParam.ofImage(image), ContentBlockParam.ofText(userText)),
+                images + ContentBlockParam.ofText(userText),
             )
             .outputConfig(
                 OutputConfig.builder()

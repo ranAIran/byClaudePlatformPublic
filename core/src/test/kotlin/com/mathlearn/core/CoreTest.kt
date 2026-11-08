@@ -118,11 +118,12 @@ class ExerciseGeneratorTest {
 
 class ClaudeExtractorParsingTest {
     @Test fun buildsRequestWithImageAndSchema() {
-        val params = ClaudeExtractor(apiKey = "test").buildParams(byteArrayOf(1, 2, 3), "image/png", "only Q1-3")
+        val params = ClaudeExtractor(apiKey = "test").buildParams(listOf(byteArrayOf(1, 2, 3), byteArrayOf(4)), "image/png", "only Q1-3")
         val body = params._body().toString()
         assertTrue(body.contains("claude-opus-5-5"), body)
         assertTrue(body.contains("image/png"), body)
         assertTrue(body.contains("only Q1-3"), body)
+        assertTrue(body.contains("these 2 pages"), body)
         assertTrue(body.contains("FRACTIONS"), body)
         assertTrue(params._additionalBodyProperties().containsKey("fallbacks"))
     }
@@ -139,5 +140,34 @@ class ClaudeExtractorParsingTest {
         assertEquals("3/4", set.exercises[0].answer)
         assertNull(set.exercises[1].answer)
         assertEquals(Topic.OTHER, set.exercises[1].topic)
+    }
+}
+
+class BuiltInSheetsTest {
+    @Test fun weekly4AnswerKeyIsConsistent() {
+        val set = BuiltInSheets.weekly4
+        assertEquals(set.exercises.size, set.exercises.map { it.id }.toSet().size, "ids must be unique")
+        for (e in set.exercises) {
+            if (e.choices.isNotEmpty()) assertTrue(e.answer in e.choices, "${e.id}: answer must be one of the choices")
+        }
+        val byId = set.exercises.associateBy { it.id.removePrefix("weekly4-") }
+        // Arithmetic items: the key must match what the evaluator computes from the printed expression.
+        for (id in listOf("4a", "4b", "4c", "4d")) {
+            val e = byId.getValue(id)
+            val expr = e.prompt.substringAfter(". ").substringBefore("=")
+            assertTrue(AnswerChecker.isCorrect(e.answer!!, expr), "$id: ${e.prompt}")
+        }
+        assertTrue(AnswerChecker.isCorrect(byId.getValue("1").answer!!, "3,015"))
+        assertEquals(ExpressionEvaluator.evaluate("3467 + 2815"), ExpressionEvaluator.evaluate("3267 + 3015"))
+        assertEquals(ExpressionEvaluator.evaluate("18*10 - 4*4 - 6*3"), ExpressionEvaluator.evaluate(byId.getValue("10").answer!!))
+    }
+}
+
+class BidiTextTest {
+    @Test fun isolatesMathRunsInHebrew() {
+        assertEquals("איזה סימן מתאים?\n⁦0.56 ☐ 0.098⁩", BidiText.isolateMath("איזה סימן מתאים?\n0.56 ☐ 0.098"))
+        assertEquals("4ב. ⁦63 − 36 : 4 = ?⁩", BidiText.isolateMath("4ב. 63 − 36 : 4 = ?"))
+        assertEquals("קנו 3 מחברות", BidiText.isolateMath("קנו 3 מחברות"))
+        assertEquals("3/4 + 1/8 = ?", BidiText.isolateMath("3/4 + 1/8 = ?")) // no Hebrew: untouched
     }
 }

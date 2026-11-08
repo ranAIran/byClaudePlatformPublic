@@ -29,6 +29,11 @@ class Repository(context: Context) {
         get() = prefs.getString("model", null)?.takeIf { it.isNotBlank() } ?: com.mathlearn.core.ClaudeExtractor.DEFAULT_MODEL
         set(v) = prefs.edit().putString("model", v.trim()).apply()
 
+    /** Built-in sheets already offered once, so a sheet the user deleted does not come back. */
+    var builtInsAdded: Set<String>
+        get() = prefs.getStringSet("builtins_added", emptySet()) ?: emptySet()
+        set(v) = prefs.edit().putStringSet("builtins_added", v).apply()
+
     private fun <T> read(file: File, decode: (String) -> List<T>): List<T> =
         try { if (file.exists()) decode(file.readText()) else emptyList() } catch (_: Exception) { emptyList() }
 

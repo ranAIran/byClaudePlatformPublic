@@ -36,7 +36,8 @@ class MainActivity : ComponentActivity() {
 
     /** A photo shared from the gallery/camera app opens straight in the import screen. */
     private fun handleShare(intent: Intent?) {
-        if (intent?.action != Intent.ACTION_SEND || intent.type?.startsWith("image/") != true) return
+        val type = intent?.type ?: return
+        if (intent.action != Intent.ACTION_SEND || !(type.startsWith("image/") || type == "application/pdf")) return
         val uri: Uri? = if (Build.VERSION.SDK_INT >= 33) {
             intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
         } else {

@@ -6,8 +6,10 @@ exercises so they can solve them on the phone, with instant feedback or as a gra
 
 ## Features
 
-- **Upload an image** – take a photo with the camera, pick from the gallery, or *Share* an image
-  into the app from any other app.
+- **Upload a worksheet** – take a photo, pick an image from the gallery, upload a **PDF** (up to 6
+  pages, all read together), or *Share* an image/PDF into the app from any other app.
+- **Built-in class sheets** – "דף תרגול שבועי – מס׳ 4" ships with the app with a full answer key,
+  hints and solutions (`core/.../BuiltInSheets.kt`). Add future weekly sheets there the same way.
 - **Two ways to extract the content**
   - **✨ Smart (Claude AI)** – the photo is sent to Claude (vision), which reads Hebrew, handwriting,
     word problems, tables and drawings, and returns structured exercises with an answer key,

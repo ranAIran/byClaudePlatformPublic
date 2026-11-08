@@ -70,7 +70,7 @@ fun ResultScreen(vm: AppViewModel, result: SessionResult, set: ExerciseSet) {
                 }
                 Card(colors = CardDefaults.cardColors(containerColor = color), modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text((when (rec.correct) { true -> "✅ "; false -> "❌ "; null -> "❔ " }) + ex.prompt, fontWeight = FontWeight.SemiBold,
+                        Text((when (rec.correct) { true -> "✅ "; false -> "❌ "; null -> "❔ " }) + mathText(ex.prompt), fontWeight = FontWeight.SemiBold,
                             style = LocalTextStyle.current.copy(textDirection = mathDirection(ex.prompt)))
                         Text("התשובה שלך: ${rec.given.ifBlank { "(אין)" }}")
                         if (rec.correct != true && ex.answer != null) Text("התשובה הנכונה: ${ex.answer}", fontWeight = FontWeight.Bold)

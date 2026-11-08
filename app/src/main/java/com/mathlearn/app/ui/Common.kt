@@ -50,6 +50,9 @@ fun ScreenScaffold(
 fun mathDirection(text: String): TextDirection =
     if (text.any { it in '\u0590'..'\u05FF' }) TextDirection.Rtl else TextDirection.Ltr
 
+/** Display form of a question/choice: math inside Hebrew text keeps its left-to-right order. */
+fun mathText(text: String): String = com.mathlearn.core.BidiText.isolateMath(text)
+
 /** Quick-insert buttons for symbols that are awkward on a phone keyboard. */
 @Composable
 fun SymbolRow(onInsert: (String) -> Unit) {

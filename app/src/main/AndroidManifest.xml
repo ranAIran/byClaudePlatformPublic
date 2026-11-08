@@ -22,11 +22,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <!-- Lets the user "Share" a photo of a worksheet straight into the app. -->
+            <!-- Lets the user "Share" a photo or PDF of a worksheet straight into the app. -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
             </intent-filter>
         </activity>
 

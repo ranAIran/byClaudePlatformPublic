@@ -15,6 +15,7 @@ import com.mathlearn.app.data.ImageTools
 import com.mathlearn.app.data.Repository
 import com.mathlearn.core.AnswerChecker
 import com.mathlearn.core.AnswerRecord
+import com.mathlearn.core.BuiltInSheets
 import com.mathlearn.core.ClaudeExtractor
 import com.mathlearn.core.Exercise
 import com.mathlearn.core.ExerciseGenerator
@@ -68,6 +69,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val screen: Screen get() = backStack.last()
 
     val sets = mutableStateListOf<ExerciseSet>().apply { addAll(repo.loadSets()) }
+
+    init {
+        // Add worksheets that ship with the app (e.g. the weekly class sheet) once.
+        val added = repo.builtInsAdded
+        val fresh = BuiltInSheets.all.filter { it.id !in added && sets.none { s -> s.id == it.id } }
+        if (fresh.isNotEmpty()) {
+            sets.addAll(0, fresh)
+            repo.saveSets(sets.toList())
+        }
+        repo.builtInsAdded = added + BuiltInSheets.all.map { it.id }
+    }
     val results = mutableStateListOf<SessionResult>().apply { addAll(repo.loadResults()) }
 
     var apiKey by mutableStateOf(repo.apiKey)
@@ -76,7 +88,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
 
     // Import screen state
-    var importBitmap by mutableStateOf<Bitmap?>(null)
+    /** Pages to read: one for a photo, several for a PDF. */
+    var importPages by mutableStateOf<List<Bitmap>>(emptyList())
         private set
     var importBusy by mutableStateOf(false)
         private set
@@ -151,17 +164,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         importError = null
         viewModelScope.launch {
             try {
-                importBitmap = withContext(Dispatchers.IO) { ImageTools.loadBitmap(getApplication(), uri) }
+                val app = getApplication<Application>()
+                val isPdf = app.contentResolver.getType(uri) == "application/pdf" ||
+                    uri.toString().endsWith(".pdf", ignoreCase = true)
+                importPages = withContext(Dispatchers.IO) {
+                    if (isPdf) ImageTools.loadPdfPages(app, uri) else listOf(ImageTools.loadBitmap(app, uri))
+                }
+                if (importPages.isEmpty()) importError = "בקובץ אין עמודים"
             } catch (e: Exception) {
                 importError = "לא הצלחנו לפתוח את התמונה: ${e.message}"
             }
         }
     }
 
-    fun clearImport() { importBitmap = null; importError = null; importBusy = false }
+    fun clearImport() { importPages = emptyList(); importError = null; importBusy = false }
 
     fun extract(method: ExtractMethod, note: String) {
-        val bitmap = importBitmap ?: return
+        val pages = importPages.ifEmpty { return }
         importBusy = true
         importError = null
         viewModelScope.launch {
@@ -169,13 +188,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val (draft, raw) = withContext(Dispatchers.Default) {
                     when (method) {
                         ExtractMethod.ON_DEVICE -> {
-                            val text = ImageTools.recognizeText(bitmap)
+                            val text = pages.map { ImageTools.recognizeText(it) }.joinToString("\n")
                             ExerciseParser.parse(text) to text
                         }
                         ExtractMethod.CLAUDE -> {
-                            val bytes = ImageTools.toJpeg(bitmap)
+                            val jpegs = pages.map { ImageTools.toJpeg(it) }
                             val set = withContext(Dispatchers.IO) {
-                                ClaudeExtractor(apiKey, model).extract(bytes, "image/jpeg", note)
+                                ClaudeExtractor(apiKey, model).extract(jpegs, "image/jpeg", note)
                             }
                             set to null
                         }
@@ -186,7 +205,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     importError = "לא נמצאו תרגילים. נסו תמונה חדה יותר ובתאורה טובה."
                 } else {
                     replaceTop(Screen.Review(draft, raw))
-                    importBitmap = null
+                    importPages = emptyList()
                 }
             } catch (e: Exception) {
                 importBusy = false

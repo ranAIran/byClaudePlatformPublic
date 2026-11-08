@@ -58,6 +58,9 @@ fun ImportScreen(vm: AppViewModel, initialUri: Uri?) {
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) vm.loadImage(uri)
     }
+    val pickPdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.loadImage(uri)
+    }
     val takePicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         val uri = pendingCapture?.let(Uri::parse)
         if (ok && uri != null) vm.loadImage(uri)
@@ -82,10 +85,18 @@ fun ImportScreen(vm: AppViewModel, initialUri: Uri?) {
                     onClick = { pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
                     modifier = Modifier.weight(1f),
                 ) { Text("🖼️ גלריה") }
+                OutlinedButton(
+                    onClick = { pickPdf.launch(arrayOf("application/pdf")) },
+                    modifier = Modifier.weight(1f),
+                ) { Text("📄 PDF") }
             }
 
-            val bitmap = vm.importBitmap
+            val bitmap = vm.importPages.firstOrNull()
             if (bitmap != null) {
+                if (vm.importPages.size > 1) {
+                    Text("${vm.importPages.size} עמודים – כולם ייקראו (מוצג העמוד הראשון)",
+                        style = MaterialTheme.typography.bodySmall)
+                }
                 Card(Modifier.fillMaxWidth()) {
                     Image(
                         bitmap = bitmap.asImageBitmap(),
@@ -96,7 +107,7 @@ fun ImportScreen(vm: AppViewModel, initialUri: Uri?) {
                 }
             } else {
                 Text(
-                    "טיפ: צלמו את הדף כשהוא שטוח, באור טוב, כך שהתרגילים ימלאו את המסך.",
+                    "צלמו דף, בחרו תמונה, או העלו קובץ PDF של דף העבודה. טיפ לצילום: דף שטוח, באור טוב, שהתרגילים ימלאו את המסך.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline,
                 )
             }

@@ -3,7 +3,9 @@ package com.mathlearn.app.data
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.graphics.ImageDecoder
+import android.graphics.pdf.PdfRenderer
 import android.net.Uri
 import android.os.Build
 import com.google.mlkit.vision.common.InputImage
@@ -45,6 +47,27 @@ object ImageTools {
         if (longEdge <= MAX_EDGE) return bitmap
         val scale = MAX_EDGE.toFloat() / longEdge
         return Bitmap.createScaledBitmap(bitmap, (bitmap.width * scale).toInt(), (bitmap.height * scale).toInt(), true)
+    }
+
+    /** Renders the pages of a PDF (up to [maxPages]) as white-background bitmaps for OCR / Claude. */
+    fun loadPdfPages(context: Context, uri: Uri, maxPages: Int = 6): List<Bitmap> {
+        val fd = context.contentResolver.openFileDescriptor(uri, "r")
+            ?: throw IllegalArgumentException("לא ניתן לפתוח את קובץ ה-PDF")
+        return fd.use { pfd ->
+            PdfRenderer(pfd).use { renderer ->
+                (0 until minOf(renderer.pageCount, maxPages)).map { i ->
+                    renderer.openPage(i).use { page ->
+                        val scale = MAX_EDGE.toFloat() / max(page.width, page.height)
+                        val bmp = Bitmap.createBitmap(
+                            (page.width * scale).toInt(), (page.height * scale).toInt(), Bitmap.Config.ARGB_8888,
+                        )
+                        bmp.eraseColor(Color.WHITE) // PDF pages are transparent; OCR needs a white page
+                        page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        bmp
+                    }
+                }
+            }
+        }
     }
 
     fun toJpeg(bitmap: Bitmap, quality: Int = 85): ByteArray =
