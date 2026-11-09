@@ -2,6 +2,7 @@
 // Q1 every bridge connects to both islands (no walkable gap on the way).
 // Q2 the player can walk from the last puzzle island to the Gate keeper and talk to her.
 // Q3 tapping the version 5 times opens the admin PIN, the PIN opens the skip panel.
+// Q4 with a new service worker on every visit, the game loads once and an early Start tap is kept.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
@@ -11,8 +12,9 @@ const require = createRequire(import.meta.url);
 const { chromium, devices } = require("playwright");
 const root = normalize(join(fileURLToPath(import.meta.url), "../.."));
 const types = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json" };
+let swBuild = 0;
 const server = createServer(async (req, res) => {
-  try { const p = normalize(join(root, decodeURIComponent(req.url.split("?")[0]))); if (!p.startsWith(root)) throw 0; const f = p.endsWith("/") ? join(p, "index.html") : p; res.writeHead(200, { "content-type": types[extname(f)] || "application/octet-stream" }); res.end(await readFile(f)); }
+  try { const p = normalize(join(root, decodeURIComponent(req.url.split("?")[0]))); if (!p.startsWith(root)) throw 0; const f = p.endsWith("/") ? join(p, "index.html") : p; res.writeHead(200, { "content-type": types[extname(f)] || "application/octet-stream", "cache-control": "no-cache" }); let body = await readFile(f); if (f.endsWith("sw.js")) body = Buffer.concat([body, Buffer.from(`\n// build ${++swBuild}\n`)]); res.end(body); }
   catch (e) { res.writeHead(404); res.end(); }
 }).listen(0);
 const base = `http://localhost:${server.address().port}/quest/?webgl`;
@@ -58,6 +60,22 @@ if (pinOpen) {
   await p.fill("#modal input", "12321"); await p.keyboard.press("Enter"); await p.waitForTimeout(300);
   const txt = await p.evaluate(() => document.getElementById("modal").innerText);
   check(/Skip to the gate/.test(txt), "Q3 the right PIN opens the skip panel");
+}
+// Q4: a real service worker, updated on every visit (the server changes sw.js each time).
+{
+  const c2 = await b.newContext({ ...devices["Pixel 7"] }); const p2 = await c2.newPage(); let loads = 0; p2.on("requestfailed", (r) => console.log("  failed:", r.url().split("/").pop(), r.failure()?.errorText)); p2.on("pageerror", (e) => console.log("  err:", e.message));
+  p2.on("load", () => loads++);
+  const url = base.replace("?webgl", "?webgl&sw");
+  await p2.goto(url); await p2.waitForFunction(() => window.__quest, null, { timeout: 120000 });
+  await p2.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 30000 }).catch(() => {});
+  loads = 0;
+  await p2.goto(url, { waitUntil: "commit" }); await p2.waitForFunction(() => !document.getElementById("startBtn")?.disabled, null, { timeout: 120000 });
+  await p2.tap("#startBtn");
+  await p2.waitForTimeout(7000);
+  const mode = await p2.evaluate(() => window.__quest?.S.mode);
+  check(loads === 1, `Q4 the game loads once when a new service worker arrives (loads: ${loads})`);
+  check(mode === "play", `Q4 an early Start tap is kept (mode: ${mode})`);
+  await c2.close();
 }
 check(errs.length === 0, `no page errors${errs.length ? ": " + errs.join(" | ") : ""}`);
 await b.close(); server.close();

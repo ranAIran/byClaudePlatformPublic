@@ -612,16 +612,13 @@ $("installBtn").addEventListener("click", async () => {
 });
 // Inside the Android app the files are bundled, so no service worker is needed there.
 if ("serviceWorker" in navigator && location.protocol !== "file:" && location.host !== "appassets.androidplatform.net") {
-  const hadController = !!navigator.serviceWorker.controller;
   // No version in the URL: the browser re-checks sw.js itself on every visit (updateViaCache "none"
   // skips the HTTP cache for that check), and sw.js serves game files network-first.
+  // No reload when a new worker takes over: the page already came from the network, so it is current.
+  // (1.4.1 reloaded on the title screen, which loaded the game twice and could swallow the Start tap.)
   const registerSW = () => navigator.serviceWorker.register("./sw.js", { scope: "./", updateViaCache: "none" }).then((r) => r.update?.()).catch((e) => console.warn("Service worker:", e));
   // Wait until the first frame is on screen, then until the browser is idle.
   window.__registerSW = () => (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(registerSW, { timeout: 4000 });
-  navigator.serviceWorker.addEventListener("controllerchange", () => {
-    if (!hadController) return;
-    if (S.mode === "title") location.reload(); else toast(ui().updated);
-  });
 }
 
 performance.mark("q:world");

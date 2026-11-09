@@ -39,7 +39,7 @@ bash life/android/copy-web.sh   # copies life/app + quest engine into the APK as
 ```
 
 ```bash
-node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate keeper, Q3 admin taps + PIN
+node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate keeper, Q3 admin taps + PIN, Q4 loads once on SW update
 ```
 
 ## Environment limits (cloud session)
@@ -52,6 +52,7 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 
 - **Never call `renderer.compileAsync()` before the first frame** with the post-processing pass: it left the whole scene blank (quest v1.3.2).
 - **Bridge walk zones must reach a fixed distance into islands**, not a percentage of the bridge length: irregular coastlines left a gap (quest 1.4.0). `quest/check.mjs` Q1 scans every bridge.
+- **Never reload the page when a new service worker takes over** (quest 1.4.1 did on the title screen: the game loaded twice and swallowed the Start tap). Network-first already serves the current files. `quest/check.mjs` Q4.
 - **Service workers must be network-first** for game files. Cache-first plus a versioned registration URL froze phones on an old version (quest v1.3.2 → fixed in 1.3.4).
 - **Quest version bump = 3 places:** `CONFIG.version` in `quest/content.js`, the two `v…` texts in `quest/index.html`, `SW_BUILD` in `quest/sw.js`.
 - **Life version:** `VERSION` in `life/app/app.js`; the APK `versionName` is `0.1.<CI run number>`.
