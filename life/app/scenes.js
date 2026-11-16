@@ -3,6 +3,7 @@
 import * as THREE from "three";
 import { CONFIG } from "../../quest/content.js";
 import * as W from "../../quest/world.js";
+import { ISO, orbitOffset } from "./core/orbit.js";
 
 const VW = () => window.innerWidth, VH = () => window.innerHeight;
 let scene = null, cam = null, updaters = [];
@@ -27,11 +28,17 @@ function canvasTex(w, h, draw, repeat) {
   return t;
 }
 const texMat = (tex, o = {}) => new THREE.MeshStandardMaterial({ map: tex, roughness: 0.85, ...o });
-function isoCam(target, V) {
-  const a = VW() / VH();
-  const c = new THREE.OrthographicCamera(-V * a / 2, V * a / 2, V / 2, -V / 2, 0.1, 400);
-  c.position.copy(target).add(new THREE.Vector3(1, 1.05, 1).normalize().multiplyScalar(80)); c.lookAt(target);
+// A perspective camera that orbits the point it looks at (R29, R30). The app turns, tilts and
+// zooms it; `limits` says how far (the house has only two walls, so it turns less than the city).
+function viewCam(target, { dist, fov = 30, yaw = ISO.yaw, pitch = ISO.pitch, limits = {} }) {
+  const c = new THREE.PerspectiveCamera(fov, VW() / VH(), 0.3, 1200);
+  c.userData = { target: target.clone(), dist, yaw, pitch, fov, fit: 1, limits: { pitch: [0.1, 1.4], zoom: [0.6, 3], ...limits } };
+  const o = orbitOffset(yaw, pitch, dist); c.position.set(target.x + o[0], target.y + o[1], target.z + o[2]); c.lookAt(target);
   return c;
+}
+// Sky all around, from the horizon colour (the same as the fog, so the far sea melts into it) up to dusk blue.
+function skyDome(top, horizon, at) {
+  const s = W.makeSky({ world: { skyGradient: { top, mid: horizon, horizon } } }); s.scale.setScalar(2.4); s.position.copy(at); scene.add(s);
 }
 function lights({ hemiSky = "#cfe8ff", hemiGround = "#8a6d4a", hemi = 1.1, sunColor = "#ffe0b0", sun = 3, sunOff = [-10, 18, 14], target = new THREE.Vector3(), size = 16 } = {}) {
   scene.add(new THREE.HemisphereLight(hemiSky, hemiGround, hemi));
@@ -66,16 +73,6 @@ function cat(color = "#f0a24a") {
   return c;
 }
 function person(colors, opts) { const p = W.makeCharacter(colors, { scale: 1.15, ...opts }); p.userData.live = true; return p; }
-function sky(cfg, at) { const s = W.makeSky(cfg); s.position.copy(at); scene.add(s); }
-// A screen-filling gradient quad behind an orthographic scene (a texture background is not drawn here).
-function backdrop(top, bottom) {
-  const tex = canvasTex(4, 256, (x, w, h) => { const g = x.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bottom); x.fillStyle = g; x.fillRect(0, 0, w, h); });
-  const w = (cam.right - cam.left) * 1.1, h = (cam.top - cam.bottom) * 1.1;
-  const q = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex, fog: false, depthWrite: false }));
-  const dir = new THREE.Vector3(); cam.getWorldDirection(dir);
-  q.position.copy(cam.position).addScaledVector(dir, 380); q.quaternion.copy(cam.quaternion); q.renderOrder = -1;
-  scene.add(q); cam.far = 420; cam.updateProjectionMatrix();
-}
 const icon = {
   bag: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>`,
   mic: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>`,
@@ -207,12 +204,22 @@ function facade(cols, rows, base, seed, share = 0.45) {
 
 function buildMapInto() {
   const cfg = { ...CONFIG, world: { ...CONFIG.world, water: { ...CONFIG.world.water, color: "#46a9b8" } } };
-  const target = new THREE.Vector3(-3.3, 0, -3.3);
+  const target = new THREE.Vector3(-2.6, 0.6, -2.6);
   const HAZE = "#f9c9a0";
-  scene.background = new THREE.Color(HAZE); scene.fog = new THREE.Fog(HAZE, 80, 165);
+  scene.background = new THREE.Color(HAZE); scene.fog = new THREE.Fog(HAZE, 66, 215);
   // Low warm sun from the left, cool sky fill: long shadows to the right, sunlit left faces.
   lights({ target, size: 21, sunOff: [-32, 17, 12], sunColor: "#ffb066", sun: 4.0, hemiSky: "#c6ceff", hemiGround: "#e6a878", hemi: 1.2 });
   const water = W.makeWater(cfg); scene.add(water); updaters.push((t) => water.userData.update(t));
+  // The world out to the horizon (R30): sky, a low sun, open sea, and hills that fade into the haze.
+  skyDome("#6f80c8", HAZE, new THREE.Vector3());
+  const farSea = cy(460, 460, 0.02, m(cfg.world.water.color, { roughness: 0.3, metalness: 0.15 }), 48); farSea.position.y = -0.14; scene.add(farSea);
+  const sunBall = sp(22, new THREE.MeshStandardMaterial({ color: "#000000", emissive: new THREE.Color("#ffd88a"), emissiveIntensity: 5, fog: false }), 24);
+  sunBall.position.copy(new THREE.Vector3(-32, 17, 12).normalize().multiplyScalar(340)); scene.add(sunBall);
+  {
+    const hills = new THREE.Group(), hr = W.rng(7);
+    for (let k = 0; k < 12; k++) { const a = (k / 12) * 6.283 + hr() * 0.3, d = 118 + hr() * 34, r = 16 + hr() * 18, h = 5 + hr() * 11; put(new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), W.mat(k % 2 ? "#8f86b8" : "#a58fb4")), Math.cos(a) * d, h / 2 - 0.3, Math.sin(a) * d, hills); }
+    scene.add(hills); bake(hills); hills.children.forEach((o) => { o.castShadow = false; });
+  }
 
   // ----- ground: blocks on a street grid, roads between them, a quay around the outside -----
   const P = 6, B = 4.6, Y = 0.26;
@@ -262,6 +269,7 @@ function buildMapInto() {
     put(bx(0.56 * s, 0.5 * s, 0.03, "#fff6e6"), -0.5 * s, 0.8 * s, 0.9 * s, h); put(bx(0.46 * s, 0.4 * s, 0.05, glow(WARM, 1.5)), -0.5 * s, 0.8 * s, 0.9 * s, h);
     put(bx(0.3 * s, 0.3 * s, 0.05, glow(WARM, 1.2)), 0, 1.62 * s, 0.9 * s, h);
     put(bx(0.03, 0.5 * s, 0.56 * s, "#fff6e6"), 1.1 * s, 0.8 * s, 0.25 * s, h); put(bx(0.05, 0.4 * s, 0.46 * s, glow(WARM, 1.5)), 1.1 * s, 0.8 * s, 0.25 * s, h);
+    put(bx(0.5 * s, 0.4 * s, 0.05, glow(WARM, 1.3)), 0.4 * s, 0.8 * s, -0.9 * s, h); put(bx(0.05, 0.4 * s, 0.46 * s, glow(WARM, 1.3)), -1.1 * s, 0.8 * s, -0.2 * s, h);
     put(bx(0.26 * s, 0.7 * s, 0.26 * s, "#9a6b55"), -0.62 * s, 2.0 * s, -0.45 * s, h); put(bx(0.32 * s, 0.08 * s, 0.32 * s, "#7a5142"), -0.62 * s, 2.36 * s, -0.45 * s, h);
     if (porch) { put(bx(0.9 * s, 0.1 * s, 0.5 * s, "#d9c7a8"), 0.5 * s, 0.05 * s, 1.12 * s, h); put(bx(1.0 * s, 0.06 * s, 0.6 * s, roof), 0.5 * s, 0.95 * s, 1.15 * s, h); for (const dx of [-0.42, 0.42]) put(bx(0.06 * s, 0.9 * s, 0.06 * s, "#fff6e6"), (0.5 + dx) * s, 0.5 * s, 1.38 * s, h); }
     return h;
@@ -346,7 +354,8 @@ function buildMapInto() {
     const clock = cy(0.15, 0.15, 0.04, "#fffaf0", 16); clock.rotation.x = Math.PI / 2; put(clock, 0, 1.88, 0.96, hall); put(bx(0.02, 0.1, 0.02, "#3b4250"), 0, 1.92, 0.99, hall); put(bx(0.08, 0.02, 0.02, "#3b4250"), 0.03, 1.88, 0.99, hall);
     put(bx(0.44, 0.74, 0.05, "#6b4a2e"), 0, 0.67, 0.41, hall);
     for (const x of [-0.9, -0.5, 0.5, 0.9]) put(bx(0.2, 0.5, 0.05, glow(WARM, 1.5)), x, 0.95, 0.41, hall);
-    for (const z of [-0.55, 0.0]) put(bx(0.05, 0.5, 0.26, glow(WARM, 1.5)), 1.26, 0.95, z - 0.2, hall);
+    for (const z of [-0.55, 0.0]) { put(bx(0.05, 0.5, 0.26, glow(WARM, 1.5)), 1.26, 0.95, z - 0.2, hall); put(bx(0.05, 0.5, 0.26, glow(WARM, 1.5)), -1.26, 0.95, z - 0.2, hall); }
+    for (const x of [-0.8, 0, 0.8]) put(bx(0.26, 0.5, 0.05, glow(WARM, 1.3)), x, 0.95, -0.91, hall);
     put(cy(0.62, 0.66, 0.34, tint(stone, -0.04), 24), 0, 1.86, -0.3, hall);
     put(new THREE.Mesh(new THREE.SphereGeometry(0.62, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), m("#62bfd0", { metalness: 0.35, roughness: 0.35 })), 0, 2.03, -0.3, hall);
     put(cy(0.1, 0.12, 0.16, "#ffd166", 10), 0, 2.7, -0.3, hall); put(cy(0.02, 0.02, 0.9, "#cfd6e6", 6), 0, 3.2, -0.3, hall);
@@ -419,7 +428,7 @@ function buildMapInto() {
       put(bx(1.22, 0.03, 1.16, tint(wall, -0.3)), x, 1.42, -1.2, g); put(bx(0.3, 0.2, 0.3, "#c9ced8"), x + 0.3, 1.52, -1.4, g); put(cy(0.07, 0.07, 0.3, "#9aa3b2", 8), x - 0.35, 1.57, -1.5, g);
       const a = bx(1.36, 0.05, 0.55, aw); a.rotation.x = 0.3; put(a, x, 1.0, -0.35, g);
       put(bx(0.8, 0.5, 0.05, glow(WARM, 1.4)), x - 0.15, 0.5, -0.54, g); put(bx(0.26, 0.62, 0.06, "#6b4a2e"), x + 0.45, 0.37, -0.54, g);
-      put(bx(0.9, 0.2, 0.05, tint(aw, 0.25)), x, 1.25, -0.53, g);
+      put(bx(0.9, 0.2, 0.05, tint(aw, 0.25)), x, 1.25, -0.53, g); put(bx(0.3, 0.6, 0.05, "#6b4a2e"), x + 0.3, 0.36, -1.86, g); put(bx(0.3, 0.26, 0.05, glow(WARM, 1.1)), x - 0.3, 0.8, -1.86, g);
     });
     for (const [x, z, c] of [[-1.2, 0.9, "#ff9f6b"], [0.5, 1.2, "#ffd166"]]) { put(cy(0.26, 0.26, 0.04, "#fff6e6", 14), x, 0.42, z, g); put(cy(0.03, 0.03, 0.42, "#6b7280", 6), x, 0.21, z, g); put(cy(0.02, 0.02, 0.6, "#6b7280", 6), x, 0.72, z, g); put(new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.22, 8), W.mat(c)), x, 1.1, z, g); }
     add(g, tree(0.6, LEAVES[3]), 1.8, 1.6, 0, 0); add(g, tree(0.55, LEAVES[0]), -1.95, 1.9, 0, 0);
@@ -470,11 +479,28 @@ function buildMapInto() {
   });
   updaters.push((t) => glitter.forEach((mt, k) => { mt.emissiveIntensity = 0.2 + 2.6 * Math.max(0, Math.sin(t * 1.1 + k * 2.1)) ** 2; }));
 
+  // The two open corners: a lighthouse on a rock, and a small marina.
+  {
+    const lh = new THREE.Group(); lh.position.set(6.2, 0, -6.2);
+    const rock = sp(1.9, "#8d8a92", 9); rock.scale.y = 0.42; put(rock, 0, 0.1, 0, lh); const rock2 = sp(1.0, "#7d7a84", 7); rock2.scale.y = 0.5; put(rock2, 1.3, 0.1, 0.9, lh);
+    put(cy(0.4, 0.55, 2.9, "#fff6e6", 14), 0, 2.2, 0, lh); for (const y of [1.4, 2.5]) put(cy(0.47 - (y - 1.4) * 0.045, 0.5 - (y - 1.4) * 0.045, 0.5, "#e0504b", 14), 0, y, 0, lh);
+    put(cy(0.55, 0.55, 0.1, "#3b4250", 14), 0, 3.7, 0, lh); put(cy(0.05, 0.05, 0.5, "#3b4250", 6), 0.4, 3.95, 0, lh); put(cy(0.05, 0.05, 0.5, "#3b4250", 6), -0.4, 3.95, 0, lh);
+    const lampMat = new THREE.MeshStandardMaterial({ color: "#fff1c4", emissive: new THREE.Color("#ffd27a"), emissiveIntensity: 3 });
+    put(cy(0.3, 0.3, 0.45, lampMat, 12), 0, 3.98, 0, lh); put(new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.5, 12), W.mat("#e0504b")), 0, 4.47, 0, lh);
+    updaters.push((t) => { lampMat.emissiveIntensity = 1.6 + 2.4 * Math.max(0, Math.sin(t * 1.6)) ** 3; });
+    scene.add(lh); bake(lh);
+    const mar = new THREE.Group(); mar.position.set(-3, 0, 6);
+    put(bx(3.6, 0.1, 0.8, "#b98a5a"), -1.9, 0.22, 0, mar); put(bx(0.8, 0.1, 2.2, "#b98a5a"), -3.3, 0.22, 1.2, mar);
+    for (const [x, z] of [[-0.6, 0.35], [-0.6, -0.35], [-2.0, 0.35], [-2.0, -0.35], [-3.6, 0.3], [-3.6, 2.2], [-3.0, 2.2]]) put(cy(0.07, 0.07, 0.9, "#6b4a2e", 6), x, -0.05, z, mar);
+    for (const [x, z, c] of [[-1.6, -0.95, "#ffd166"], [-2.5, 1.2, "#5fb7e6"]]) { put(bx(0.9, 0.2, 0.4, "#fff6e6"), x, 0.08, z, mar); put(bx(0.6, 0.06, 0.32, c), x, 0.2, z, mar); }
+    put(bx(0.3, 0.3, 0.3, "#c79a5e"), -3.3, 0.42, 0.3, mar); put(cy(0.14, 0.14, 0.3, "#e0504b", 10), -3.1, 0.42, 1.9, mar);
+    scene.add(mar); bake(mar);
+  }
+
   for (const g of Object.values(G)) bake(g);
   bake(ground);
 
-  cam = isoCam(target, 36);
-  cam.userData.V = 36; cam.userData.target = target.clone();
+  cam = viewCam(target, { dist: 64 });
   const labelY = { home: 3.0, family: 2.3, paperwork: 4.1, work: 7.7, health: 2.5 };
   const isles = ["home", "family", "paperwork", "work", "health"].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), pos: [G[id].position.x, G[id].position.z], radius: 3.1, labelY: labelY[id] }));
   const setMood = (id, state) => { const s = signs[id]; if (!s || s.state === state) return false; s.state = state; s.overdue.visible = state === "overdue"; s.clear.visible = state === "clear"; return true; };
@@ -564,8 +590,21 @@ function buildHomeInto() {
   const me = person(CONFIG.playerLook.colors, { hat: "none", hair: "#5a3a22" }); me.position.set(-2.9, 0.05, 1.0); me.rotation.y = 0.6; g.add(me);
   const pa = person(["#e56b8a", "#f1cfae", "#7a3b3b"], { hat: "none", hair: "#3b2a20" }); pa.position.set(2.0, 0.05, 1.6); pa.rotation.y = 0.9; g.add(pa);
   updaters.push((t, dt) => { me.userData.animate(t, dt, { wave: true }); pa.userData.animate(t, dt, {}); });
-  cam = isoCam(target, 28.5); backdrop("#8388bd", "#f7c49c");
-  cam.userData.V = 28.5; cam.userData.target = target.clone();
+  const DUSK = "#f4bf9c";
+  scene.background = new THREE.Color(DUSK); scene.fog = new THREE.Fog(DUSK, 60, 190);
+  skyDome("#6a72b8", DUSK, new THREE.Vector3());
+  const garden = cy(240, 240, 0.02, m("#a9cc78", { roughness: 1 }), 40); garden.position.y = -0.5; garden.receiveShadow = true; scene.add(garden);
+  { // A garden around the house, so the world goes on past the walls.
+    const gd = new THREE.Group(); gd.position.y = -0.5; scene.add(gd);
+    const leaves = ["#5aa252", "#6fae4e", "#e2a03a", "#d9772b", "#4f9a6a"];
+    [[-10, -8, 1.6, 0], [-13, 2, 1.3, 2], [-9.5, 8.5, 1.5, 1], [10.5, -9, 1.7, 4], [14, -1, 1.2, 3], [11, 9.5, 1.4, 0], [1, -11, 1.5, 2], [-3, 12.5, 1.2, 1], [19, 7, 1.8, 4], [-19, -6, 1.9, 0], [6, 15, 1.3, 3], [-16, 12, 1.6, 2]].forEach(([x, z, sc, c]) => { const t = tree(sc, leaves[c]); t.position.set(x, 0, z); gd.add(t); });
+    for (let k = 0; k < 7; k++) put(cy(0.5, 0.5, 0.04, "#d9cdb8", 8), 7.6 + k * 1.15, 0.02, 2.3 + Math.sin(k * 1.3) * 0.25, gd);
+    for (const [x, z, w] of [[-9, 6.2, 5], [9.5, -6.5, 6]]) put(bx(w, 0.7, 0.6, "#4f8f4a"), x, 0.35, z, gd);
+    const cols = ["#ff8fb1", "#ffd166", "#ff9f6b", "#fff3e0", "#c8a2ff"], fr = W.rng(21);
+    for (let k = 0; k < 40; k++) { const a = fr() * 6.283, d = 9 + fr() * 9; put(sp(0.13, cols[k % 5], 6), Math.cos(a) * d, 0.12, Math.sin(a) * d, gd); }
+    bake(gd);
+  }
+  cam = viewCam(target, { dist: 50, limits: { yaw: [ISO.yaw - 0.8, ISO.yaw + 0.8], pitch: [0.32, 1.3], zoom: [0.6, 2.6] } });
   const rooms = {
     living: new THREE.Vector3(-3, 1.4, 2.25), kitchen: new THREE.Vector3(3, 1.4, 2.25),
     bedroom: new THREE.Vector3(-2.4, 1.2, -1.1), office: new THREE.Vector3(3, 2.2, -2.25),
@@ -582,8 +621,8 @@ function wrap(build) {
 }
 export const buildMap = () => wrap(buildMapInto);
 export const buildHome = () => wrap(buildHomeInto);
+// Keep the whole scene in view on narrow (portrait) screens by standing further back.
 export function fitCamera(c) {
-  const a = VW() / VH(), V = c.userData.V;
-  c.left = -V * a / 2; c.right = V * a / 2; c.top = V / 2; c.bottom = -V / 2; c.updateProjectionMatrix();
+  c.aspect = VW() / VH(); c.userData.fit = Math.max(1, 0.56 / c.aspect); c.updateProjectionMatrix();
 }
 export function projectTo(c, v) { const p = v.clone().project(c); return [(p.x * 0.5 + 0.5) * VW(), (-p.y * 0.5 + 0.5) * VH(), p.z]; }

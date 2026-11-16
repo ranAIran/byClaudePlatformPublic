@@ -25,7 +25,7 @@ const dist = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.leng
 const warmth = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, im.width * 0.3, im.height * 0.42, im.width * 0.4, im.height * 0.2, 0, 0, 48, 48); const d = x.getImageData(0, 0, 48, 48).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, (await p.screenshot()).toString("base64"));
 
 const b = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-const ctx = await b.newContext({ ...devices["Pixel 7"] });
+const ctx = await b.newContext({ ...devices["Pixel 7"], deviceScaleFactor: 1 }); // 1× keeps the software renderer quick
 const p = await ctx.newPage(); const errs = [];
 p.on("pageerror", (e) => errs.push(e.message)); p.on("console", (m) => { if (m.type() === "error") errs.push(m.text().slice(0, 200)); });
 await p.goto(base); await p.waitForFunction(() => window.__life?.ready, null, { timeout: 120000 }); await p.waitForTimeout(800);
@@ -53,6 +53,25 @@ await p.evaluate((id) => window.__life.store.complete(id), lateId); await p.wait
 const mood2 = await p.evaluate(() => window.__life.moods?.().paperwork);
 await p.evaluate((id) => window.__life.store.remove(id), lateId); await p.waitForTimeout(300);
 check(mood0?.state === "open" && !mood0.signs && mood1?.state === "overdue" && mood1.signs === "overdue" && mood2?.state === "open" && !mood2.signs, `R27 an overdue task puts repair signs on its district, and finishing it removes them (${JSON.stringify([mood0, mood1, mood2])})`);
+// R29 · the world can be turned; labels and taps follow the buildings.
+const band = async (y0, y1) => p.evaluate(async ([b64, y0, y1]) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 32; c.height = 8; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * y0, im.width, im.height * (y1 - y0), 0, 0, 32, 8); const d = x.getImageData(0, 0, 32, 8).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, [(await p.screenshot()).toString("base64"), y0, y1]);
+const cam0 = await p.evaluate(() => window.__life.cam());
+const yawIs = (y) => p.waitForFunction((y) => Math.abs(window.__life.cam().yaw - y) < 0.01, y, { timeout: 15000 }).catch(() => {});
+await p.tap("#rotR"); await yawIs(cam0.yaw + Math.PI / 4); await p.waitForTimeout(300);
+const cam1 = await p.evaluate(() => window.__life.cam()), turned = await thumb(p);
+await p.screenshot({ path: `${out}/v-turned.png` });
+check(cam0.perspective && Math.abs(cam1.yaw - cam0.yaw - Math.PI / 4) < 0.03 && dist(turned, mapThumb) > 4, `R29 the turn button rotates the world by 45° (yaw ${cam0.yaw.toFixed(2)} → ${cam1.yaw.toFixed(2)}, picture changed by ${dist(turned, mapThumb).toFixed(1)})`);
+const hall2 = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork");
+await p.mouse.click(hall2.x, hall2.y); await p.waitForTimeout(350);
+check(!(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).includes("Paperwork"), "R29 after turning, tapping the city hall still opens Paperwork");
+await p.tap("#sheetClose").catch(() => {}); await p.tap("#rotL"); await yawIs(cam0.yaw); await p.waitForTimeout(300);
+check(dist(await thumb(p), mapThumb) < 3, "R29 turning back returns to the same view");
+// R30 · a true 3D world: tilt down and the sky and horizon fill the top of the view.
+await p.evaluate(() => window.__life.setCam({ pitch: 0.14 })); await p.waitForTimeout(700);
+await p.screenshot({ path: `${out}/v-horizon.png` });
+const skyB = await band(0.16, 0.24), seaB = await band(0.8, 0.86);
+check(skyB.r > 170 && skyB.r > skyB.b + 15 && Math.abs(skyB.r - seaB.r) > 40, `R30 tilting down shows a warm sky above the horizon and the sea below (sky ${JSON.stringify(Object.values(skyB).map(Math.round))}, sea ${JSON.stringify(Object.values(seaB).map(Math.round))})`);
+await p.evaluate((pitch) => window.__life.setCam({ pitch }), cam0.pitch); await p.waitForTimeout(500);
 // Capture into the bag, then place it from the bag.
 await p.fill("#capInput", "renew passport before March"); await p.press("#capInput", "Enter"); await p.waitForTimeout(300);
 const bagN = await p.evaluate(() => window.__life.store.unplaced().length);

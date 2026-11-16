@@ -107,7 +107,10 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 #capInput::placeholder,.addrow input::placeholder,#searchInput::placeholder,#fbText::placeholder{color:var(--faint)}
 .capbtn{width:40px;height:40px;border-radius:12px;border:0;background:transparent;display:grid;place-items:center;color:var(--ink);transition:background .15s}
 .capbtn:active{background:var(--well-2)} .capbtn.live{background:var(--bad)}
-#hint{position:fixed;left:50%;bottom:calc(166px + var(--bot));transform:translateX(-50%);pointer-events:none;font-size:12.5px;z-index:2;animation:hintIn .5s .8s both}
+#viewCtl{position:fixed;right:var(--side);bottom:calc(132px + var(--bot));display:grid;gap:7px;z-index:3}
+.hudbtn.float{width:42px;height:42px;border-radius:14px;background:var(--panel);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 20px rgba(28,10,34,.3),inset 0 1px 0 rgba(255,255,255,.09)}
+.hudbtn.float.on{background:linear-gradient(180deg,#ffd76a,#ffab2e);color:var(--gold-ink);border-color:#ffe39a}
+#hint{position:fixed;left:50%;bottom:calc(238px + var(--bot));transform:translateX(-50%);pointer-events:none;font-size:12.5px;z-index:2;animation:hintIn .5s .8s both}
 #hint.out{opacity:0;transition:opacity .4s}
 @keyframes hintIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}}
 
@@ -217,7 +220,11 @@ button.item{align-items:center}
   <button id="back" class="pill" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg> City · <b>Home</b></button>
 </div>
 
-<div id="hint" class="pill" hidden>Tap a building to open it · drag to look around</div>
+<div id="hint" class="pill" hidden>Tap a building to open it · drag to move · twist to turn</div>
+<div id="viewCtl">
+  <button class="hudbtn float" id="rotL" aria-label="Turn the view left"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.600-5.900M4 4v4.500h4.500"/></svg></button>
+  <button class="hudbtn float" id="rotR" aria-label="Turn the view right"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.600-5.900M20 4v4.500h-4.500"/></svg></button>
+</div>
 <div id="dock">
   <button id="bagBtn" aria-label="Open the bag"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#2a1a00" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M6 8h12l-1 12H7L6 8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg><span id="bagCount" hidden>0</span></button>
   <div id="capture" class="panel">

@@ -9,6 +9,9 @@ import { exportMarkdown, importMarkdown, exportJSON, importJSON } from "../app/c
 import { shareToNode } from "../app/core/share.js";
 import { districtMood } from "../app/core/mood.js";
 import { celebrationFor } from "../app/core/reward.js";
+import { ISO, orbitOffset, panBasis, turn } from "../app/core/orbit.js";
+import { makeWalker } from "../app/core/walk.js";
+import { createPhysics } from "../app/core/physics.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -205,5 +208,82 @@ describe("R26 · finishing things feels rewarding", () => {
   });
   it("ticking a task that already paid out gives no celebration, so XP can't be farmed", () => {
     expect(celebrationFor({ ...base, gained: 0 })).toBeNull();
+  });
+});
+
+describe("R29 · the world can be rotated", () => {
+  const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  it("the starting view is the familiar corner view, looking down from (1, 1.05, 1)", () => {
+    const o = orbitOffset(ISO.yaw, ISO.pitch, 10);
+    expect(o[0]).toBeCloseTo(o[2], 6);
+    expect(o[1] / o[0]).toBeCloseTo(1.05, 6);
+    expect(Math.hypot(...o)).toBeCloseTo(10, 6);
+  });
+  it("a full turn comes back to the same place, and dragging always moves along the ground", () => {
+    const a = orbitOffset(0.3, 0.6, 20), b = orbitOffset(0.3 + 2 * Math.PI, 0.6, 20);
+    a.forEach((v, i) => expect(v).toBeCloseTo(b[i], 6));
+    for (const yaw of [0, 0.8, 2.5, -1.2]) {
+      const { right, forward } = panBasis(yaw), o = orbitOffset(yaw, 0.6, 1);
+      expect(right[1]).toBe(0); expect(forward[1]).toBe(0);
+      expect(dot(right, forward)).toBeCloseTo(0, 6);
+      expect(dot(right, o)).toBeCloseTo(0, 6);            // right is across the view
+      expect(dot(forward, o)).toBeLessThan(0);            // forward is away from the camera
+    }
+  });
+  it("turning takes the short way round", () => {
+    expect(turn(0.1, 2 * Math.PI - 0.1)).toBeCloseTo(-0.2, 6);
+    expect(turn(-3, 3)).toBeCloseTo(-(2 * Math.PI - 6), 6);
+  });
+});
+
+describe("R31 · walking in the city", () => {
+  // Two blocks side by side (6 wide each), a building in the middle of the second one.
+  const w = makeWalker({ cells: [[0, 0], [6, 0]], pitch: 6, block: 4.6, solids: [{ x0: 5, x1: 7, z0: -1, z1: 1, h: 3 }] });
+  it("you can cross the road from one block to the next, but not walk into the water", () => {
+    let x = 0, z = 2.2, ok = true;
+    for (let i = 0; i < 60 && ok; i++) [x, z, ok] = w.step(x, z, 0.1, 0);
+    expect(x).toBeGreaterThan(5.5);
+    let moved = true; x = 0; z = 0;
+    for (let i = 0; i < 100; i++) [x, z, moved] = w.step(x, z, 0, 0.1);
+    expect(z).toBeLessThan(3); expect(w.walkable(0, 3.2)).toBe(false);
+  });
+  it("a building blocks you, and you slide along its wall instead of stopping", () => {
+    expect(w.walkable(6, 0)).toBe(false);
+    let x = 3.5, z = 0, ok;
+    for (let i = 0; i < 20; i++) [x, z, ok] = w.step(x, z, 0.1, 0.02);
+    expect(x).toBeLessThan(4.8); expect(z).toBeCloseTo(0.4, 5);   // stopped by the wall in x, kept moving in z
+    for (let i = 0; i < 30; i++) [x, z, ok] = w.step(x, z, 0.1, 0.1);
+    expect(x).toBeGreaterThan(6);                                 // and goes on once clear of the corner
+  });
+  it("blocks stand a step above the road", () => {
+    expect(w.groundY(0, 0)).toBeGreaterThan(w.groundY(3, 0));
+  });
+});
+
+describe("R32 · things react physically", () => {
+  const flat = () => createPhysics({ groundY: () => 0 });
+  it("a dropped ball bounces lower each time and comes to rest on the ground", () => {
+    const ph = flat(), b = ph.add({ p: [0, 3, 0], r: 0.2 }), peaks = []; let up = false, top = 0;
+    for (let i = 0; i < 1500 && !b.asleep; i++) { ph.step(1 / 60); if (b.v[1] > 0) { up = true; top = Math.max(top, b.p[1]); } else if (up) { peaks.push(top); up = false; top = 0; } }
+    expect(peaks.length).toBeGreaterThan(1);
+    for (let i = 1; i < peaks.length; i++) expect(peaks[i]).toBeLessThan(peaks[i - 1]);
+    expect(b.asleep).toBe(true); expect(b.p[1]).toBeCloseTo(0.2, 2);
+  });
+  it("a ball kicked at a wall bounces back and never ends up inside the building", () => {
+    const ph = createPhysics({ groundY: () => 0, solids: [{ x0: 2, x1: 4, z0: -1, z1: 1, h: 3 }] }), b = ph.add({ p: [0, 0.2, 0], r: 0.2 });
+    ph.kick(b, 14, 1, 0); let maxX = 0;
+    for (let i = 0; i < 400; i++) { ph.step(1 / 60); maxX = Math.max(maxX, b.p[0]); }
+    expect(maxX).toBeLessThanOrEqual(1.81); expect(b.p[0]).toBeLessThan(1.8);
+  });
+  it("a ball that rolls off the quay splashes into the water and returns to where it lives", () => {
+    const ph = createPhysics({ groundY: () => 0.26, inCity: (x) => x < 3 }), b = ph.add({ p: [2, 0.5, 0], r: 0.2, home: [0, 0.6, 0] });
+    ph.kick(b, 6, 0, 0); const seen = [];
+    for (let i = 0; i < 300; i++) for (const e of ph.step(1 / 60)) seen.push(e.type);
+    expect(seen).toContain("splash"); expect(b.p[0]).toBeCloseTo(0, 1);
+  });
+  it("reward coins vanish after their time, toys stay", () => {
+    const ph = flat(); ph.add({ p: [0, 1, 0], life: 1, kind: "coin" }); ph.add({ p: [1, 1, 0], kind: "ball" });
+    for (let i = 0; i < 120; i++) ph.step(1 / 60);
+    expect(ph.bodies.map((b) => b.kind)).toEqual(["ball"]);
   });
 });

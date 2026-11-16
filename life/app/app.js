@@ -12,9 +12,10 @@ import { buildFeedback } from "./core/feedback.js";
 import { districtMood } from "./core/mood.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
+import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.2.2";
+export const VERSION = "0.3.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -71,7 +72,8 @@ function screenPass(node) {
 const map = buildMap(), home = buildHome();
 for (const w of [map, home]) {
   fitCamera(w.cam);
-  w.base = w.cam.position.clone().sub(w.cam.userData.target);
+  // The view: where the camera is on its orbit (R29). Goals are eased to; null means "stay".
+  w.v = { yaw: w.cam.userData.yaw, pitch: w.cam.userData.pitch, dist: w.cam.userData.dist, zoom: 1, yawGoal: null, pitchGoal: null };
   w.pan = new THREE.Vector3();
   const sp = pass(w.scene, w.cam), c = sp.getTextureNode("output");
   w.post = screenPass(c.add(bloom(c, 0.45, 0.35, 0.85)));
@@ -104,8 +106,9 @@ for (const r of ROOMS) {
 }
 function placeLabels() {
   const w = world();
-  for (const [id, el] of Object.entries(labelEls)) { el.hidden = view !== "map"; if (!el.hidden) { const [x, y] = projectTo(w.cam, el.userData); el.style.left = x + "px"; el.style.top = y + "px"; } }
-  for (const [id, el] of Object.entries(roomEls)) { el.hidden = view !== "home"; if (!el.hidden) { const [x, y] = projectTo(w.cam, el.userData); el.style.left = x + "px"; el.style.top = y + "px"; } }
+  const place = (el) => { const [x, y, z] = projectTo(w.cam, el.userData); el.style.left = x + "px"; el.style.top = y + "px"; el.style.visibility = z > 1 ? "hidden" : ""; }; // z > 1: behind the camera
+  for (const el of Object.values(labelEls)) { el.hidden = view !== "map"; if (!el.hidden) place(el); }
+  for (const el of Object.values(roomEls)) { el.hidden = view !== "home"; if (!el.hidden) place(el); }
 }
 
 // ---------- HUD, quests strip, badges ----------
@@ -220,7 +223,7 @@ let flying = false;
 async function fly(to, then) {
   if (flying) return; flying = true; const t0 = performance.now();
   $("fade").style.opacity = "1"; await wait(180);
-  view = to; const w = world(); w.cam.zoom = to === "home" ? 0.72 : 1.35; w.cam.updateProjectionMatrix(); w.zoomGoal = 1;
+  view = to; const w = world(); w.v.zoom = to === "home" ? 0.72 : 1.35; w.zoomGoal = 1;
   $("back").hidden = to !== "home"; renderHud(); placeLabels();
   $("fade").style.opacity = "0"; then?.(); await wait(280); flying = false;
   window.__lastFlyMs = Math.round(performance.now() - t0);
@@ -241,17 +244,38 @@ function openFor(id) {
 $("back").addEventListener("click", () => { closeSheet(); fly("map"); });
 $("bagBtn").addEventListener("click", () => openSheet("bag"));
 
-// ---------- pan, zoom and tap on the 3D world ----------
-const el = renderer.domElement, ptrs = new Map(); let down = null, pinch = 0;
-const RIGHT = new THREE.Vector3(1, 0, -1).normalize(), UPG = new THREE.Vector3(-1, 0, -1).normalize();
+// ---------- look around (R29): drag to move, twist or right-drag to turn and tilt, pinch or wheel to zoom ----------
+const el = renderer.domElement, ptrs = new Map(); let down = null, pinch = 0, twist = 0, midY = 0;
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
-el.addEventListener("pointerdown", (e) => { el.setPointerCapture?.(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, moved: false }; else { down = null; const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); } });
+const viewDist = (w) => (w.v.dist * w.cam.userData.fit) / w.v.zoom;
+function turnView(w, dYaw, dPitch) {
+  const v = w.v, L = w.cam.userData.limits; v.yawGoal = v.pitchGoal = null;
+  v.yaw += dYaw; if (L.yaw) v.yaw = clamp(v.yaw, L.yaw[0], L.yaw[1]);
+  v.pitch = clamp(v.pitch + dPitch, L.pitch[0], L.pitch[1]);
+}
+function turnBy(step) { const v = world().v, L = world().cam.userData.limits; let g = (v.yawGoal ?? v.yaw) + step; if (L.yaw) g = clamp(g, L.yaw[0], L.yaw[1]); v.yawGoal = g; hideHint(); }
+function zoomView(w, k) { const L = w.cam.userData.limits; w.v.zoom = clamp(w.v.zoom * k, L.zoom[0], L.zoom[1]); w.zoomGoal = 0; }
+el.addEventListener("contextmenu", (e) => e.preventDefault());
+el.addEventListener("pointerdown", (e) => {
+  el.setPointerCapture?.(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, moved: false, turn: e.button === 2 || e.shiftKey || e.altKey };
+  else { down = null; const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); twist = Math.atan2(b.y - a.y, b.x - a.x); midY = (a.y + b.y) / 2; }
+});
 el.addEventListener("pointermove", (e) => {
   const prev = ptrs.get(e.pointerId); if (!prev) return; const cur = { x: e.clientX, y: e.clientY }; ptrs.set(e.pointerId, cur);
   const w = world();
-  if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch && d) { w.cam.zoom = Math.min(2.4, Math.max(0.6, w.cam.zoom * (d / pinch))); w.cam.updateProjectionMatrix(); } pinch = d; return; }
+  if (ptrs.size >= 2) { // two fingers: pinch zooms, twisting turns, sliding both up or down tilts
+    const [a, b] = [...ptrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y), ang = Math.atan2(b.y - a.y, b.x - a.x), my = (a.y + b.y) / 2;
+    if (pinch && d) zoomView(w, d / pinch);
+    turnView(w, turn(twist, ang), (my - midY) * 0.006); hideHint();
+    pinch = d; twist = ang; midY = my; return;
+  }
   if (!down) return; if (Math.hypot(cur.x - down.x, cur.y - down.y) > 9) down.moved = true;
-  if (down.moved) { hideHint(); const upp = (w.cam.top - w.cam.bottom) / w.cam.zoom / innerHeight; w.pan.addScaledVector(RIGHT, -(cur.x - prev.x) * upp).addScaledVector(UPG, ((cur.y - prev.y) * upp) / 0.6); w.pan.clampLength(0, view === "map" ? 14 : 7); }
+  if (!down.moved) return; hideHint();
+  const dx = cur.x - prev.x, dy = cur.y - prev.y;
+  if (down.turn) { turnView(w, -dx * 0.006, dy * 0.005); return; }
+  const { right, forward } = panBasis(w.v.yaw), upp = (2 * viewDist(w) * Math.tan((w.cam.fov * Math.PI) / 360)) / innerHeight, f = (dy * upp) / Math.max(0.3, Math.sin(w.v.pitch));
+  w.pan.x += -dx * upp * right[0] + f * forward[0]; w.pan.z += -dx * upp * right[2] + f * forward[2]; w.pan.clampLength(0, view === "map" ? 14 : 7);
 });
 function endPtr(e) { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; const d = down; down = null; return d; }
 el.addEventListener("pointercancel", endPtr);
@@ -268,7 +292,13 @@ el.addEventListener("pointerup", (e) => {
   }
   else selectRoom(p.x < 0 ? (p.z > 0 ? "living" : "bedroom") : (p.z > 0 ? "kitchen" : "office"));
 });
-el.addEventListener("wheel", (e) => { e.preventDefault(); const w = world(); w.cam.zoom = Math.min(2.4, Math.max(0.6, w.cam.zoom * (e.deltaY > 0 ? 0.92 : 1.08))); w.cam.updateProjectionMatrix(); }, { passive: false });
+el.addEventListener("wheel", (e) => { e.preventDefault(); zoomView(world(), e.deltaY > 0 ? 0.92 : 1.08); }, { passive: false });
+$("rotL").addEventListener("click", () => turnBy(-Math.PI / 4));
+$("rotR").addEventListener("click", () => turnBy(Math.PI / 4));
+window.addEventListener("keydown", (e) => {
+  if (/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
+  const k = e.key.toLowerCase(); if (k === "q") turnBy(-Math.PI / 4); if (k === "e") turnBy(Math.PI / 4);
+});
 
 // ---------- capture: text, voice, photo, scan, share ----------
 $("capForm").addEventListener("submit", (e) => {
@@ -398,10 +428,13 @@ renderHud();
 $("renderer").textContent = `v${VERSION} · ${backendName}`;
 let T = 0, last = performance.now(), frames = 0;
 renderer.setAnimationLoop(() => {
-  const now = performance.now(), dt = Math.min(0.05, (now - last) / 1000); last = now; T += dt;
-  const w = world();
-  if (w.zoomGoal) { w.cam.zoom += (w.zoomGoal - w.cam.zoom) * Math.min(1, dt * 6); if (Math.abs(w.cam.zoom - w.zoomGoal) < 0.002) { w.cam.zoom = w.zoomGoal; w.zoomGoal = 0; } w.cam.updateProjectionMatrix(); }
-  const tgt = w.cam.userData.target.clone().add(w.pan); w.cam.position.copy(tgt).add(w.base); w.cam.lookAt(tgt);
+  const now = performance.now(), real = (now - last) / 1000, dt = Math.min(0.05, real); last = now; T += dt;
+  const w = world(), v = w.v, ease = (k) => 1 - Math.exp(-k * Math.min(0.3, real)); // camera moves keep real time, even at low frame rates
+  if (w.zoomGoal) { v.zoom += (w.zoomGoal - v.zoom) * ease(6); if (Math.abs(v.zoom - w.zoomGoal) < 0.002) { v.zoom = w.zoomGoal; w.zoomGoal = 0; } }
+  if (v.yawGoal != null) { const d = v.yawGoal - v.yaw; v.yaw += d * ease(9); if (Math.abs(d) < 0.004) { v.yaw = v.yawGoal; v.yawGoal = null; } }
+  if (v.pitchGoal != null) { const d = v.pitchGoal - v.pitch; v.pitch += d * ease(7); if (Math.abs(d) < 0.004) { v.pitch = v.pitchGoal; v.pitchGoal = null; } }
+  const tgt = w.cam.userData.target.clone().add(w.pan), off = orbitOffset(v.yaw, v.pitch, viewDist(w));
+  w.cam.position.set(tgt.x + off[0], tgt.y + off[1], tgt.z + off[2]); w.cam.lookAt(tgt);
   w.updaters.forEach((u) => u(T, dt));
   // Warm up the other world's shaders once, after the first frames, so the first flight does not stall.
   // (Not before the first frame: compiling early left the quest blank once.) The map is drawn over it.
@@ -411,6 +444,7 @@ renderer.setAnimationLoop(() => {
   if (frames === 3) { $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700); }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
+    cam: () => ({ yaw: world().v.yaw, pitch: world().v.pitch, zoom: world().v.zoom, perspective: !!world().cam.isPerspectiveCamera }), setCam: (o) => { Object.assign(world().v, o); },
     meshes: () => { let n = 0; map.scene.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; },
     districts: () => map.isles.map((d) => { const [x, y] = projectTo(map.cam, new THREE.Vector3(d.pos[0], 1.0, d.pos[1])); return { id: d.id, x, y }; }),
     moods: () => Object.fromEntries(map.isles.map((d) => [d.id, { state: districtMood(store, d.id).state, signs: map.moodSigns(d.id) }])),
