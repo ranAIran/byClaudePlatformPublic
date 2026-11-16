@@ -525,7 +525,7 @@ function buildMapInto() {
     ball.position.set(x, Y + 0.06 + r, z); ball.userData.toy = true; scene.add(ball);
     return { mesh: ball, r, home: [x, Y + 0.06 + r + 0.6, z] };
   });
-  const coinMat = new THREE.MeshStandardMaterial({ color: "#ffd166", emissive: new THREE.Color("#ffb02e"), emissiveIntensity: 1.7, metalness: 0.6, roughness: 0.3 });
+  const coinMat = new THREE.MeshStandardMaterial({ color: "#ffc21a", emissive: new THREE.Color("#ff9f1c"), emissiveIntensity: 0.55, metalness: 0.5, roughness: 0.35 });
   const coins = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 12), coinMat, 48); coins.castShadow = true; coins.frustumCulled = false; scene.add(coins);
   { const none = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < 48; i++) coins.setMatrixAt(i, none); } // a fixed pool: unused coins are scaled to nothing (the count must not change after the first frame)
   const rings = [0, 1, 2].map(() => { const geo = new THREE.RingGeometry(0.25, 0.34, 20); geo.rotateX(-Math.PI / 2); const r = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: "#eafcff", transparent: true, opacity: 0, depthWrite: false })); r.visible = false; scene.add(r); return r; });
