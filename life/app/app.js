@@ -10,9 +10,11 @@ import { isoDate } from "./core/capture.js";
 import { initBridge } from "./bridge.js";
 import { buildFeedback } from "./core/feedback.js";
 import { districtMood } from "./core/mood.js";
+import { celebrationFor } from "./core/reward.js";
+import { createFx } from "./fx.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -111,7 +113,6 @@ function dueText(iso) {
   if (d < 0) return `overdue ${-d}d`; if (d === 0) return "today"; if (d === 1) return "tomorrow"; if (d < 7) return `in ${d} days`;
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
-let lastLevel = store.level().level;
 function renderHud() {
   const L = store.level();
   $("lvl").textContent = L.level; $("lvlName").textContent = `Level ${L.level} · Life explorer`;
@@ -128,9 +129,23 @@ function renderHud() {
   }
   for (const r of ROOMS) { const n = store.children(r).length; roomEls[r].textContent = `${title(r)} · ${n}`; roomEls[r].classList.toggle("on", r === room); }
   const bag = store.unplaced().length; $("bagCount").textContent = bag; $("bagCount").hidden = !bag;
-  if (L.level > lastLevel) toast(`Level up! You are level ${L.level}`); lastLevel = L.level;
 }
 $("quests").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) openFor(b.dataset.id); });
+
+// ---------- R26 · celebrations ----------
+let sound = true; try { sound = localStorage.getItem("life-sound") !== "off"; } catch (e) { /* storage unavailable */ }
+const fx = createFx({ xpBar: $("xpBar"), levelBadge: $("lvl"), soundOn: () => sound });
+let justDone = null;
+// Finish something through `act` (which returns the XP gained) and play the celebration it earned.
+function finish(id, from, act, { isStep = false } = {}) {
+  const n = store.get(id), levelBefore = store.level().level, wasClear = districtMood(store, islandOf(id)).state === "clear";
+  justDone = id; const gained = act(); const after = store.get(id);
+  const c = celebrationFor({ gained, isStep, questDone: isStep && !!after?.done, levelBefore, levelAfter: store.level().level });
+  fx.play(c, from, { title: n.title });
+  const place = islandOf(id);
+  if (c && !wasClear && place && districtMood(store, place).state === "clear") setTimeout(() => toast(`${title(place)} is all clear. The lights are up!`), c.levelUp ? 3400 : 900);
+  setTimeout(() => { if (justDone === id) justDone = null; }, 700);
+}
 
 // ---------- sheets ----------
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -143,7 +158,7 @@ const TYPE_ICON = {
 const svgIcon = (t) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;color:var(--muted)"><path d="${TYPE_ICON[t] || TYPE_ICON.note}"/></svg>`;
 let sheetFor = null;
 function itemHtml(n, { bag = false } = {}) {
-  const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""}" data-act="toggle" data-id="${n.id}" aria-label="Done">${n.done ? "✓" : ""}</button>`
+  const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="Done">${n.done ? "✓" : ""}</button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
   const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="color:${dueText(n.due).startsWith("overdue") ? "#ff9b9b" : "#ffd98a"}">${dueText(n.due)}</span>` : "", n.effort > 1 ? `effort ${n.effort}` : "", n.tags.includes("example") ? "example" : "", n.notes ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
@@ -174,8 +189,9 @@ $("sheetBody").addEventListener("submit", (e) => {
 $("sheetBody").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const id = b.dataset.id, n = id ? store.get(id) : null;
-  if (b.dataset.act === "toggle") { if (n.done) store.reopen(id); else { const xp = store.complete(id); if (xp) toast(`+${xp} XP · ${n.title}`); } }
-  if (b.dataset.act === "step") { const xp = store.completeStep(id, +b.dataset.i); if (xp) toast(`+${xp} XP${store.get(id).done ? " · quest complete!" : ""}`); }
+  const from = b.getBoundingClientRect();
+  if (b.dataset.act === "toggle") { if (n.done) store.reopen(id); else finish(id, from, () => store.complete(id)); }
+  if (b.dataset.act === "step") finish(id, from, () => store.completeStep(id, +b.dataset.i), { isStep: true });
   if (b.dataset.act === "place") { store.place(id, b.dataset.to); toast(`Placed in ${title(b.dataset.to)}`); }
   if (b.dataset.act === "open") bridge.openExternal(b.dataset.url);
   if (b.dataset.act === "photo") { const src = await media.getImage(n.images[0]); if (src) showPhoto(src); }
@@ -309,8 +325,11 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast("Summary exported"); }
   if (act === "import") $("importInput").click();
   if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast("Example items removed"); }
+  if (act === "sound") { sound = !sound; try { localStorage.setItem("life-sound", sound ? "on" : "off"); } catch (e) { /* ignore */ } renderSound(); if (sound) fx.chime([523.25, 783.99]); toast(sound ? "Sound is on" : "Sound is off"); }
   if (act === "about") toast(`Life Archipelago v${VERSION} · ${backendName}${bridge.android ? ` · Android ${bridge.version || ""}` : ""}`);
 });
+const renderSound = () => { const b = $("menu").querySelector('[data-act="sound"]'); if (b) b.textContent = `Sound: ${sound ? "on" : "off"}`; };
+renderSound();
 $("importInput").addEventListener("change", async () => {
   const f = $("importInput").files[0]; $("importInput").value = ""; if (!f) return;
   try { importJSON(store, await f.text()); toast("Backup imported"); } catch (err) { toast("That file isn't a Life Archipelago backup"); }
@@ -374,6 +393,7 @@ renderer.setAnimationLoop(() => {
   w.post.render();
   placeLabels();
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
+    lastFx: () => fx.last(), confetti: () => fx.confetti(),
     meshes: () => { let n = 0; map.scene.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; },
     districts: () => map.isles.map((d) => { const [x, y] = projectTo(map.cam, new THREE.Vector3(d.pos[0], 1.0, d.pos[1])); return { id: d.id, x, y }; }),
     moods: () => Object.fromEntries(map.isles.map((d) => [d.id, { state: districtMood(store, d.id).state, signs: map.moodSigns(d.id) }])),

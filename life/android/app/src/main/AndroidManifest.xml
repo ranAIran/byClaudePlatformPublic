@@ -3,6 +3,7 @@
 
     <!-- Fonts load from the web; everything else is bundled in the app. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <!-- Apps this one hands off to: the camera, speech input, and the browser for links. -->

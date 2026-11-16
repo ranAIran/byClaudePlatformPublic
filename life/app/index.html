@@ -105,6 +105,24 @@ button{font:inherit;color:inherit;cursor:pointer}
 #feedback{position:fixed;left:8px;right:8px;bottom:calc(8px + var(--bot));padding:14px;border-radius:24px;display:grid;gap:10px;z-index:8;max-height:86%;overflow:auto}
 #fbText{background:rgba(255,255,255,.08);border:1px solid var(--line);border-radius:14px;color:var(--ink);font:inherit;font-size:15px;padding:11px 12px;outline:none;resize:vertical;min-height:110px}
 #fbDiag{font-size:10.5px;white-space:pre-wrap;line-height:1.5;max-height:90px;overflow:auto}
+/* R26 · celebrations */
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:30}
+.xpfly{position:fixed;z-index:31;pointer-events:none;display:inline-flex;align-items:center;gap:4px;padding:5px 11px;border-radius:99px;background:linear-gradient(180deg,#ffe08a,#ffb02e);color:#2a1a00;font-weight:800;font-size:15px;box-shadow:0 4px 0 #c27a00,0 8px 22px rgba(255,170,40,.5);white-space:nowrap}
+.check.pop{animation:pop .45s cubic-bezier(.2,1.6,.4,1)}
+@keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.25)}100%{transform:scale(1)}}
+#banner{position:fixed;left:50%;top:calc(170px + var(--top));transform:translateX(-50%);z-index:28;display:flex;align-items:center;gap:12px;padding:12px 18px 12px 14px;border-radius:18px;background:linear-gradient(180deg,#ffe08a,#ffb02e);color:#2a1a00;box-shadow:0 5px 0 #c27a00,0 14px 34px rgba(255,170,40,.45);max-width:calc(100vw - 32px);animation:bannerIn .45s cubic-bezier(.2,1.5,.4,1)}
+#banner b{display:block;font-size:17px;font-weight:800} #banner span{font-size:13px;font-weight:600;opacity:.8}
+#banner.out{opacity:0;transition:opacity .3s}
+@keyframes bannerIn{from{transform:translateX(-50%) translateY(-14px) scale(.8);opacity:0}}
+#levelUp{position:fixed;inset:0;z-index:29;display:grid;place-items:center;overflow:hidden;background:radial-gradient(circle at 50% 42%,rgba(70,36,80,.6),rgba(24,12,34,.86));animation:luIn .3s ease-out}
+#levelUp.out{opacity:0;transition:opacity .3s}
+#levelUp .rays{position:absolute;left:50%;top:42%;width:160vmax;height:160vmax;margin:-80vmax;background:repeating-conic-gradient(from 0deg,rgba(255,201,77,.2) 0 8deg,transparent 8deg 20deg);-webkit-mask-image:radial-gradient(circle,#000 0,transparent 52%);mask-image:radial-gradient(circle,#000 0,transparent 52%);animation:spin 16s linear infinite}
+.lu-card{position:relative;display:grid;justify-items:center;gap:6px;transform:translateY(-8vh);animation:luPop .6s cubic-bezier(.2,1.5,.4,1)}
+.lu-badge{width:112px;height:112px;border-radius:36px;background:linear-gradient(160deg,#ffe08a,#ff9f1c);display:grid;place-items:center;color:#2a1a00;font-weight:800;font-size:54px;box-shadow:0 7px 0 #c27a00,0 0 64px rgba(255,190,80,.75);border:3px solid #fff3cf}
+.lu-card b{font-size:30px;font-weight:800;margin-top:12px;text-shadow:0 2px 0 rgba(0,0,0,.3)}
+.lu-card span{color:#ffe7c2;font-weight:600;font-size:15px}
+@keyframes luIn{from{opacity:0}} @keyframes luPop{from{transform:translateY(-8vh) scale(.4);opacity:0}} @keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#levelUp .rays,.lu-card,#banner,.check.pop{animation:none}}
 #renderer{position:fixed;right:12px;bottom:4px;font:500 9.5px var(--mono);color:rgba(255,255,255,.35);pointer-events:none}
 </style>
 </head>
@@ -155,6 +173,7 @@ button{font:inherit;color:inherit;cursor:pointer}
   <button data-act="export">Export backup (JSON)</button>
   <button data-act="exportmd">Export notes (Markdown)</button>
   <button data-act="import">Import backup…</button>
+  <button data-act="sound">Sound: on</button>
   <button data-act="examples">Remove example items</button>
   <button data-act="about">About this version</button>
 </div>

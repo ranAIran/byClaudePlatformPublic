@@ -72,8 +72,19 @@ check(tanks === '[[60,60,45,"lizard 22cm"],[60,45,45]]', `R17 bedroom has two te
 // Complete a task for XP.
 const xp0 = await p.evaluate(() => window.__life.store.xp());
 const box = await p.$('#sheetBody [data-act="toggle"]'); if (box) { await box.tap(); await p.waitForTimeout(200); }
+// R26 · finishing a task celebrates: its XP flies to the bar, with confetti.
+const fx1 = await p.evaluate(() => ({ last: window.__life.lastFx?.(), fly: !!document.querySelector(".xpfly"), confetti: window.__life.confetti?.() || 0 }));
 check((await p.evaluate(() => window.__life.store.xp())) > xp0, "R8 completing a task adds XP");
 await p.screenshot({ path: `${out}/v-xp.png` });
+check(fx1.last?.kind === "task" && fx1.last.xp === 10 && fx1.fly && fx1.confetti > 0, `R26 finishing a task shows +XP flying to the bar and confetti (${JSON.stringify(fx1)})`);
+// R26 · reaching the next level is the biggest moment.
+await p.evaluate(() => { const s = window.__life.store, L = s.level(); s.award(L.need - L.into - 5, "test"); }); // 5 XP short of the next level
+await p.tap('#sheetTabs [data-room="kitchen"]'); await p.waitForTimeout(250);
+await p.tap('#sheetBody [data-act="toggle"]'); await p.waitForTimeout(900);
+const lu = await p.evaluate(() => ({ shown: !!document.getElementById("levelUp"), text: document.getElementById("levelUp")?.innerText || "", level: window.__life.store.level().level, last: window.__life.lastFx?.() }));
+check(lu.shown && lu.text.includes(String(lu.level)) && lu.last?.levelUp === lu.level, `R26 a level-up gets its own moment (${JSON.stringify({ ...lu, text: lu.text.replace(/\s+/g, " ") })})`);
+await p.screenshot({ path: `${out}/v-levelup.png` });
+await p.tap("#levelUp").catch(() => {}); await p.waitForTimeout(500);
 // R4 · back from Home must show the islands again, not the last home frame.
 const homeThumb = await thumb(p);
 await p.tap("#sheetClose").catch(() => {}); await p.tap("#back"); await p.waitForFunction(() => window.__life.view() === "map"); await p.waitForTimeout(900);
