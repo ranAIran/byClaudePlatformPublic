@@ -11,7 +11,7 @@ export function createFx({ xpBar, levelBadge, soundOn = () => true }) {
   const size = () => { const d = Math.min(2, window.devicePixelRatio || 1); canvas.width = innerWidth * d; canvas.height = innerHeight * d; g.setTransform(d, 0, 0, d, 0, 0); };
   size(); window.addEventListener("resize", size);
   function frame(t) {
-    const dt = Math.min(0.04, (t - lastT) / 1000 || 0.016); lastT = t;
+    const dt = Math.min(0.1, (t - lastT) / 1000 || 0.016); lastT = t; // real time, so confetti never lingers on a slow device
     g.clearRect(0, 0, innerWidth, innerHeight);
     parts = parts.filter((p) => p.life > 0 && p.y < innerHeight + 40);
     for (const p of parts) {

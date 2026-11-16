@@ -255,6 +255,24 @@ describe("R31 · walking in the city", () => {
     for (let i = 0; i < 30; i++) [x, z, ok] = w.step(x, z, 0.1, 0.1);
     expect(x).toBeGreaterThan(6);                                 // and goes on once clear of the corner
   });
+  it("finds a way round a building instead of getting stuck against it", () => {
+    // From the left of the building to a point straight behind it: the direct line is blocked.
+    const path = w.route(4.2, 0, 7.8, 0);
+    expect(path.length).toBeGreaterThan(1);
+    const end = path[path.length - 1]; expect(end[0]).toBeCloseTo(7.8, 1); expect(end[1]).toBeCloseTo(0, 1);
+    let x = 4.2, z = 0, len = 0;
+    for (const [px, pz] of path) { // every stretch of the route is free of walls
+      const d = Math.hypot(px - x, pz - z); len += d;
+      for (let t = 0; t <= 1; t += 0.05) expect(w.walkable(x + (px - x) * t, z + (pz - z) * t)).toBe(true);
+      x = px; z = pz;
+    }
+    expect(len).toBeLessThan(8);   // round the corner, not round the block
+  });
+  it("a tap on a wall or on the water leads to the nearest place you can stand", () => {
+    const toWall = w.route(0, 0, 6, 0), toSea = w.route(0, 0, 0, 9);
+    expect(w.walkable(...toWall[toWall.length - 1])).toBe(true); expect(toWall[toWall.length - 1][0]).toBeGreaterThan(4);
+    expect(w.walkable(...toSea[toSea.length - 1])).toBe(true); expect(toSea[toSea.length - 1][1]).toBeGreaterThan(2);
+  });
   it("blocks stand a step above the road", () => {
     expect(w.groundY(0, 0)).toBeGreaterThan(w.groundY(3, 0));
   });

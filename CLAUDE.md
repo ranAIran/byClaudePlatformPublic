@@ -33,8 +33,8 @@ Read this first. It carries the decisions and lessons from earlier sessions so a
 
 ```bash
 cd life && npm install
-npm test                 # Vitest: life/test/*.test.js (R1–R3, R7, R8, R16, sharing)
-npm run test:visual      # Playwright: life/test/visual.mjs (R4 fly < 1.2 s, R5 no blank frame, capture flow, XP, R16 feedback)
+npm test                 # Vitest: life/test/*.test.js (R1–R3, R7, R8, R16, sharing, R26 rewards, R27 moods, R29 orbit, R31 walking and routes, R32 physics)
+npm run test:visual      # Playwright: life/test/visual.mjs, about 4 minutes (R4, R5, R16–R18, R26–R32: city, golden hour, state signs, turning, horizon, walking, coins)
 bash life/android/copy-web.sh   # copies life/app + quest engine into the APK assets (CI does this)
 ```
 
@@ -59,13 +59,18 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 - WebGL/WebGPU `scene.background` textures are not drawn under this setup: use a backdrop mesh (`backdrop()` in `life/proto/proto.js`).
 - Hebrew keyword matching must be whole-word with optional one-letter prefixes (ו ב ל מ ה ש כ), not substring (`life/app/core/places.js`).
 - **Do not use `THREE.PostProcessing` for more than one scene** (r170): all instances share one quad/material, so the last one built wins (map showed the house). `app.js` uses `screenPass()`, a private QuadMesh per world, and warms up the other world at frame 10.
+- **An `InstancedMesh` must keep the instance count it had on its first frame** (r170 sizes the instance buffer then): the reward coins were invisible when the pool started at `count = 0`. Keep a fixed pool and scale unused instances to zero.
+- **Greedy "slide along the wall" steering gets trapped in corners** (porch + house wall). Walking uses a grid route (`route()` in `life/app/core/walk.js`), then straightens it.
+- **Animations that must finish (camera turns, confetti) use real elapsed time**, not the capped frame delta: the software renderer in tests runs at 2–5 fps, and slow phones exist.
 - The APK is signed with the committed test key `life/android/debug.keystore` so updates install over each other. Not for the Play Store.
 
 ## Life Archipelago architecture
 
 - `life/app/core/`: pure logic, no DOM, fully unit-tested (store, capture/date parsing, place suggestions, XP, export, share).
-- `life/app/scenes.js`: 3D map + home interior, built on `quest/world.js`.
-- `life/app/app.js`: UI. `life/app/media.js`: images in IndexedDB. `life/app/bridge.js`: the only Android-aware web file.
+- `life/app/core/` also holds the game rules that are easy to get wrong: `mood.js` (district state), `reward.js` (celebration size), `orbit.js` (camera maths), `walk.js` (walkable area, routes), `physics.js` (balls and coins).
+- `life/app/scenes.js`: the 3D city (districts, signs, toys, coins, door marks) + home interior, built on `quest/world.js`. Static geometry is merged with `bake()`.
+- `life/app/fx.js`: 2D celebrations (confetti, +XP flying to the bar, chime, level-up).
+- `life/app/app.js`: UI, the orbit camera, walk mode (follow camera with a spring arm) and the physics loop. `life/app/media.js`: images in IndexedDB. `life/app/bridge.js`: the only Android-aware web file.
 - `life/android/.../MainActivity.kt`: WebView + `WebViewAssetLoader`, ML Kit document scanner, camera, voice, share in/out. JS ↔ Kotlin through `window.LifeAndroid` and `window.lifeBridge`.
 
 ## Status (update at the end of every session)
@@ -78,5 +83,8 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 - **Approved and built:** R18 life map as a city (first previewed at `life/proto/?shot=city`). Requirements doc in Hebrew with live statuses, the city preview and the market review: `life/docs/requirements.html` (R16–R18 are only there, not yet in the Claude Doc).
 - **Done (life 0.1.4, quest 1.4.1):** small gecko (22 cm) in the big terrarium; quest bridge walk zone reaches 1.6 units into each island (the Alignment Gate entrance had a gap and blocked the player); admin taps window 5 s with a countdown toast after the 3rd tap; renderers ask for the high-performance GPU.
 - **Done (life 0.2.0):** the main map is now a city at golden hour (`buildMapInto` in `life/app/scenes.js`; the islands are gone). Districts are merged into few meshes with `bake()`; anything animated or toggled sits under a group with `userData.live`. Each district shows its state (`core/mood.js`, R27): crane/scaffolding/cones and a flickering lamp when a task is overdue, a festoon when all clear. Tests R18, R27, R28 in `life/test/`.
-- **Not yet verified on a real phone:** scanner, camera, voice, share-in, WebGPU performance.
-- **Next candidates:** device check of APK 0.1.1 and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.
+- **Done (0.2.1–0.2.2):** R26 celebrations (`fx.js`, `core/reward.js`); the interface redesign in a warm dusk palette (compact HUD, labels with state badges, animated sheet, splash, first-run hint).
+- **Done (0.3.0):** R29/R30 a true 3D world: perspective orbit camera (drag moves, twist or right-drag turns and tilts, pinch zooms, Q/E and two buttons turn 45°), sky, sun, sea to the horizon, hills, lighthouse, marina; the house stands in a garden.
+- **Done (0.3.1):** R31 walk mode (walk button; tap the ground or a building; routes round buildings; chase camera; reaching a door opens that place); R32 physics (two balls you can kick or tap, the balloon bobs when tapped, reward coins burst from a place's door when its sheet closes, splashes in the water).
+- **Not yet verified on a real phone:** the new camera gestures, walk mode and frame rate with the bigger world; also scanner, camera, voice, share-in, WebGPU performance.
+- **Next candidates:** walking inside the house; first-person view; collect coins by walking into them; more toys; device check of the latest APK and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.

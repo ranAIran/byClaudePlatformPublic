@@ -38,7 +38,7 @@ check(["home", "family", "paperwork", "work", "health"].every((id) => districts.
 const hall = districts.find((d) => d.id === "paperwork");
 if (hall) { await p.mouse.click(hall.x, hall.y); await p.waitForTimeout(350); }
 check(!(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).includes("Paperwork"), "R18 tapping the city hall opens Paperwork");
-await p.tap("#sheetClose").catch(() => {}); await p.waitForTimeout(350);
+await p.tap("#sheetClose").catch(() => {}); await p.waitForTimeout(800); // let the scrim behind the sheet fade out
 const meshes = await p.evaluate(() => window.__life.meshes?.() ?? 9999);
 check(meshes < 260, `R18 the city is merged into few draw calls for phones (${meshes} meshes)`);
 // R28 · golden hour: the light is warm.
@@ -72,6 +72,35 @@ await p.screenshot({ path: `${out}/v-horizon.png` });
 const skyB = await band(0.16, 0.24), seaB = await band(0.8, 0.86);
 check(skyB.r > 170 && skyB.r > skyB.b + 15 && Math.abs(skyB.r - seaB.r) > 40, `R30 tilting down shows a warm sky above the horizon and the sea below (sky ${JSON.stringify(Object.values(skyB).map(Math.round))}, sea ${JSON.stringify(Object.values(seaB).map(Math.round))})`);
 await p.evaluate((pitch) => window.__life.setCam({ pitch }), cam0.pitch); await p.waitForTimeout(500);
+// R32 · touching a ball kicks it: it flies, bounces and rolls.
+const toy0 = (await p.evaluate(() => window.__life.props())).toys[0];
+await p.mouse.click(toy0.x, toy0.y); await p.waitForTimeout(600);
+const toy1 = (await p.evaluate(() => window.__life.props())).toys[0];
+check(Math.hypot(toy1.p[0] - toy0.p[0], toy1.p[1] - toy0.p[1], toy1.p[2] - toy0.p[2]) > 0.3, `R32 tapping the ball kicks it (moved ${Math.hypot(toy1.p[0] - toy0.p[0], toy1.p[1] - toy0.p[1], toy1.p[2] - toy0.p[2]).toFixed(2)} units)`);
+// R31 · walk: tap the city hall and you walk to its door; the camera follows; arriving opens Paperwork.
+await p.tap("#walkBtn"); await p.waitForFunction(() => window.__life.walk().k > 0.97, null, { timeout: 20000 }).catch(() => {});
+const wk0 = await p.evaluate(() => window.__life.walk());
+await p.screenshot({ path: `${out}/v-walk.png` });
+// A tap on the ground walks to that spot (here: the driveway, on the camera's side of you).
+const spot = await p.evaluate(() => { const m = window.__life.walk(); return window.__life.screenOf(m.x + 1.3, 0.3, m.z + 0.9); });
+await p.mouse.click(spot.x, spot.y); await p.waitForTimeout(2500);
+const wkTap = await p.evaluate(() => window.__life.walk());
+check(Math.hypot(wkTap.x - wk0.x, wkTap.z - wk0.z) > 0.4 && wkTap.x > wk0.x, `R31 tapping the ground walks you there (moved ${Math.hypot(wkTap.x - wk0.x, wkTap.z - wk0.z).toFixed(2)} units)`);
+// Then to the city hall: the same call a tap on the building makes.
+await p.evaluate(() => window.__life.goTo("paperwork"));
+await p.waitForFunction(() => window.__life.walk().arrived === "paperwork", null, { timeout: 120000 }).catch(() => {});
+await p.waitForTimeout(400);
+const wk1 = await p.evaluate(() => window.__life.walk());
+await p.screenshot({ path: `${out}/v-arrived.png` });
+check(wk0.mode === "walk" && Math.hypot(wk1.x - wk0.x, wk1.z - wk0.z) > 4 && wk1.arrived === "paperwork" && !(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).includes("Paperwork"), `R31 you walk from home to the city hall door and Paperwork opens (walked ${Math.hypot(wk1.x - wk0.x, wk1.z - wk0.z).toFixed(1)} units, arrived: ${wk1.arrived})`);
+// R32 · finishing a task there makes coins burst out of the door when the sheet closes.
+await p.tap('#sheetBody [data-act="toggle"]'); await p.waitForTimeout(300);
+await p.tap("#sheetClose"); await p.waitForTimeout(500);
+const coins = (await p.evaluate(() => window.__life.props())).coins;
+await p.screenshot({ path: `${out}/v-coins.png` });
+check(coins >= 5, `R32 finishing a task makes coins burst out of the building (${coins} coins in the air)`);
+await p.tap("#walkBtn"); await p.waitForFunction(() => window.__life.walk().k < 0.03, null, { timeout: 20000 }).catch(() => {}); await p.waitForTimeout(6500); // and let the coins fade
+await p.evaluate(() => { const s = window.__life.store; for (const n of s.all()) if (n.title === "Pay electricity bill" && n.done) s.reopen(n.id); });
 // Capture into the bag, then place it from the bag.
 await p.fill("#capInput", "renew passport before March"); await p.press("#capInput", "Enter"); await p.waitForTimeout(300);
 const bagN = await p.evaluate(() => window.__life.store.unplaced().length);
@@ -82,6 +111,7 @@ const to = await firstChip.getAttribute("data-to"); await firstChip.tap(); await
 check(to === "paperwork" || (await p.evaluate(() => window.__life.store.unplaced().length)) < bagN, `R2 first suggestion places the item (${to})`);
 await p.tap("#sheetClose");
 // Fly into Home (R4) and check the interior renders.
+const cityThumb = await thumb(p); // the city as it looks now, to compare with after coming back
 await p.click(".lbl >> nth=0"); await p.waitForFunction(() => window.__lastFlyMs, null, { timeout: 5000 }); const flyMs = await p.evaluate(() => window.__lastFlyMs);
 await p.waitForTimeout(900); await p.screenshot({ path: `${out}/v-home.png` });
 check(flyMs < 1200, `R4 fly into Home took ${flyMs} ms`);
@@ -108,7 +138,7 @@ await p.tap("#levelUp").catch(() => {}); await p.waitForTimeout(500);
 const homeThumb = await thumb(p);
 await p.tap("#sheetClose").catch(() => {}); await p.tap("#back"); await p.waitForFunction(() => window.__life.view() === "map"); await p.waitForTimeout(900);
 await p.screenshot({ path: `${out}/v-back.png` });
-const backThumb = await thumb(p), dMap = dist(backThumb, mapThumb), dHome = dist(backThumb, homeThumb);
+const backThumb = await thumb(p), dMap = dist(backThumb, cityThumb), dHome = dist(backThumb, homeThumb);
 check(dMap < dHome * 0.6, `R4 back to map shows the city again (diff to map ${dMap.toFixed(1)}, to home ${dHome.toFixed(1)})`);
 // R16 · feedback opens a prefilled GitHub issue.
 await p.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; });

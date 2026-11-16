@@ -13,9 +13,11 @@ import { districtMood } from "./core/mood.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
+import { makeWalker } from "./core/walk.js";
+import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.3.0";
+export const VERSION = "0.3.1";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -94,7 +96,7 @@ const pIcon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 for (const d of map.isles) {
   const el = document.createElement("button"); el.className = "lbl";
   el.innerHTML = `<b><i style="background:${ISL_COLOR[d.id]}">${pIcon(d.id)}</i>${d.name}</b><span class="badge"></span>`;
-  el.addEventListener("click", () => openIsland(d.id));
+  el.addEventListener("click", () => (mode === "walk" && view === "map" && W.arrived !== d.id ? walkTo(map.walk.doors[d.id]) : openIsland(d.id)));
   el.userData = new THREE.Vector3(d.pos[0], d.labelY, d.pos[1]);
   $("labels").append(el); labelEls[d.id] = el;
 }
@@ -106,7 +108,7 @@ for (const r of ROOMS) {
 }
 function placeLabels() {
   const w = world();
-  const place = (el) => { const [x, y, z] = projectTo(w.cam, el.userData); el.style.left = x + "px"; el.style.top = y + "px"; el.style.visibility = z > 1 ? "hidden" : ""; }; // z > 1: behind the camera
+  const place = (el) => { const [x, y, z] = projectTo(w.cam, el.userData); el.style.left = x + "px"; el.style.top = y + "px"; el.style.visibility = z > 1 || y < 150 ? "hidden" : ""; }; // behind the camera, or under the HUD
   for (const el of Object.values(labelEls)) { el.hidden = view !== "map"; if (!el.hidden) place(el); }
   for (const el of Object.values(roomEls)) { el.hidden = view !== "home"; if (!el.hidden) place(el); }
 }
@@ -146,7 +148,7 @@ $("quests").addEventListener("click", (e) => { const b = e.target.closest("[data
 // ---------- R26 · celebrations ----------
 let sound = true; try { sound = localStorage.getItem("life-sound") !== "off"; } catch (e) { /* storage unavailable */ }
 const fx = createFx({ xpBar: $("xpBar"), levelBadge: $("lvl"), soundOn: () => sound });
-let justDone = null;
+let justDone = null; const pendingCoins = {};
 // Finish something through `act` (which returns the XP gained) and play the celebration it earned.
 function finish(id, from, act, { isStep = false } = {}) {
   const n = store.get(id), levelBefore = store.level().level, wasClear = districtMood(store, islandOf(id)).state === "clear";
@@ -154,6 +156,7 @@ function finish(id, from, act, { isStep = false } = {}) {
   const c = celebrationFor({ gained, isStep, questDone: isStep && !!after?.done, levelBefore, levelAfter: store.level().level });
   fx.play(c, from, { title: n.title });
   const place = islandOf(id);
+  if (c && map.walk.doors[place]) pendingCoins[place] = Math.min(40, (pendingCoins[place] || 0) + (c.levelUp ? 30 : c.kind === "quest" ? 20 : c.kind === "task" ? 9 : 4));
   if (c && !wasClear && place && districtMood(store, place).state === "clear") setTimeout(() => toast(`${title(place)} is all clear. The lights are up!`), c.levelUp ? 3400 : 900);
   setTimeout(() => { if (justDone === id) justDone = null; }, 700);
 }
@@ -195,7 +198,7 @@ function openSheet(id) {
     (isBag ? "" : `<form class="addrow" data-to="${id}"><input placeholder="Add to ${esc(title(id))}… (try “change filter by 20/11”)"><button class="btn primary" style="padding:10px 14px">Add</button></form>`);
 }
 const refreshSheet = () => { if (sheetFor && !$("sheet").hidden) openSheet(sheetFor); };
-function closeSheet() { $("sheet").hidden = true; sheetFor = null; document.body.classList.remove("sheet-open"); }
+function closeSheet() { $("sheet").hidden = true; sheetFor = null; document.body.classList.remove("sheet-open"); releaseCoins(); }
 $("sheetClose").addEventListener("click", closeSheet);
 $("sheetTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-room]"); if (b) { if (b.dataset.room === "home") openSheet("home"); else selectRoom(b.dataset.room); } });
 $("sheetBody").addEventListener("submit", (e) => {
@@ -249,7 +252,7 @@ const el = renderer.domElement, ptrs = new Map(); let down = null, pinch = 0, tw
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 const viewDist = (w) => (w.v.dist * w.cam.userData.fit) / w.v.zoom;
 function turnView(w, dYaw, dPitch) {
-  const v = w.v, L = w.cam.userData.limits; v.yawGoal = v.pitchGoal = null;
+  const v = w.v, L = w.cam.userData.limits; v.yawGoal = v.pitchGoal = null; W.turned = performance.now();
   v.yaw += dYaw; if (L.yaw) v.yaw = clamp(v.yaw, L.yaw[0], L.yaw[1]);
   v.pitch = clamp(v.pitch + dPitch, L.pitch[0], L.pitch[1]);
 }
@@ -273,7 +276,7 @@ el.addEventListener("pointermove", (e) => {
   if (!down) return; if (Math.hypot(cur.x - down.x, cur.y - down.y) > 9) down.moved = true;
   if (!down.moved) return; hideHint();
   const dx = cur.x - prev.x, dy = cur.y - prev.y;
-  if (down.turn) { turnView(w, -dx * 0.006, dy * 0.005); return; }
+  if (down.turn || (mode === "walk" && view === "map")) { turnView(w, -dx * 0.006, dy * 0.005); return; }
   const { right, forward } = panBasis(w.v.yaw), upp = (2 * viewDist(w) * Math.tan((w.cam.fov * Math.PI) / 360)) / innerHeight, f = (dy * upp) / Math.max(0.3, Math.sin(w.v.pitch));
   w.pan.x += -dx * upp * right[0] + f * forward[0]; w.pan.z += -dx * upp * right[2] + f * forward[2]; w.pan.clampLength(0, view === "map" ? 14 : 7);
 });
@@ -282,11 +285,20 @@ el.addEventListener("pointercancel", endPtr);
 el.addEventListener("pointerup", (e) => {
   const d = endPtr(e); if (!d || d.moved) return;
   const w = world(); ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, w.cam);
+  if (view === "map") { // things that react when touched (R32): the balloon bobs, a ball gets a kick
+    const poked = ray.intersectObjects([map.balloon, ...map.toys.map((t) => t.mesh)], true)[0];
+    if (poked) { let o = poked.object; while (o.parent && o !== map.balloon && !o.userData.toy) o = o.parent; poke(o); return; }
+  }
   const p = new THREE.Vector3(); if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), view === "map" ? -0.26 : 0), p)) return;
   if (view === "map") {
     // Tall buildings hide the ground behind them, so hit the buildings themselves first.
-    let best = null;
-    for (const h of ray.intersectObjects(Object.values(map.G), true)) { let o = h.object; while (o && !o.userData.district) o = o.parent; if (o) { best = o.userData.district; break; } }
+    let best = null, hit = null;
+    for (const h of ray.intersectObjects(Object.values(map.G), true)) { let o = h.object; while (o && !o.userData.district) o = o.parent; if (o) { best = o.userData.district; hit = h.point; break; } }
+    if (mode === "walk") { // a tap on a building walks to its door; a tap on the ground walks to that spot
+      hideHint(); const ground = !hit || hit.y < 0.75, spot = hit && ground ? [hit.x, hit.z] : [p.x, p.z];
+      if (best && !ground && W.arrived === best) openIsland(best); else walkTo(best && !ground ? map.walk.doors[best] : spot);
+      return;
+    }
     if (!best) { let bd = 1e9; for (const isl of map.isles) { const dd = Math.hypot(p.x - isl.pos[0], p.z - isl.pos[1]); if (dd < isl.radius && dd < bd) { bd = dd; best = isl.id; } } }
     if (best) openIsland(best); else closeSheet();
   }
@@ -298,7 +310,84 @@ $("rotR").addEventListener("click", () => turnBy(Math.PI / 4));
 window.addEventListener("keydown", (e) => {
   if (/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
   const k = e.key.toLowerCase(); if (k === "q") turnBy(-Math.PI / 4); if (k === "e") turnBy(Math.PI / 4);
+  if (WALK_KEYS[k] && mode === "walk") { W.keys.add(k); W.path = null; e.preventDefault(); }
 });
+window.addEventListener("keyup", (e) => W.keys.delete(e.key.toLowerCase()));
+
+// ---------- R31 · walk in the city: tap where to go, the camera follows behind you ----------
+const walker = makeWalker(map.walk), me = map.player;
+const WALK_KEYS = { w: [0, 1], arrowup: [0, 1], s: [0, -1], arrowdown: [0, -1], a: [-1, 0], arrowleft: [-1, 0], d: [1, 0], arrowright: [1, 0] };
+const W = { path: null, keys: new Set(), arrived: null, k: 0, dist: 8.5, told: false, turned: 0, arm: 99, armNow: 8.5 };
+const arm = new THREE.Raycaster();
+let mode = "overview";
+const nearDoor = () => Object.entries(map.walk.doors).find(([, d]) => Math.hypot(me.position.x - d[0], me.position.z - d[1]) < 1.2)?.[0] || null;
+function setWalk(on) {
+  mode = on ? "walk" : "overview"; const v = map.v;
+  $("walkBtn").classList.toggle("on", on); $("walkBtn").setAttribute("aria-pressed", on); map.doorMarks.visible = on; document.body.classList.toggle("walking", on);
+  W.path = null; W.keys.clear(); closeSheet(); hideHint();
+  if (on) { W.back = { pitch: v.pitch, yaw: v.yaw }; W.arrived = nearDoor(); v.pitchGoal = 0.36; map.zoomGoal = 1; if (!W.told) { W.told = true; toast("Tap where you want to go, or tap a building to walk to its door"); } }
+  else { v.pitchGoal = W.back?.pitch ?? v.pitch; if (W.back) v.yawGoal = v.yaw + turn(v.yaw, W.back.yaw); map.zoomGoal = 1; me.userData.state = null; }
+}
+function walkTo(pt) { if (pt) W.path = walker.route(me.position.x, me.position.z, pt[0], pt[1]); }
+$("walkBtn").addEventListener("click", () => { if (view === "map") setWalk(mode !== "walk"); });
+function walkTick(real) {
+  let dx = 0, dz = 0;
+  if (W.keys.size) { const { right, forward } = panBasis(map.v.yaw); let sx = 0, sy = 0; for (const k of W.keys) { sx += WALK_KEYS[k][0]; sy += WALK_KEYS[k][1]; } dx = right[0] * sx + forward[0] * sy; dz = right[2] * sx + forward[2] * sy; }
+  else { // follow the route, one waypoint at a time
+    while (W.path?.length && Math.hypot(W.path[0][0] - me.position.x, W.path[0][1] - me.position.z) < 0.12) W.path.shift();
+    if (W.path?.length) { dx = W.path[0][0] - me.position.x; dz = W.path[0][1] - me.position.z; }
+  }
+  const len = Math.hypot(dx, dz), moving = len > 0;
+  if (moving) {
+    dx /= len; dz /= len;
+    let left = Math.min(3.4 * Math.min(0.12, real), W.keys.size ? 9 : len), ok = true;
+    while (left > 1e-4 && ok) { const st = Math.min(0.09, left); left -= st; [me.position.x, me.position.z, ok] = walker.step(me.position.x, me.position.z, dx * st, dz * st); }
+    if (!ok) W.path = null; // blocked (only happens with the keys: routes are clear)
+    me.rotation.y += turn(me.rotation.y, Math.atan2(dx, dz)) * Math.min(1, real * 10);
+    // Chase camera: drift round behind you as you walk, unless you turned the view yourself a moment ago.
+    if (performance.now() - (W.turned || 0) > 2500 && map.v.yawGoal == null) map.v.yaw += turn(map.v.yaw, Math.atan2(-dx, -dz)) * (1 - Math.exp(-1.1 * Math.min(0.12, real)));
+    // Walking into a ball kicks it.
+    for (const t of map.toys) { const b = t.body; if (Math.hypot(b.p[0] - me.position.x, b.p[2] - me.position.z) < b.r + 0.34 && b.p[1] < me.position.y + 0.8) physics.kick(b, dx * 6.5, 3.4, dz * 6.5); }
+  }
+  me.position.y += (walker.groundY(me.position.x, me.position.z) - me.position.y) * Math.min(1, real * 12);
+  me.userData.state = moving ? { walking: true } : {};
+  // Reaching a door opens that place; you have to step away before it opens again.
+  for (const [id, d] of Object.entries(map.walk.doors)) {
+    const dd = Math.hypot(me.position.x - d[0], me.position.z - d[1]);
+    if (dd < 0.3 && W.arrived !== id) { W.arrived = id; W.path = null; openIsland(id); } else if (W.arrived === id && dd > 2.2) W.arrived = null;
+  }
+}
+
+// ---------- R32 · things react physically: balls, the balloon, reward coins ----------
+const physics = createPhysics({ groundY: walker.groundY, inCity: (x, z) => walker.inCity(x, z, 0.1), solids: map.walk.solids });
+for (const t of map.toys) t.body = physics.add({ p: [t.mesh.position.x, t.mesh.position.y, t.mesh.position.z], r: t.r, bounce: 0.62, drag: 0.7, home: t.home, kind: "toy" });
+const coinNone = new THREE.Matrix4().makeScale(0, 0, 0); let coinsShown = 0;
+const coinM = new THREE.Matrix4(), coinQ = new THREE.Quaternion(), coinE = new THREE.Euler(), coinS = new THREE.Vector3(1, 1, 1), coinP = new THREE.Vector3();
+function poke(o) {
+  if (o === map.balloon) { map.balloon.userData.vy = (map.balloon.userData.vy || 0) + 4.5; fx.chime([659.25]); return; }
+  const t = map.toys.find((q) => q.mesh === o); if (!t) return;
+  const { forward } = panBasis(map.v.yaw), sp = 5 + Math.random() * 2.5, a = (Math.random() - 0.5) * 1.2;
+  physics.kick(t.body, (forward[0] * Math.cos(a) - forward[2] * Math.sin(a)) * sp, 5.5, (forward[0] * Math.sin(a) + forward[2] * Math.cos(a)) * sp);
+}
+// Coins earned while a sheet covered the city burst out of that place's door once you can see it.
+function releaseCoins() {
+  for (const [id, n] of Object.entries(pendingCoins)) {
+    delete pendingCoins[id]; const d = map.walk.doors[id]; if (!d || view !== "map") continue;
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 1.2 + Math.random() * 2.6; physics.add({ p: [d[0], 0.9 + Math.random() * 0.5, d[1]], v: [Math.cos(a) * sp, 6 + Math.random() * 4.5, Math.sin(a) * sp], r: 0.16, bounce: 0.5, drag: 1.4, life: 5.5 + Math.random() * 2, kind: "coin", data: Math.random() * 6 }); }
+  }
+}
+function physicsTick(dt) {
+  for (const e of physics.step(dt)) if (e.type === "splash") map.splash(e.at[0], e.at[2]);
+  for (const t of map.toys) { const b = t.body; t.mesh.position.set(b.p[0], b.p[1], b.p[2]); t.mesh.rotation.x += (b.v[2] * dt) / b.r; t.mesh.rotation.z -= (b.v[0] * dt) / b.r; }
+  let n = 0;
+  for (const b of physics.bodies) {
+    if (b.kind !== "coin" || n >= 48) continue;
+    const fade = Math.min(1, (b.life - b.age) * 2.5); coinE.set(b.data + b.age * (b.asleep ? 0 : 6), b.age * 3, 0); coinQ.setFromEuler(coinE); coinS.setScalar(Math.max(0.01, fade)); coinP.set(b.p[0], b.p[1], b.p[2]);
+    map.coins.setMatrixAt(n++, coinM.compose(coinP, coinQ, coinS));
+  }
+  for (let i = n; i < coinsShown; i++) map.coins.setMatrixAt(i, coinNone);
+  if (n || coinsShown) map.coins.instanceMatrix.needsUpdate = true; coinsShown = n;
+}
 
 // ---------- capture: text, voice, photo, scan, share ----------
 $("capForm").addEventListener("submit", (e) => {
@@ -433,7 +522,28 @@ renderer.setAnimationLoop(() => {
   if (w.zoomGoal) { v.zoom += (w.zoomGoal - v.zoom) * ease(6); if (Math.abs(v.zoom - w.zoomGoal) < 0.002) { v.zoom = w.zoomGoal; w.zoomGoal = 0; } }
   if (v.yawGoal != null) { const d = v.yawGoal - v.yaw; v.yaw += d * ease(9); if (Math.abs(d) < 0.004) { v.yaw = v.yawGoal; v.yawGoal = null; } }
   if (v.pitchGoal != null) { const d = v.pitchGoal - v.pitch; v.pitch += d * ease(7); if (Math.abs(d) < 0.004) { v.pitch = v.pitchGoal; v.pitchGoal = null; } }
-  const tgt = w.cam.userData.target.clone().add(w.pan), off = orbitOffset(v.yaw, v.pitch, viewDist(w));
+  const tgt = w.cam.userData.target.clone().add(w.pan); let d = viewDist(w);
+  if (w === map) {
+    if (mode === "walk") walkTick(real);
+    physicsTick(dt);
+    // W.k glides 0 → 1 when you start walking: the camera leaves the overview and settles behind you.
+    W.k += ((mode === "walk" ? 1 : 0) - W.k) * ease(4); if (Math.abs(W.k - (mode === "walk" ? 1 : 0)) < 0.002) W.k = mode === "walk" ? 1 : 0;
+    if (W.k > 0) {
+      const head = new THREE.Vector3(me.position.x, me.position.y + 0.95, me.position.z);
+      tgt.lerp(head, W.k); d += (W.dist / v.zoom - d) * W.k;
+      // Spring arm: if a building or a tree stands between you and the camera, the camera moves in front of it.
+      if (W.k > 0.6) {
+        if (frames % 3 === 0) {
+          const o = orbitOffset(v.yaw, v.pitch, 1); arm.set(head, new THREE.Vector3(o[0], o[1], o[2])); arm.far = d;
+          const h = arm.intersectObjects(Object.values(map.G), true).find((q) => { for (let n = q.object; n; n = n.parent) if (!n.visible) return false; return true; });
+          W.arm = h ? Math.max(1.6, h.distance - 0.4) : 99;
+        }
+        W.armNow += (Math.min(d, W.arm) - W.armNow) * ease(W.arm < W.armNow ? 14 : 3); d = Math.min(d, W.armNow);
+      } else W.armNow = d;
+      const fov = 30 + 18 * W.k; if (Math.abs(w.cam.fov - fov) > 0.05) { w.cam.fov = fov; w.cam.updateProjectionMatrix(); }
+    } else if (w.cam.fov !== 30) { w.cam.fov = 30; w.cam.updateProjectionMatrix(); }
+  }
+  const off = orbitOffset(v.yaw, v.pitch, d);
   w.cam.position.set(tgt.x + off[0], tgt.y + off[1], tgt.z + off[2]); w.cam.lookAt(tgt);
   w.updaters.forEach((u) => u(T, dt));
   // Warm up the other world's shaders once, after the first frames, so the first flight does not stall.
@@ -444,6 +554,9 @@ renderer.setAnimationLoop(() => {
   if (frames === 3) { $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700); }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
+    goTo: (id) => walkTo(map.walk.doors[id]), screenOf: (x, y, z) => { const [sx, sy] = projectTo(map.cam, new THREE.Vector3(x, y, z)); return { x: sx, y: sy }; },
+    walk: () => ({ mode, x: me.position.x, z: me.position.z, k: W.k, left: W.path?.length || 0, arrived: W.arrived }),
+    props: () => ({ coins: physics.bodies.filter((b) => b.kind === "coin").length, toys: map.toys.map((t) => { const [x, y] = projectTo(map.cam, t.mesh.position); return { x, y, p: [...t.body.p], speed: Math.hypot(...t.body.v) }; }) }),
     cam: () => ({ yaw: world().v.yaw, pitch: world().v.pitch, zoom: world().v.zoom, perspective: !!world().cam.isPerspectiveCamera }), setCam: (o) => { Object.assign(world().v, o); },
     meshes: () => { let n = 0; map.scene.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; },
     districts: () => map.isles.map((d) => { const [x, y] = projectTo(map.cam, new THREE.Vector3(d.pos[0], 1.0, d.pos[1])); return { id: d.id, x, y }; }),

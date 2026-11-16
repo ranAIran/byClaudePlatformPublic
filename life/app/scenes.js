@@ -301,6 +301,12 @@ function buildMapInto() {
     }
     return s;
   };
+  // You: the character who can walk the streets (R31). The app moves it; idle, it waves.
+  const me = person(CONFIG.playerLook.colors, { hat: "straw", hair: "#5a3a22", lanternColor: "#ffe08a" }); me.scale.setScalar(0.85);
+  // What blocks walking and bouncing: building footprints in world units, with their height.
+  const solids = [], doors = {};
+  const solid = (id, x, z, w, d, h) => { const g = G[id]; solids.push({ x0: g.position.x + x - w / 2, x1: g.position.x + x + w / 2, z0: g.position.z + z - d / 2, z1: g.position.z + z + d / 2, h: Y + h }); };
+  const door = (id, x, z) => { doors[id] = [G[id].position.x + x, G[id].position.z + z]; };
   const signs = {};
   const dress = (id, { scaf, cones = [], bar, lamp = [2.2, 2.2], extra }) => {
     const g = G[id], od = new THREE.Group(), cl = new THREE.Group(); od.userData.live = cl.userData.live = true; g.add(od, cl);
@@ -335,6 +341,7 @@ function buildMapInto() {
     add(g, bench(), 1.3, 2.1, Math.PI);
     const worker = person(["#3d4a6b", "#e8c39e", "#1f2d4a"], { hat: "none", hair: "#2b2b2b" }); worker.scale.setScalar(0.72); add(g, worker, 0.55, 2.05, 0.6);
     updaters.push((t, dt) => worker.userData.animate(t, dt, {}));
+    towers.forEach(([x, z, w, h]) => solid("work", x, z, w, w, h + 0.2)); solid("work", -0.1, 2.05, 0.8, 0.5, 0.8); door("work", -1.05, 2.12);
     dress("work", { scaf: { x: 1.1, z: 1.78, w: 1.2, h: 2.2 }, cones: [[0.3, 2.15], [1.95, 1.3]], bar: [-0.9, 2.12], extra: (od) => {
       // A tower crane says "work in progress" from far away.
       const y = "#f2b632"; put(bx(0.16, 7.6, 0.16, y), 0.05, 3.8, 0.05, od); put(bx(3.4, 0.12, 0.12, y), 0.9, 7.5, 0.05, od); put(bx(0.5, 0.3, 0.3, "#5a5f6b"), -0.75, 7.4, 0.05, od);
@@ -366,6 +373,7 @@ function buildMapInto() {
     put(bx(0.24, 0.42, 0.2, "#e0504b"), 1.7, 0.27, 1.75, g); put(bx(0.28, 0.06, 0.24, "#c2423d"), 1.7, 0.5, 1.75, g);
     add(g, bench(), 0.35, 1.95, Math.PI); add(g, pine(0.8), -1.95, -0.4); add(g, pine(0.8), 1.95, 0.75);
     flowerBed(g, 0.9, 1.2, 0.32, 3); flowerBed(g, -0.6, 1.2, 0.32, 4);
+    solid("paperwork", 0, -0.7, 3.0, 2.2, 2.0); solid("paperwork", -1.5, 1.5, 1.1, 1.1, 0.5); door("paperwork", 0, 0.98);
     dress("paperwork", { scaf: { x: 1.55, z: -0.9, w: 1.4, h: 1.9, ry: Math.PI / 2 }, cones: [[1.2, 0.75], [1.95, -0.1]], bar: [-0.2, 1.5] });
   }
 
@@ -386,6 +394,7 @@ function buildMapInto() {
     add(g, tree(0.8, LEAVES[0]), 1.5, 1.4); add(g, tree(0.65, LEAVES[2]), 0.45, 1.7); add(g, pine(0.75), 1.9, 0.5); add(g, bench(), 0.25, 0.55, 2.4);
     const runner = person(["#4ee08a", "#e9c9a8", "#1f2d4a"], { hat: "cap", hair: "#3b2a20" }); runner.scale.setScalar(0.7); g.add(runner);
     updaters.push((t, dt) => { const a = -t * 0.7; runner.position.set(1.0 + Math.cos(a) * 0.82, 0.07, -0.85 + Math.sin(a) * 0.82); runner.rotation.y = -a + Math.PI; runner.userData.animate(t, dt, { walking: true }); });
+    solid("health", -1.05, -1.2, 1.9, 1.4, 1.2); solid("health", -0.95, 1.05, 1.6, 1.6, 0.25); door("health", -0.33, -0.05);
     dress("health", { scaf: { x: -1.05, z: -0.47, w: 1.7, h: 1.2 }, cones: [[0.05, -0.35], [-0.2, 0.2]], bar: [1.0, 0.45] });
   }
 
@@ -401,6 +410,7 @@ function buildMapInto() {
     for (const x of [-0.25, 0.35]) { const a = bx(0.05, 1.0, 0.05, "#c9ced8"); a.rotation.z = x < 0 ? 0.2 : -0.2; put(a, 0.05 + x, 0.55, -0.15, g); } put(bx(0.8, 0.05, 0.05, "#c9ced8"), 0.05, 1.04, -0.15, g);
     for (const x of [-0.1, 0.2]) put(bx(0.012, 0.6, 0.012, "#3b4250"), 0.05 + x - 0.05, 0.74, -0.15, g); put(bx(0.34, 0.04, 0.14, "#e0504b"), 0.05, 0.44, -0.15, g);
     add(g, tree(0.75, LEAVES[3]), 2.0, -0.25); hedge(g, -0.2, 2.1, 2.2); flowerBed(g, -0.3, 0.75, 0.3, 7);
+    solid("family", -1.2, -1.2, 1.36, 1.12, 1.4); solid("family", 1.0, -1.3, 1.28, 1.05, 1.3); solid("family", -1.35, 0.95, 1.19, 0.97, 1.2); solid("family", 0.95, 1.1, 1.0, 1.05, 0.6); door("family", -0.89, -0.2);
     dress("family", { scaf: { x: -1.2, z: -0.62, w: 1.3, h: 1.05 }, cones: [[-0.3, -0.5], [0.3, 0.45]], bar: [-0.55, 1.75] });
   }
 
@@ -414,9 +424,10 @@ function buildMapInto() {
     put(bx(1.05, 0.03, 2.9, "#c4bcae"), 1.5, 0.075, 0.75, g);
     add(g, car("#e56b6f"), 1.5, 0.9, Math.PI / 2);
     put(bx(0.05, 0.5, 0.05, "#6b4a2e"), 0.85, 0.3, 2.12, g); put(bx(0.26, 0.16, 0.16, "#6aa9ff"), 0.85, 0.6, 2.12, g);
-    const me = person(CONFIG.playerLook.colors, { hat: "straw", hair: "#5a3a22", lanternColor: "#ffe08a" }); me.scale.setScalar(0.85); add(g, me, 0.2, 1.05, 0.8);
+    me.position.set(g.position.x + 0.2, Y + 0.06, g.position.z + 1.05); me.rotation.y = 0.8; scene.add(me);
     const luna = cat(); luna.scale.setScalar(0.6); add(g, luna, -0.95, 0.75, 0.6);
-    updaters.push((t, dt) => me.userData.animate(t, dt, { wave: true }));
+    updaters.push((t, dt) => me.userData.animate(t, dt, me.userData.state || { wave: true }));
+    solid("home", -0.75, -0.8, 2.2, 1.8, 2.3); solid("home", -0.25, 0.35, 1.0, 0.5, 1.0); solid("home", 1.5, 0.9, 0.5, 1.0, 0.6); solid("home", -0.7, 2.1, 2.9, 0.1, 0.4); door("home", -0.25, 1.0);
     dress("home", { scaf: { x: 0.38, z: -0.8, w: 1.7, h: 1.3, ry: Math.PI / 2 }, cones: [[1.0, -0.2], [0.95, 2.0]], bar: [1.5, 2.15] });
   }
 
@@ -430,6 +441,7 @@ function buildMapInto() {
       put(bx(0.8, 0.5, 0.05, glow(WARM, 1.4)), x - 0.15, 0.5, -0.54, g); put(bx(0.26, 0.62, 0.06, "#6b4a2e"), x + 0.45, 0.37, -0.54, g);
       put(bx(0.9, 0.2, 0.05, tint(aw, 0.25)), x, 1.25, -0.53, g); put(bx(0.3, 0.6, 0.05, "#6b4a2e"), x + 0.3, 0.36, -1.86, g); put(bx(0.3, 0.26, 0.05, glow(WARM, 1.1)), x - 0.3, 0.8, -1.86, g);
     });
+    solids.push({ x0: g.position.x - 2.13, x1: g.position.x + 2.13, z0: g.position.z - 1.85, z1: g.position.z - 0.55, h: Y + 1.4 });
     for (const [x, z, c] of [[-1.2, 0.9, "#ff9f6b"], [0.5, 1.2, "#ffd166"]]) { put(cy(0.26, 0.26, 0.04, "#fff6e6", 14), x, 0.42, z, g); put(cy(0.03, 0.03, 0.42, "#6b7280", 6), x, 0.21, z, g); put(cy(0.02, 0.02, 0.6, "#6b7280", 6), x, 0.72, z, g); put(new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.22, 8), W.mat(c)), x, 1.1, z, g); }
     add(g, tree(0.6, LEAVES[3]), 1.8, 1.6, 0, 0); add(g, tree(0.55, LEAVES[0]), -1.95, 1.9, 0, 0);
     const bulb = glow("#ffd27a", 2.4); add(g, lampPost(bulb), 2.2, 2.2, -Math.PI * 0.75, 0);
@@ -446,7 +458,10 @@ function buildMapInto() {
   }
 
   // ----- street life: parked cars, sailing boats, a balloon, evening clouds -----
-  for (const [x, z, ry, c] of [[3.34, -1.3, Math.PI / 2, "#5fb7e6"], [2.66, 4.2, -Math.PI / 2, "#ffd166"], [-1.2, 2.66, 0, "#8fe388"], [-4.3, -2.66, Math.PI, "#b48cff"], [0.9, -3.34, 0, "#ff9f6b"]]) { const k = car(c); k.position.set(x, 0.12, z); k.rotation.y = ry; ground.add(k); }
+  for (const [x, z, ry, c] of [[3.34, -1.3, Math.PI / 2, "#5fb7e6"], [2.66, 4.2, -Math.PI / 2, "#ffd166"], [-1.2, 2.66, 0, "#8fe388"], [-4.3, -2.66, Math.PI, "#b48cff"], [0.9, -3.34, 0, "#ff9f6b"]]) {
+    const k = car(c); k.position.set(x, 0.12, z); k.rotation.y = ry; ground.add(k);
+    const lx = Math.abs(Math.sin(ry)) > 0.5 ? 0.26 : 0.5, lz = Math.abs(Math.sin(ry)) > 0.5 ? 0.5 : 0.26; solids.push({ x0: x - lx, x1: x + lx, z0: z - lz, z1: z + lz, h: 0.75 });
+  }
   const boat = (c) => { const b = new THREE.Group(); b.userData.live = true; put(bx(1.0, 0.2, 0.38, "#fff6e6"), 0, 0.1, 0, b); put(bx(0.7, 0.06, 0.3, c), 0, 0.22, 0, b); put(cy(0.02, 0.02, 1.3, "#6b4a2e", 5), 0.05, 0.8, 0, b); const sail = prism(0.7, 1.1, 0.02, "#fff1dc"); put(sail, -0.28, 0.3, 0, b); bake(b); return b; };
   const boats = [[10.2, 4.4, 0.5, "#e0504b"], [4.2, 10.6, 2.2, "#3e8fb0"]].map(([x, z, ry, c]) => { const b = boat(c); b.position.set(x, 0, z); b.rotation.y = ry; scene.add(b); return b; });
   const balloon = new THREE.Group(); balloon.userData.live = true;
@@ -460,7 +475,8 @@ function buildMapInto() {
   });
   updaters.push((t) => {
     boats.forEach((b, i) => { b.position.y = 0.02 + Math.sin(t * 1.3 + i * 2) * 0.04; b.rotation.z = Math.sin(t * 0.9 + i) * 0.05; });
-    balloon.position.set(3.6 + Math.sin(t * 0.11) * 0.9, 5.4 + Math.sin(t * 0.5) * 0.18, -6.2 + Math.cos(t * 0.09) * 0.7);
+    const bu = balloon.userData; bu.vy = (bu.vy || 0) + (-(bu.off || 0) * 9 - (bu.vy || 0) * 1.4) * 0.016; bu.off = (bu.off || 0) + bu.vy * 0.016; // a tap sets vy; the spring settles it
+    balloon.position.set(3.6 + Math.sin(t * 0.11) * 0.9, 5.4 + Math.sin(t * 0.5) * 0.18 + bu.off, -6.2 + Math.cos(t * 0.09) * 0.7); balloon.rotation.z = bu.vy * 0.04;
     clouds.forEach((c, i) => { c.position.x += 0.004 * (i + 1); if (c.position.x > 16) c.position.x = -16; });
     // An overdue district's street lamp flickers; the others burn steady.
     for (const s of Object.values(signs)) s.bulb.emissiveIntensity = s.state === "overdue" ? (Math.sin(t * 23) + Math.sin(t * 7.3) > 0.5 ? 2.6 : 0.12) : 2.4;
@@ -503,9 +519,27 @@ function buildMapInto() {
   cam = viewCam(target, { dist: 64 });
   const labelY = { home: 3.0, family: 2.3, paperwork: 4.1, work: 7.7, health: 2.5 };
   const isles = ["home", "family", "paperwork", "work", "health"].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), pos: [G[id].position.x, G[id].position.z], radius: 3.1, labelY: labelY[id] }));
+  // ----- things that react physically (R32): two balls to kick, reward coins, splashes -----
+  const toys = [[G.home.position.x + 1.0, G.home.position.z + 1.55, 0.2, "#ff6b6b", "#fff6e6"], [G.park.position.x - 0.9, G.park.position.z + 1.0, 0.18, "#fff6e6", "#3b4250"]].map(([x, z, r, c1, c2]) => {
+    const ball = new THREE.Group(); put(sp(r, c1, 14), 0, 0, 0, ball); const band = sp(r * 1.01, c2, 14); band.scale.set(1, 0.34, 1); put(band, 0, 0, 0, ball); const band2 = sp(r * 1.01, c2, 14); band2.scale.set(0.34, 1, 1); put(band2, 0, 0, 0, ball);
+    ball.position.set(x, Y + 0.06 + r, z); ball.userData.toy = true; scene.add(ball);
+    return { mesh: ball, r, home: [x, Y + 0.06 + r + 0.6, z] };
+  });
+  const coinMat = new THREE.MeshStandardMaterial({ color: "#ffd166", emissive: new THREE.Color("#ffb02e"), emissiveIntensity: 1.7, metalness: 0.6, roughness: 0.3 });
+  const coins = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.17, 0.17, 0.05, 12), coinMat, 48); coins.castShadow = true; coins.frustumCulled = false; scene.add(coins);
+  { const none = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < 48; i++) coins.setMatrixAt(i, none); } // a fixed pool: unused coins are scaled to nothing (the count must not change after the first frame)
+  const rings = [0, 1, 2].map(() => { const geo = new THREE.RingGeometry(0.25, 0.34, 20); geo.rotateX(-Math.PI / 2); const r = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: "#eafcff", transparent: true, opacity: 0, depthWrite: false })); r.visible = false; scene.add(r); return r; });
+  const splash = (x, z) => { const r = rings.find((q) => !q.visible) || rings[0]; r.position.set(x, 0.14, z); r.scale.setScalar(1); r.material.opacity = 0.9; r.visible = true; };
+  updaters.push((t, dt) => { for (const r of rings) if (r.visible) { r.scale.multiplyScalar(1 + dt * 3.2); r.material.opacity -= dt * 1.3; if (r.material.opacity <= 0) r.visible = false; } });
+  // Door marks: a glowing ring on the ground at each entrance, shown while walking.
+  const doorMarks = new THREE.Group(); doorMarks.visible = false; scene.add(doorMarks);
+  const markMat = new THREE.MeshStandardMaterial({ color: "#ffd166", emissive: new THREE.Color("#ffc94d"), emissiveIntensity: 2 });
+  for (const [x, z] of Object.values(doors)) { const geo = new THREE.RingGeometry(0.3, 0.42, 24); geo.rotateX(-Math.PI / 2); const r = new THREE.Mesh(geo, markMat); r.position.set(x, Y + 0.085, z); doorMarks.add(r); }
+  updaters.push((t) => { markMat.emissiveIntensity = 1.4 + Math.sin(t * 3) * 0.8; });
+  const walk = { cells: CELLS.map(([i, j]) => at(i, j)), pitch: P, block: B, solids, doors, roadY: 0.12, blockY: Y + 0.06 };
   const setMood = (id, state) => { const s = signs[id]; if (!s || s.state === state) return false; s.state = state; s.overdue.visible = state === "overdue"; s.clear.visible = state === "clear"; return true; };
   const moodSigns = (id) => (signs[id]?.overdue.visible ? "overdue" : signs[id]?.clear.visible ? "clear" : null);
-  return { isles, G, target, setMood, moodSigns };
+  return { isles, G, target, setMood, moodSigns, walk, player: me, toys, coins, splash, balloon, doorMarks };
 }
 
 function buildHomeInto() {
