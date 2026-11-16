@@ -9,9 +9,10 @@ import { shareToNode } from "./core/share.js";
 import { isoDate } from "./core/capture.js";
 import { initBridge } from "./bridge.js";
 import { buildFeedback } from "./core/feedback.js";
+import { districtMood } from "./core/mood.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.1.4";
+export const VERSION = "0.2.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -83,7 +84,7 @@ for (const d of map.isles) {
   const el = document.createElement("button"); el.className = "lbl"; el.style.pointerEvents = "auto"; el.style.background = "none"; el.style.border = "0";
   el.innerHTML = `<b>${d.name}</b><span style="background:${ISL_COLOR[d.id]}"></span>`;
   el.addEventListener("click", () => openIsland(d.id));
-  el.userData = new THREE.Vector3(d.pos[0], d.id === "work" ? 5.2 : 3.4, d.pos[1]);
+  el.userData = new THREE.Vector3(d.pos[0], d.labelY, d.pos[1]);
   $("labels").append(el); labelEls[d.id] = el;
 }
 const roomEls = {};
@@ -120,9 +121,10 @@ function renderHud() {
   const open = store.all().filter((n) => n.type === "task" && !n.done && n.parent !== "bag").sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 4);
   $("quests").innerHTML = open.map((n) => `<button class="pill" data-id="${n.id}" style="border:1px solid var(--line)"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span style="color:${dueText(n.due).startsWith("overdue") ? "#ff9b9b" : "#ffd98a"}">${dueText(n.due)}</span>` : ""}</button>`).join("");
   for (const [id, el] of Object.entries(labelEls)) {
-    const tasks = store.openTasks(id), soon = tasks.filter((t) => t.due && Date.parse(t.due) - Date.now() < 7 * 864e5).length;
-    el.querySelector("span").textContent = tasks.length ? (soon ? `${soon} due soon` : `${tasks.length} open`) : "all clear";
-    el.querySelector("span").style.background = soon ? "#ff8b8b" : ISL_COLOR[id];
+    const md = districtMood(store, id);
+    el.querySelector("span").textContent = md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : md.open ? `${md.open} open` : "all clear";
+    el.querySelector("span").style.background = md.overdue ? "#ff7a6b" : md.soon ? "#ffc94d" : ISL_COLOR[id];
+    map.setMood(id, md.state);
   }
   for (const r of ROOMS) { const n = store.children(r).length; roomEls[r].textContent = `${title(r)} · ${n}`; roomEls[r].classList.toggle("on", r === room); }
   const bag = store.unplaced().length; $("bagCount").textContent = bag; $("bagCount").hidden = !bag;
@@ -224,8 +226,14 @@ el.addEventListener("pointercancel", endPtr);
 el.addEventListener("pointerup", (e) => {
   const d = endPtr(e); if (!d || d.moved) return;
   const w = world(); ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, w.cam);
-  const p = new THREE.Vector3(); if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), view === "map" ? -0.5 : 0), p)) return;
-  if (view === "map") { let best = null, bd = 1e9; for (const isl of map.isles) { const dd = Math.hypot(p.x - isl.pos[0], p.z - isl.pos[1]); if (dd < isl.radius * 1.15 && dd < bd) { bd = dd; best = isl.id; } } if (best) openIsland(best); else closeSheet(); }
+  const p = new THREE.Vector3(); if (!ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), view === "map" ? -0.26 : 0), p)) return;
+  if (view === "map") {
+    // Tall buildings hide the ground behind them, so hit the buildings themselves first.
+    let best = null;
+    for (const h of ray.intersectObjects(Object.values(map.G), true)) { let o = h.object; while (o && !o.userData.district) o = o.parent; if (o) { best = o.userData.district; break; } }
+    if (!best) { let bd = 1e9; for (const isl of map.isles) { const dd = Math.hypot(p.x - isl.pos[0], p.z - isl.pos[1]); if (dd < isl.radius && dd < bd) { bd = dd; best = isl.id; } } }
+    if (best) openIsland(best); else closeSheet();
+  }
   else selectRoom(p.x < 0 ? (p.z > 0 ? "living" : "bedroom") : (p.z > 0 ? "kitchen" : "office"));
 });
 el.addEventListener("wheel", (e) => { e.preventDefault(); const w = world(); w.cam.zoom = Math.min(2.4, Math.max(0.6, w.cam.zoom * (e.deltaY > 0 ? 0.92 : 1.08))); w.cam.updateProjectionMatrix(); }, { passive: false });
@@ -365,5 +373,9 @@ renderer.setAnimationLoop(() => {
   if (frames === 10) (w === map ? home : map).post.render();
   w.post.render();
   placeLabels();
-  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName, terrariums: () => { const out = []; home.scene.traverse((o) => { if (o.name === "terrarium") { const { w, h, d } = o.userData.size; const lz = o.getObjectByName("lizard"); out.push([w, h, d].map((v) => Math.round(v * 80)).concat(lz ? [`lizard ${Math.round(lz.userData.length * 80)}cm`] : [])); } }); return out; } }; }
+  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
+    meshes: () => { let n = 0; map.scene.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; },
+    districts: () => map.isles.map((d) => { const [x, y] = projectTo(map.cam, new THREE.Vector3(d.pos[0], 1.0, d.pos[1])); return { id: d.id, x, y }; }),
+    moods: () => Object.fromEntries(map.isles.map((d) => [d.id, { state: districtMood(store, d.id).state, signs: map.moodSigns(d.id) }])),
+    terrariums: () => { const out = []; home.scene.traverse((o) => { if (o.name === "terrarium") { const { w, h, d } = o.userData.size; const lz = o.getObjectByName("lizard"); out.push([w, h, d].map((v) => Math.round(v * 80)).concat(lz ? [`lizard ${Math.round(lz.userData.length * 80)}cm`] : [])); } }); return out; } }; }
 });

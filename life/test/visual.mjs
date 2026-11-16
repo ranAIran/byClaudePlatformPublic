@@ -21,6 +21,8 @@ const colours = async (p) => p.evaluate(async (b64) => { const im = new Image();
 // A 24×24 grey thumbnail of the 3D area (middle of the screen) to compare frames.
 const thumb = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 24; c.height = 24; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.25, im.width, im.height * 0.5, 0, 0, 24, 24); const d = x.getImageData(0, 0, 24, 24).data; const g = []; for (let i = 0; i < d.length; i += 4) g.push((d[i] + d[i + 1] + d[i + 2]) / 3); return g; }, (await p.screenshot()).toString("base64"));
 const dist = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.length;
+// Average colour of the city centre (the plaza and its buildings), to check the golden-hour light.
+const warmth = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, im.width * 0.3, im.height * 0.42, im.width * 0.4, im.height * 0.2, 0, 0, 48, 48); const d = x.getImageData(0, 0, 48, 48).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, (await p.screenshot()).toString("base64"));
 
 const b = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const ctx = await b.newContext({ ...devices["Pixel 7"] });
@@ -30,6 +32,27 @@ await p.goto(base); await p.waitForFunction(() => window.__life?.ready, null, { 
 await p.screenshot({ path: `${out}/v-map.png` });
 check((await colours(p)) > 40, "R5 map frame is not blank");
 const mapThumb = await thumb(p);
+// R18 · the map is a city of five life districts; tapping a building opens its district.
+const districts = await p.evaluate(() => window.__life.districts?.() || []);
+check(["home", "family", "paperwork", "work", "health"].every((id) => districts.some((d) => d.id === id)), `R18 the city has the five life districts (${districts.map((d) => d.id).join(", ")})`);
+const hall = districts.find((d) => d.id === "paperwork");
+if (hall) { await p.mouse.click(hall.x, hall.y); await p.waitForTimeout(350); }
+check(!(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).includes("Paperwork"), "R18 tapping the city hall opens Paperwork");
+await p.tap("#sheetClose").catch(() => {}); await p.waitForTimeout(350);
+const meshes = await p.evaluate(() => window.__life.meshes?.() ?? 9999);
+check(meshes < 260, `R18 the city is merged into few draw calls for phones (${meshes} meshes)`);
+// R28 · golden hour: the light is warm.
+const warm = await warmth(p);
+check(warm.r > warm.b + 20, `R28 the city centre is lit by a low warm sun (red ${warm.r.toFixed(0)}, blue ${warm.b.toFixed(0)})`);
+// R27 · an overdue task shows on its district (scaffolding, cones, flickering lamp) and goes when it is done.
+const mood0 = await p.evaluate(() => window.__life.moods?.().paperwork);
+const lateId = await p.evaluate(() => window.__life.store.add({ type: "task", title: "Late form", parent: "paperwork", due: "2020-01-01" }));
+await p.waitForTimeout(500); await p.screenshot({ path: `${out}/v-overdue.png` });
+const mood1 = await p.evaluate(() => window.__life.moods?.().paperwork);
+await p.evaluate((id) => window.__life.store.complete(id), lateId); await p.waitForTimeout(200);
+const mood2 = await p.evaluate(() => window.__life.moods?.().paperwork);
+await p.evaluate((id) => window.__life.store.remove(id), lateId); await p.waitForTimeout(300);
+check(mood0?.state === "open" && !mood0.signs && mood1?.state === "overdue" && mood1.signs === "overdue" && mood2?.state === "open" && !mood2.signs, `R27 an overdue task puts repair signs on its district, and finishing it removes them (${JSON.stringify([mood0, mood1, mood2])})`);
 // Capture into the bag, then place it from the bag.
 await p.fill("#capInput", "renew passport before March"); await p.press("#capInput", "Enter"); await p.waitForTimeout(300);
 const bagN = await p.evaluate(() => window.__life.store.unplaced().length);
@@ -56,7 +79,7 @@ const homeThumb = await thumb(p);
 await p.tap("#sheetClose").catch(() => {}); await p.tap("#back"); await p.waitForFunction(() => window.__life.view() === "map"); await p.waitForTimeout(900);
 await p.screenshot({ path: `${out}/v-back.png` });
 const backThumb = await thumb(p), dMap = dist(backThumb, mapThumb), dHome = dist(backThumb, homeThumb);
-check(dMap < dHome * 0.6, `R4 back to map shows the islands (diff to map ${dMap.toFixed(1)}, to home ${dHome.toFixed(1)})`);
+check(dMap < dHome * 0.6, `R4 back to map shows the city again (diff to map ${dMap.toFixed(1)}, to home ${dHome.toFixed(1)})`);
 // R16 · feedback opens a prefilled GitHub issue.
 await p.evaluate(() => { window.__opened = null; window.open = (u) => { window.__opened = u; return null; }; });
 await p.tap("#menuBtn"); await p.tap('#menu [data-act="feedback"]'); await p.waitForTimeout(200);

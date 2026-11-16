@@ -7,6 +7,8 @@ import { suggestPlaces } from "../app/core/places.js";
 import { levelFor, XP } from "../app/core/xp.js";
 import { exportMarkdown, importMarkdown, exportJSON, importJSON } from "../app/core/exporter.js";
 import { shareToNode } from "../app/core/share.js";
+import { districtMood } from "../app/core/mood.js";
+import { celebrationFor } from "../app/core/reward.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -159,5 +161,49 @@ describe("Share into the app (Android share sheet)", () => {
     const p = shareToNode({ images: ["data:image/jpeg;base64,AAAA"] }, NOW);
     expect(p.type).toBe("photo");
     expect(p.images.length).toBe(1);
+  });
+});
+
+describe("R27 · the city reflects your state", () => {
+  it("a district with an overdue task is 'overdue', and 'clear' once everything there is done", () => {
+    const s = fresh();
+    const id = s.add({ type: "task", title: "Pay the fine", parent: "paperwork", due: "2026-11-01" });
+    expect(districtMood(s, "paperwork", NOW)).toMatchObject({ state: "overdue", overdue: 1, open: 1 });
+    s.complete(id);
+    expect(districtMood(s, "paperwork", NOW)).toMatchObject({ state: "clear", overdue: 0, open: 0 });
+  });
+  it("open tasks that are not late make a district 'open'; due today is not overdue yet", () => {
+    const s = fresh();
+    s.add({ type: "task", title: "Gym", parent: "health", due: "2026-11-06" });
+    s.add({ type: "task", title: "Book a check-up", parent: "health" });
+    expect(districtMood(s, "health", NOW)).toMatchObject({ state: "open", open: 2, overdue: 0, soon: 1 });
+  });
+  it("Home counts the tasks inside its rooms, and notes or items never make a district late", () => {
+    const s = fresh();
+    s.add({ type: "task", title: "Fix the lamp", parent: "living", due: "2026-10-30" });
+    s.add({ type: "item", title: "Old TV", parent: "living", due: "2020-01-01" });
+    expect(districtMood(s, "home", NOW)).toMatchObject({ state: "overdue", overdue: 1, open: 1 });
+    expect(districtMood(s, "work", NOW).state).toBe("clear");
+  });
+});
+
+describe("R26 · finishing things feels rewarding", () => {
+  const base = { questDone: false, isStep: false, levelBefore: 1, levelAfter: 1 };
+  it("a finished task gets a small celebration that shows its XP", () => {
+    expect(celebrationFor({ ...base, gained: 10 })).toMatchObject({ kind: "task", xp: 10, levelUp: null });
+  });
+  it("a quest step is quieter than a task, a finished quest is bigger, a level-up is the biggest", () => {
+    const step = celebrationFor({ ...base, gained: 10, isStep: true });
+    const task = celebrationFor({ ...base, gained: 10 });
+    const quest = celebrationFor({ ...base, gained: 60, isStep: true, questDone: true });
+    const level = celebrationFor({ ...base, gained: 10, levelAfter: 2 });
+    expect(step.kind).toBe("step"); expect(quest.kind).toBe("quest"); expect(level.levelUp).toBe(2);
+    expect(step.confetti).toBeLessThan(task.confetti);
+    expect(task.confetti).toBeLessThan(quest.confetti);
+    expect(quest.confetti).toBeLessThan(level.confetti);
+    expect(level.notes.length).toBeGreaterThan(task.notes.length);
+  });
+  it("ticking a task that already paid out gives no celebration, so XP can't be farmed", () => {
+    expect(celebrationFor({ ...base, gained: 0 })).toBeNull();
   });
 });
