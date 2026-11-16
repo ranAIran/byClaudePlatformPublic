@@ -14,7 +14,7 @@ import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.2.1";
+export const VERSION = "0.2.2";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -53,7 +53,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1.15;
 $("stage").append(renderer.domElement);
-await renderer.init();
+try { await renderer.init(); } catch (e) { $("splashMsg").textContent = "This device couldn't start the 3D view. Try updating your browser."; throw e; }
 const backendName = renderer.backend?.isWebGPUBackend ? "WebGPU" : "WebGL2";
 
 // Post-processing with its own screen quad per world. THREE.PostProcessing (r170) shares one quad and
@@ -82,16 +82,23 @@ window.addEventListener("resize", () => { renderer.setSize(innerWidth, innerHeig
 
 // ---------- labels over the 3D world ----------
 const labelEls = {};
+const PLACE_ICON = {
+  home: "M4 11l8-7 8 7M6 10v9h12v-9M10 19v-5h4v5", work: "M4 8h16v11H4zM9 8V5h6v3M4 13h16", health: "M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.400-7 10-7 10z",
+  family: "M9 11a3 3 0 1 0 0-6a3 3 0 0 0 0 6M3 20c.6-3.4 2.9-5 6-5s5.400 1.600 6 5M16.500 11a2.500 2.500 0 1 0 0-5M17 15c2.200.4 3.600 1.900 4 5", paperwork: "M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6",
+  bag: "M6 8h12l-1 12H7L6 8zM9 8V6a3 3 0 0 1 6 0v2", living: "M5 12V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3zM6 18v2M18 18v2",
+  kitchen: "M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 2-2 6 0 8v10", bedroom: "M3 18V7M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3", office: "M4 5h16v10H4zM9 19h6M12 15v4",
+};
+const pIcon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${PLACE_ICON[id] || PLACE_ICON.home}"/></svg>`;
 for (const d of map.isles) {
-  const el = document.createElement("button"); el.className = "lbl"; el.style.pointerEvents = "auto"; el.style.background = "none"; el.style.border = "0";
-  el.innerHTML = `<b>${d.name}</b><span style="background:${ISL_COLOR[d.id]}"></span>`;
+  const el = document.createElement("button"); el.className = "lbl";
+  el.innerHTML = `<b><i style="background:${ISL_COLOR[d.id]}">${pIcon(d.id)}</i>${d.name}</b><span class="badge"></span>`;
   el.addEventListener("click", () => openIsland(d.id));
   el.userData = new THREE.Vector3(d.pos[0], d.labelY, d.pos[1]);
   $("labels").append(el); labelEls[d.id] = el;
 }
 const roomEls = {};
 for (const r of ROOMS) {
-  const el = document.createElement("button"); el.className = "rlbl"; el.style.border = "0";
+  const el = document.createElement("button"); el.className = "rlbl";
   el.addEventListener("click", () => selectRoom(r)); el.hidden = true; el.userData = home.rooms[r];
   $("labels").append(el); roomEls[r] = el;
 }
@@ -115,20 +122,21 @@ function dueText(iso) {
 }
 function renderHud() {
   const L = store.level();
-  $("lvl").textContent = L.level; $("lvlName").textContent = `Level ${L.level} · Life explorer`;
+  $("lvl").textContent = L.level; $("lvlName").textContent = `Level ${L.level} · Life explorer`; $("lvl").setAttribute("aria-label", `Level ${L.level}`);
   $("xpBar").style.width = `${(100 * L.into) / L.need}%`; $("xpTxt").textContent = `${L.into}/${L.need}`;
-  const h = hp(); $("hpBar").style.width = h + "%"; $("hpTxt").textContent = `HP ${h}`;
+  const h = hp(); $("hpBar").style.width = h + "%"; $("hpTxt").textContent = h;
   $("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
   const open = store.all().filter((n) => n.type === "task" && !n.done && n.parent !== "bag").sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 4);
-  $("quests").innerHTML = open.map((n) => `<button class="pill" data-id="${n.id}" style="border:1px solid var(--line)"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span style="color:${dueText(n.due).startsWith("overdue") ? "#ff9b9b" : "#ffd98a"}">${dueText(n.due)}</span>` : ""}</button>`).join("");
+  $("quests").innerHTML = open.map((n) => `<button class="pill" data-id="${n.id}"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span class="due ${dueText(n.due).startsWith("overdue") ? "late" : ""}">${dueText(n.due)}</span>` : ""}</button>`).join("");
   for (const [id, el] of Object.entries(labelEls)) {
-    const md = districtMood(store, id);
-    el.querySelector("span").textContent = md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : md.open ? `${md.open} open` : "all clear";
-    el.querySelector("span").style.background = md.overdue ? "#ff7a6b" : md.soon ? "#ffc94d" : ISL_COLOR[id];
+    const md = districtMood(store, id), badge = el.querySelector(".badge");
+    badge.textContent = md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : md.open ? `${md.open} open` : "all clear";
+    el.dataset.state = md.overdue ? "overdue" : md.soon ? "soon" : md.open ? "open" : "clear";
+    badge.style.background = el.dataset.state === "open" ? ISL_COLOR[id] : "";
     map.setMood(id, md.state);
   }
   for (const r of ROOMS) { const n = store.children(r).length; roomEls[r].textContent = `${title(r)} · ${n}`; roomEls[r].classList.toggle("on", r === room); }
-  const bag = store.unplaced().length; $("bagCount").textContent = bag; $("bagCount").hidden = !bag;
+  const bag = store.unplaced().length; $("bagCount").textContent = bag; $("bagCount").hidden = !bag; $("bagBtn").classList.toggle("has", !!bag);
 }
 $("quests").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) openFor(b.dataset.id); });
 
@@ -158,28 +166,33 @@ const TYPE_ICON = {
 const svgIcon = (t) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;color:var(--muted)"><path d="${TYPE_ICON[t] || TYPE_ICON.note}"/></svg>`;
 let sheetFor = null;
 function itemHtml(n, { bag = false } = {}) {
-  const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="Done">${n.done ? "✓" : ""}</button>`
+  const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? "Done. Tap to reopen" : "Mark as done"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
-  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="color:${dueText(n.due).startsWith("overdue") ? "#ff9b9b" : "#ffd98a"}">${dueText(n.due)}</span>` : "", n.effort > 1 ? `effort ${n.effort}` : "", n.tags.includes("example") ? "example" : "", n.notes ? esc(n.notes) : ""].filter(Boolean).join(" · ");
+  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="font-weight:700;color:${dueText(n.due).startsWith("overdue") ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.effort > 1 ? `effort ${n.effort}` : "", n.tags.includes("example") ? "example" : "", n.notes ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
   const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">Open ${esc(n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
-  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><div class="t">${esc(n.title)}</div>${meta ? `<div class="meta">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x" data-act="del" data-id="${n.id}" aria-label="Delete">✕</button></div>`;
+  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><div class="t">${esc(n.title)}</div>${meta ? `<div class="meta">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost" data-act="del" data-id="${n.id}" aria-label="Delete">✕</button></div>`;
 }
 function openSheet(id) {
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
   const isBag = id === "bag";
-  $("sheetTitle").textContent = isBag ? `Your bag · ${store.unplaced().length}` : title(id);
+  $("sheetTitle").textContent = isBag ? "Your bag" : title(id);
+  $("sheetDot").style.background = isBag ? "#ffc94d" : ISL_COLOR[islandOf(id)] || "#ffc94d"; $("sheetDot").innerHTML = pIcon(isBag ? "bag" : id);
+  document.body.classList.add("sheet-open");
   const tabs = $("sheetTabs"); tabs.hidden = view !== "home" || isBag;
   if (!tabs.hidden) tabs.innerHTML = ROOMS.map((r) => `<button class="chip ${r === id ? "on" : ""}" data-room="${r}">${esc(title(r))} · ${store.children(r).length}</button>`).join("") + `<button class="chip ${id === "home" ? "on" : ""}" data-room="home">Whole home</button>`;
   const list = (id === "home" ? store.children("home").filter((n) => n.type !== "place") : store.children(id)).filter((n) => n.type !== "place");
   list.sort((a, b) => (a.done - b.done) || ((a.type === "task") === (b.type === "task") ? 0 : a.type === "task" ? -1 : 1) || (a.due || "9999").localeCompare(b.due || "9999"));
+  const md = districtMood(store, id), things = list.filter((n) => n.type !== "task").length, plural = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
+  $("sheetSub").textContent = isBag ? (list.length ? `${plural(list.length, "thing")} waiting. Tap a suggestion to file it.` : "Nothing waiting")
+    : [md.open ? `${md.open} open` : "All clear", md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : "", things ? plural(things, "thing") : ""].filter(Boolean).join(" · ");
   const empty = isBag ? "Your bag is empty. Type, speak or snap a photo below; it waits here until you place it." : "Nothing here yet. Add a task, item or note below.";
   $("sheetBody").innerHTML = (list.length ? list.map((n) => itemHtml(n, { bag: isBag })).join("") : `<div class="empty">${empty}</div>`) +
     (isBag ? "" : `<form class="addrow" data-to="${id}"><input placeholder="Add to ${esc(title(id))}… (try “change filter by 20/11”)"><button class="btn primary" style="padding:10px 14px">Add</button></form>`);
 }
 const refreshSheet = () => { if (sheetFor && !$("sheet").hidden) openSheet(sheetFor); };
-function closeSheet() { $("sheet").hidden = true; sheetFor = null; }
+function closeSheet() { $("sheet").hidden = true; sheetFor = null; document.body.classList.remove("sheet-open"); }
 $("sheetClose").addEventListener("click", closeSheet);
 $("sheetTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-room]"); if (b) { if (b.dataset.room === "home") openSheet("home"); else selectRoom(b.dataset.room); } });
 $("sheetBody").addEventListener("submit", (e) => {
@@ -213,7 +226,10 @@ async function fly(to, then) {
   window.__lastFlyMs = Math.round(performance.now() - t0);
 }
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-function openIsland(id) { if (id === "home") fly("home", () => selectRoom(room)); else openSheet(id); }
+let hinted = true; try { hinted = !!localStorage.getItem("life-hinted"); } catch (e) { /* storage unavailable */ }
+function hideHint() { if (hinted) return; hinted = true; try { localStorage.setItem("life-hinted", "1"); } catch (e) { /* ignore */ } $("hint").classList.add("out"); setTimeout(() => { $("hint").hidden = true; }, 450); }
+if (!hinted) { $("hint").hidden = false; setTimeout(hideHint, 16000); }
+function openIsland(id) { hideHint(); if (id === "home") fly("home", () => selectRoom(room)); else openSheet(id); }
 function selectRoom(r) { room = r; renderHud(); openSheet(r); }
 function openFor(id) {
   const n = store.get(id); if (!n) return;
@@ -235,7 +251,7 @@ el.addEventListener("pointermove", (e) => {
   const w = world();
   if (ptrs.size >= 2) { const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y); if (pinch && d) { w.cam.zoom = Math.min(2.4, Math.max(0.6, w.cam.zoom * (d / pinch))); w.cam.updateProjectionMatrix(); } pinch = d; return; }
   if (!down) return; if (Math.hypot(cur.x - down.x, cur.y - down.y) > 9) down.moved = true;
-  if (down.moved) { const upp = (w.cam.top - w.cam.bottom) / w.cam.zoom / innerHeight; w.pan.addScaledVector(RIGHT, -(cur.x - prev.x) * upp).addScaledVector(UPG, ((cur.y - prev.y) * upp) / 0.6); w.pan.clampLength(0, view === "map" ? 14 : 7); }
+  if (down.moved) { hideHint(); const upp = (w.cam.top - w.cam.bottom) / w.cam.zoom / innerHeight; w.pan.addScaledVector(RIGHT, -(cur.x - prev.x) * upp).addScaledVector(UPG, ((cur.y - prev.y) * upp) / 0.6); w.pan.clampLength(0, view === "map" ? 14 : 7); }
 });
 function endPtr(e) { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; const d = down; down = null; return d; }
 el.addEventListener("pointercancel", endPtr);
@@ -328,7 +344,7 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "sound") { sound = !sound; try { localStorage.setItem("life-sound", sound ? "on" : "off"); } catch (e) { /* ignore */ } renderSound(); if (sound) fx.chime([523.25, 783.99]); toast(sound ? "Sound is on" : "Sound is off"); }
   if (act === "about") toast(`Life Archipelago v${VERSION} · ${backendName}${bridge.android ? ` · Android ${bridge.version || ""}` : ""}`);
 });
-const renderSound = () => { const b = $("menu").querySelector('[data-act="sound"]'); if (b) b.textContent = `Sound: ${sound ? "on" : "off"}`; };
+const renderSound = () => { const b = $("menu").querySelector('[data-act="sound"]'); if (b) b.querySelector("span").textContent = `Sound: ${sound ? "on" : "off"}`; };
 renderSound();
 $("importInput").addEventListener("change", async () => {
   const f = $("importInput").files[0]; $("importInput").value = ""; if (!f) return;
@@ -392,6 +408,7 @@ renderer.setAnimationLoop(() => {
   if (frames === 10) (w === map ? home : map).post.render();
   w.post.render();
   placeLabels();
+  if (frames === 3) { $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700); }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
     meshes: () => { let n = 0; map.scene.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; },
