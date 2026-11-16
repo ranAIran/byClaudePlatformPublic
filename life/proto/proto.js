@@ -652,8 +652,142 @@ async function shotCity() {
   return mapHud([lbl("work", "Work", "3 meetings", "#b48cff", 7.6), lbl("health", "Health", "gym 18:30", "#4ee08a", 2.6), lbl("family", "Family", "call grandma", "#ff8fb1", 2.4), lbl("paperwork", "Paperwork", "2 due this week", "#ff6b6b", 3.6), lbl("home", "Home", "5 tasks", "#ffc94d", 2.6)]);
 }
 
+// =====================================================================
+// SHOT: enhanced graphics study. One small part (the Home block and a lighthouse) at dusk, with
+// drawn textures and relief, fuller trees, lamps that light the scene, a turning beam and foam.
+// =====================================================================
+async function shotDusk() {
+  const rr = W.rng(5);
+  const speck = (x, n, a, light = true) => { for (let i = 0; i < n; i++) { const v = light && rr() < 0.5 ? 255 : 0; x.fillStyle = `rgba(${v},${v},${v},${a * rr()})`; x.fillRect(rr() * 256, rr() * 256, 1 + rr() * 2.5, 1 + rr() * 2.5); } };
+  // A surface = a colour drawing and a relief drawing (white is high) of the same pattern.
+  const surf = (draw, { rough = 0.9, bump = 2.2, metal = 0 } = {}) => {
+    const map = canvasTex(256, 256, (x) => draw(x, false)), bm = canvasTex(256, 256, (x) => draw(x, true)); bm.colorSpace = THREE.NoColorSpace;
+    for (const t of [map, bm]) t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    const base = new THREE.MeshStandardMaterial({ map, bumpMap: bm, bumpScale: bump, roughness: rough, metalness: metal });
+    return (rx = 1, ry = 1) => { const mt = base.clone(); mt.map = map.clone(); mt.bumpMap = bm.clone(); for (const t of [mt.map, mt.bumpMap]) { t.repeat.set(rx, ry); t.needsUpdate = true; } return mt; };
+  };
+  const rows = (x, relief, n, cols, seam, each) => { const h = 256 / n; for (let j = 0; j < n; j++) each(j, h); };
+  const brick = surf((x, relief) => {
+    x.fillStyle = relief ? "#222" : "#5c4a44"; x.fillRect(0, 0, 256, 256);
+    for (let j = 0; j < 8; j++) for (let i = -1; i < 4; i++) { const bx0 = i * 64 + (j % 2) * 32, v = rr(); x.fillStyle = relief ? "#ddd" : `hsl(${12 + v * 10},${38 + v * 14}%,${30 + v * 14}%)`; x.fillRect(bx0 + 2, j * 32 + 2, 60, 28); }
+    speck(x, 500, relief ? 0.25 : 0.12);
+  });
+  const planks = surf((x, relief) => {
+    for (let j = 0; j < 8; j++) { const v = rr(); const g = x.createLinearGradient(0, j * 32, 0, j * 32 + 32); if (relief) { g.addColorStop(0, "#fff"); g.addColorStop(0.85, "#aaa"); g.addColorStop(1, "#000"); } else { g.addColorStop(0, `hsl(30,${30 + v * 10}%,${52 + v * 8}%)`); g.addColorStop(1, `hsl(28,${30 + v * 10}%,${40 + v * 8}%)`); } x.fillStyle = g; x.fillRect(0, j * 32, 256, 32); x.fillStyle = relief ? "#000" : "rgba(40,24,12,.7)"; x.fillRect(0, j * 32 + 30, 256, 2); x.fillRect((v * 200) | 0, j * 32, 2, 30); }
+    speck(x, 400, 0.1, false);
+  }, { bump: 3 });
+  const shingle = surf((x, relief) => {
+    x.fillStyle = relief ? "#000" : "#5a1f18"; x.fillRect(0, 0, 256, 256);
+    for (let j = 0; j < 8; j++) for (let i = -1; i < 9; i++) { const cx = i * 32 + (j % 2) * 16 + 16, v = rr(); const g = x.createLinearGradient(0, j * 32, 0, j * 32 + 34); if (relief) { g.addColorStop(0, "#666"); g.addColorStop(1, "#fff"); } else { g.addColorStop(0, `hsl(${6 + v * 8},58%,${26 + v * 8}%)`); g.addColorStop(1, `hsl(${8 + v * 8},62%,${40 + v * 10}%)`); } x.fillStyle = g; x.beginPath(); x.moveTo(cx - 15, j * 32); x.lineTo(cx + 15, j * 32); x.lineTo(cx + 15, j * 32 + 22); x.quadraticCurveTo(cx, j * 32 + 38, cx - 15, j * 32 + 22); x.fill(); }
+  }, { bump: 4, rough: 0.8 });
+  const stone = surf((x, relief) => {
+    x.fillStyle = relief ? "#111" : "#55524e"; x.fillRect(0, 0, 256, 256);
+    for (let j = 0; j < 6; j++) { let px = -(rr() * 40); while (px < 256) { const w = 34 + rr() * 44, v = rr(); x.fillStyle = relief ? `rgb(${190 + v * 60},${190 + v * 60},${190 + v * 60})` : `hsl(${30 + v * 20},${6 + v * 8}%,${52 + v * 20}%)`; x.fillRect(px + 2, j * 42.6 + 2, w - 4, 38.6); px += w; } }
+    speck(x, 900, relief ? 0.3 : 0.16);
+  }, { bump: 3 });
+  const grass = surf((x, relief) => { x.fillStyle = relief ? "#777" : "#33562c"; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 2600; i++) { const v = rr(); x.fillStyle = relief ? `rgba(255,255,255,${v * 0.5})` : `hsla(${95 + v * 30},${40 + v * 20}%,${22 + v * 22}%,.8)`; x.fillRect(rr() * 256, rr() * 256, 1.5, 3 + v * 4); } }, { bump: 1.5, rough: 1 });
+  const asphalt = surf((x, relief) => { x.fillStyle = relief ? "#666" : "#2b2e36"; x.fillRect(0, 0, 256, 256); speck(x, 3000, relief ? 0.5 : 0.22); }, { bump: 1, rough: 0.85 });
+  const concrete = surf((x, relief) => { x.fillStyle = relief ? "#999" : "#8d8a84"; x.fillRect(0, 0, 256, 256); speck(x, 1800, relief ? 0.3 : 0.12); x.fillStyle = relief ? "#000" : "rgba(40,40,44,.6)"; for (let i = 0; i < 4; i++) { x.fillRect(i * 64, 0, 2, 256); x.fillRect(0, i * 64, 256, 2); } }, { bump: 1.6 });
+  const bark = surf((x, relief) => { x.fillStyle = relief ? "#555" : "#4a3524"; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 90; i++) { x.fillStyle = relief ? "#000" : "rgba(20,12,6,.6)"; x.fillRect(rr() * 256, rr() * 256, 2 + rr() * 2, 30 + rr() * 60); } }, { bump: 3 });
+
+  // ----- light: a blue dusk, a pale moon for shadows, warm lamps that really light things -----
+  const DUSK = "#22405e";
+  scene.background = new THREE.Color(DUSK); scene.fog = new THREE.Fog(DUSK, 26, 95);
+  const skyM = W.makeSky({ world: { skyGradient: { top: "#0a1730", mid: "#274a70", horizon: "#4a6f8e" } } }); scene.add(skyM);
+  const target = new THREE.Vector3(1.2, 1.6, -0.6);
+  lights({ target, size: 14, sunOff: [-9, 14, 5], sunColor: "#a9c2ff", sun: 2.0, hemiSky: "#7f9fd6", hemiGround: "#2a2e38", hemi: 0.8 });
+  const lamp = (x, y, z, c = "#ffb866", power = 9, reach = 8) => { const l = new THREE.PointLight(c, power, reach, 1.8); l.position.set(x, y, z); scene.add(l); return l; };
+  const water = W.makeWater({ world: { water: { color: "#143d55", size: 160, segments: 80, waveHeight: 0.1 } } });
+  water.material = new THREE.MeshStandardMaterial({ color: "#143d55", roughness: 0.16, metalness: 0.55, flatShading: true }); scene.add(water); updaters.push((t) => water.userData.update(t));
+
+  // ----- the block: quay, road, lawn -----
+  const T = 0.3;
+  put(bx(11, 1.8, 8.6, concrete(6, 1)), 0, T - 0.9, 0); put(bx(11.2, 0.14, 8.8, concrete(8, 6)), 0, T - 0.02, 0);
+  put(bx(2.7, 0.05, 8.6, asphalt(2, 6)), -3.9, T + 0.06, 0);
+  for (let k = -2; k <= 2; k++) put(bx(0.34, 0.012, 1.5, "#d9d4c6"), -3.9 + k * 0.5, T + 0.09, 2.2); for (const z of [-3.2, -1.6, 0]) put(bx(0.1, 0.012, 0.8, "#d9d4c6"), -3.9, T + 0.09, z);
+  put(bx(7.4, 0.08, 7.0, grass(5, 5)), 1.75, T + 0.08, 0.1);
+  put(bx(1.5, 0.05, 2.6, concrete(1, 2)), 4.4, T + 0.13, 1.7);
+  const G = T + 0.12;
+
+  // ----- the house: plank walls, shingle roof, brick chimney, lit windows -----
+  const H = new THREE.Group(); H.position.set(1.0, G, -0.9); scene.add(H);
+  put(bx(3.5, 0.2, 2.9, stone(4, 1)), 0, 0.1, 0, H);
+  put(bx(3.3, 1.9, 2.7, planks(1.6, 1.2)), 0, 1.15, 0, H);
+  const gable = prism(3.3, 1.35, 2.7, planks(1.6, 0.8)); put(gable, 0, 2.1, 0, H);
+  for (const sx of [-1, 1]) { const sl = bx(2.35, 0.1, 3.1, shingle(3.2, 2.6)); sl.rotation.z = -sx * 0.686; put(sl, sx * 0.86, 2.83, 0, H); }
+  put(bx(0.16, 0.12, 3.14, "#3c1612"), 0, 3.52, 0, H);
+  put(bx(0.5, 1.3, 0.5, brick(1, 2)), -0.9, 3.3, -0.5, H); put(bx(0.6, 0.1, 0.6, stone(1, 1)), -0.9, 3.98, -0.5, H);
+  const win = (x, y, z, w, h, face) => { const fz = face === "z"; put(bx(fz ? w + 0.14 : 0.06, h + 0.14, fz ? 0.06 : w + 0.14, "#efe9dc"), x, y, z, H); put(bx(fz ? w : 0.08, h, fz ? 0.08 : w, glow("#ffc978", 2.6)), x, y, z, H); put(bx(fz ? 0.04 : 0.1, h, fz ? 0.1 : 0.04, "#efe9dc"), x, y, z, H); put(bx(fz ? w : 0.1, 0.04, fz ? 0.1 : w, "#efe9dc"), x, y, z, H); };
+  win(-0.85, 1.25, 1.36, 0.7, 0.8, "z"); win(1.66, 1.25, -0.5, 0.7, 0.8, "x"); win(1.66, 1.25, 0.6, 0.7, 0.8, "x"); win(0, 2.6, 1.36, 0.45, 0.5, "z");
+  put(bx(0.62, 1.25, 0.08, bark(1, 1)), 0.7, 0.82, 1.37, H); put(sp(0.04, glow("#ffd98a", 2), 8), 0.5, 0.85, 1.43, H);
+  put(bx(1.3, 0.14, 0.9, stone(1, 1)), 0.7, 0.27, 1.75, H); put(bx(1.0, 0.1, 0.4, stone(1, 1)), 0.7, 0.15, 2.3, H);
+  const porch = bx(1.5, 0.08, 1.0, shingle(2, 1)); porch.rotation.x = 0.22; put(porch, 0.7, 1.72, 1.8, H); for (const dx of [-0.6, 0.6]) put(bx(0.09, 1.3, 0.09, "#efe9dc"), 0.7 + dx, 0.95, 2.15, H);
+  lamp(1.7, G + 1.5, 1.2, "#ffb060", 5, 5);
+  const smoke = [0, 1, 2, 3, 4].map((k) => { const s = sp(0.22, new THREE.MeshStandardMaterial({ color: "#c9d2de", transparent: true, opacity: 0.3, roughness: 1, depthWrite: false }), 10); s.castShadow = false; H.add(s); return s; });
+  updaters.push((t) => smoke.forEach((s, k) => { const u = (t * 0.22 + k / 5) % 1; s.position.set(-0.9 + Math.sin(u * 5 + k) * 0.18 + u * 0.5, 4.1 + u * 2.2, -0.5); s.scale.setScalar(0.6 + u * 1.8); s.material.opacity = 0.34 * (1 - u); }));
+
+  // ----- fuller trees: many leaf clumps in several greens on a bark trunk -----
+  const bigTree = (x, z, s = 1) => {
+    const t = new THREE.Group(); put(cy(0.13 * s, 0.2 * s, 1.5 * s, bark(1, 2), 9), 0, 0.75 * s, 0, t);
+    for (let k = 0; k < 20; k++) { const a = rr() * 6.283, e = rr() * 1.5 - 0.35, d = 0.75 * s * Math.cbrt(rr()), r = (0.36 + rr() * 0.3) * s; const leaf = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), W.mat(`hsl(${100 + rr() * 30},${38 + rr() * 18}%,${16 + rr() * 16}%)`)); put(leaf, Math.cos(a) * Math.cos(e) * d, (2.0 + Math.sin(e) * 0.75) * s, Math.sin(a) * Math.cos(e) * d, t); }
+    t.position.set(x, G, z); scene.add(t);
+  };
+  bigTree(-1.4, 2.0, 1.15); bigTree(-1.5, -2.7, 1.0); bigTree(4.6, -2.5, 0.95); bigTree(3.6, 0.2, 0.8);
+
+  // ----- picket fence, lamps, car, mailbox -----
+  for (let k = 0; k < 23; k++) { const x = -1.9 + k * 0.3; if (x > 3.5 && x < 5.2) continue; put(bx(0.11, 0.62, 0.05, "#e9e4d8"), x, G + 0.33, 3.45); const tip = new THREE.Mesh(new THREE.ConeGeometry(0.075, 0.14, 4), W.mat("#e9e4d8")); tip.rotation.y = Math.PI / 4; put(tip, x, G + 0.7, 3.45); }
+  for (const y of [0.22, 0.48]) { put(bx(5.3, 0.05, 0.04, "#e9e4d8"), 0.75, G + y, 3.42); }
+  const street = (x, z) => { put(cy(0.05, 0.08, 2.5, "#1f2229", 8), x, G + 1.25, z); put(bx(0.3, 0.05, 0.3, "#1f2229"), x, G + 2.52, z); put(bx(0.22, 0.3, 0.22, glow("#ffc978", 3.2)), x, G + 2.72, z); put(new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.2, 4), W.mat("#1f2229")), x, G + 2.97, z); lamp(x, G + 2.7, z, "#ffb866", 12, 9); };
+  street(-2.35, 3.6); street(5.2, -0.9);
+  const car = new THREE.Group(); put(bx(1.7, 0.42, 0.85, m("#8e2f2a", { roughness: 0.3, metalness: 0.5 })), 0, 0.42, 0, car); put(bx(0.95, 0.36, 0.76, m("#1b2a3a", { roughness: 0.15, metalness: 0.6 })), -0.1, 0.8, 0, car);
+  for (const [x, z] of [[-0.55, -0.43], [0.55, -0.43], [-0.55, 0.43], [0.55, 0.43]]) { const w = cy(0.2, 0.2, 0.14, "#111318", 14); w.rotation.x = Math.PI / 2; put(w, x, 0.2, z, car); }
+  for (const z of [-0.28, 0.28]) put(bx(0.04, 0.1, 0.16, glow("#ff4a3a", 2.2)), -0.86, 0.5, z, car);
+  car.position.set(4.4, G + 0.05, 1.7); car.rotation.y = -Math.PI / 2; scene.add(car);
+  put(bx(0.07, 0.8, 0.07, bark(1, 1)), 3.3, G + 0.4, 3.0); put(bx(0.4, 0.26, 0.26, m("#3f7fbf", { roughness: 0.4, metalness: 0.3 })), 3.3, G + 0.9, 3.0);
+
+  // ----- the lighthouse on its rocks, with a turning beam and foam at the foot -----
+  const L = new THREE.Group(); L.position.set(6.6, 0, -7.4); scene.add(L);
+  for (let k = 0; k < 13; k++) { const a = rr() * 6.283, d = rr() * 2.3; const rk = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7 + rr() * 0.9, 0), stone(1, 1)); rk.scale.y = 0.5 + rr() * 0.3; put(rk, Math.cos(a) * d, 0.2 + rr() * 0.3, Math.sin(a) * d, L); }
+  put(cy(1.0, 1.35, 7.2, stone(7, 6), 26), 0, 4.4, 0, L); put(cy(1.2, 1.26, 1.3, brick(8, 1.5), 26), 0, 4.2, 0, L);
+  put(bx(0.4, 0.8, 0.1, "#2a2118"), 0, 1.5, 1.33, L); for (const y of [3.0, 6.0]) put(bx(0.24, 0.4, 0.08, glow("#ffc978", 1.8)), 0.25, y, 1.12 - (y - 3) * 0.03, L);
+  put(cy(1.45, 1.45, 0.14, "#23262e", 26), 0, 8.05, 0, L); for (let k = 0; k < 16; k++) { const a = (k / 16) * 6.283; put(cy(0.025, 0.025, 0.5, "#23262e", 5), Math.cos(a) * 1.38, 8.35, Math.sin(a) * 1.38, L); }
+  const rail = new THREE.Mesh(new THREE.TorusGeometry(1.38, 0.025, 6, 32), W.mat("#23262e")); rail.rotation.x = Math.PI / 2; put(rail, 0, 8.6, 0, L);
+  put(cy(0.72, 0.72, 1.1, new THREE.MeshStandardMaterial({ color: "#fff1c4", emissive: new THREE.Color("#ffcf7a"), emissiveIntensity: 1.6, transparent: true, opacity: 0.55, roughness: 0.1 }), 12), 0, 8.7, 0, L);
+  for (let k = 0; k < 8; k++) { const a = (k / 8) * 6.283; put(cy(0.03, 0.03, 1.1, "#23262e", 5), Math.cos(a) * 0.74, 8.7, Math.sin(a) * 0.74, L); }
+  put(sp(0.34, glow("#fff3cc", 7), 14), 0, 8.7, 0, L); put(new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.9, 12), shingle(4, 1)), 0, 9.7, 0, L); put(sp(0.1, "#23262e", 8), 0, 10.2, 0, L);
+  lamp(6.6, 8.7, -7.4, "#ffd9a0", 40, 22);
+  const beamTex = canvasTex(8, 128, (x) => { const g = x.createLinearGradient(0, 0, 0, 128); g.addColorStop(0, "rgba(255,240,200,.75)"); g.addColorStop(1, "rgba(255,240,200,0)"); x.fillStyle = g; x.fillRect(0, 0, 8, 128); });
+  const beams = new THREE.Group(); beams.position.set(0, 8.7, 0); L.add(beams);
+  for (const s of [1, -1]) { const b = new THREE.Mesh(new THREE.ConeGeometry(1.7, 20, 24, 1, true), new THREE.MeshBasicMaterial({ map: beamTex, transparent: true, opacity: 0.17, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); b.rotation.z = s * Math.PI / 2; b.position.x = s * 10; beams.add(b); }
+  updaters.push((t) => { beams.rotation.y = t * 0.35 + 0.6; });
+  const foam = [...Array(9)].map((_, k) => { const f = sp(0.5, new THREE.MeshStandardMaterial({ color: "#eef7ff", transparent: true, opacity: 0.7, roughness: 1, depthWrite: false }), 10); f.castShadow = false; const a = (k / 9) * 6.283; f.userData.a = a; L.add(f); return f; });
+  updaters.push((t) => foam.forEach((f, k) => { const u = (t * 0.5 + k * 0.37) % 1, a = f.userData.a; f.position.set(Math.cos(a) * (2.4 + u * 0.5), 0.1 + Math.sin(u * Math.PI) * (0.5 + (k % 3) * 0.35), Math.sin(a) * (2.4 + u * 0.5)); f.scale.set(1 + u, 0.5 + Math.sin(u * Math.PI) * 0.9, 1 + u); f.material.opacity = 0.75 * (1 - u); }));
+
+  // ----- a sailing boat moored at the quay, with you on deck -----
+  const B = new THREE.Group(); B.position.set(1.6, 0.05, 6.1); B.rotation.y = 0.25; scene.add(B);
+  put(bx(2.6, 0.42, 0.9, m("#e8e6e0", { roughness: 0.35 })), 0, 0.2, 0, B); const bow = prism(0.9, 0.9, 0.42, m("#e8e6e0", { roughness: 0.35 })); bow.rotation.set(Math.PI / 2, 0, -Math.PI / 2); put(bow, 1.3, 0.2, 0, B);
+  put(bx(2.7, 0.07, 0.96, "#28384c"), 0, 0.43, 0, B); put(bx(0.9, 0.3, 0.6, m("#f3f1ea")), -0.4, 0.6, 0, B); put(bx(0.5, 0.14, 0.04, glow("#ffc978", 1.6)), -0.4, 0.62, 0.31, B);
+  put(cy(0.035, 0.045, 3.6, "#3a2b1e", 6), 0.35, 2.2, 0, B); const sail = prism(1.5, 3.1, 0.02, m("#7f93a8", { roughness: 0.9 })); put(sail, -0.45, 0.75, 0, B); put(cy(0.02, 0.02, 1.6, "#3a2b1e", 5), -0.45, 0.72, 0, B).rotation.z = Math.PI / 2;
+  const me = person(CONFIG.playerLook.colors, { hat: "straw", hair: "#5a3a22", lanternColor: "#ffe08a" }); me.scale.setScalar(0.8); me.position.set(-1.0, 0.46, 0); me.rotation.y = 0.9; B.add(me);
+  updaters.push((t, dt) => { B.position.y = 0.05 + Math.sin(t * 1.1) * 0.05; B.rotation.z = Math.sin(t * 0.8) * 0.04; me.userData.animate(t, dt, {}); });
+  const rope = cy(0.012, 0.012, 2.0, "#c9b48a", 4); rope.rotation.z = 1.1; put(rope, 0.3, 0.55, 5.2);
+
+  const tall = VH() > VW(), look = new THREE.Vector3(2.0, 2.0, -1.0);
+  cam = new THREE.PerspectiveCamera(tall ? 50 : 34, VW() / VH(), 0.3, 400);
+  cam.position.copy(look).add(new THREE.Vector3(9, 10.5, 16).normalize().multiplyScalar(tall ? 31 : 26)); cam.lookAt(look);
+  return () => {
+    const [x, y] = toScreen(new THREE.Vector3(1.0, G + 4.9, -0.9));
+    ui.innerHTML = `
+    <div class="panel" style="position:absolute;top:14px;left:12px;padding:10px 14px;font-size:13px;display:grid;gap:6px;min-width:190px">
+      <b style="font-size:14px">Tasks</b>
+      <span>☑ Fix the floor lamp switch</span><span style="padding-left:14px" class="muted">☑ Buy a new switch</span><span style="padding-left:14px">☐ Call the electrician</span><span>☐ Change the water filter</span>
+    </div>
+    <div class="label" style="left:${x}px;top:${y}px"><div class="isl">Home</div><span class="badge" style="background:#ffc94d;color:#1b2240">1 due soon</span></div>`;
+  };
+}
+
 // ---------- run ----------
-const build = { map: shotMap, city: shotCity, home: shotHome, scan: shotScan, identify: shotIdentify, alarm: shotAlarm }[shot] || shotMap;
+const build = { map: shotMap, city: shotCity, dusk: shotDusk, home: shotHome, scan: shotScan, identify: shotIdentify, alarm: shotAlarm }[shot] || shotMap;
 const drawUI = await build();
 const post = new THREE.PostProcessing(renderer);
 const sp0 = pass(scene, cam), col = sp0.getTextureNode("output");
