@@ -17,7 +17,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.3.1";
+export const VERSION = "0.3.2";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -278,7 +278,7 @@ el.addEventListener("pointermove", (e) => {
   const dx = cur.x - prev.x, dy = cur.y - prev.y;
   if (down.turn || (mode === "walk" && view === "map")) { turnView(w, -dx * 0.006, dy * 0.005); return; }
   const { right, forward } = panBasis(w.v.yaw), upp = (2 * viewDist(w) * Math.tan((w.cam.fov * Math.PI) / 360)) / innerHeight, f = (dy * upp) / Math.max(0.3, Math.sin(w.v.pitch));
-  w.pan.x += -dx * upp * right[0] + f * forward[0]; w.pan.z += -dx * upp * right[2] + f * forward[2]; w.pan.clampLength(0, view === "map" ? 14 : 7);
+  w.pan.x += -dx * upp * right[0] + f * forward[0]; w.pan.z += -dx * upp * right[2] + f * forward[2]; w.pan.clampLength(0, view === "map" ? 17 : 7);
 });
 function endPtr(e) { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; const d = down; down = null; return d; }
 el.addEventListener("pointercancel", endPtr);

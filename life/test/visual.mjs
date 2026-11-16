@@ -22,7 +22,7 @@ const colours = async (p) => p.evaluate(async (b64) => { const im = new Image();
 const thumb = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 24; c.height = 24; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.25, im.width, im.height * 0.5, 0, 0, 24, 24); const d = x.getImageData(0, 0, 24, 24).data; const g = []; for (let i = 0; i < d.length; i += 4) g.push((d[i] + d[i + 1] + d[i + 2]) / 3); return g; }, (await p.screenshot()).toString("base64"));
 const dist = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.length;
 // Average colour of the city centre (the plaza and its buildings), to check the golden-hour light.
-const warmth = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, im.width * 0.3, im.height * 0.42, im.width * 0.4, im.height * 0.2, 0, 0, 48, 48); const d = x.getImageData(0, 0, 48, 48).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, (await p.screenshot()).toString("base64"));
+const warmth = async (p, cx = 0.5, cy = 0.52) => p.evaluate(async ([b64, cx, cy]) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, im.width * (cx - 0.15), im.height * (cy - 0.07), im.width * 0.3, im.height * 0.14, 0, 0, 48, 48); const d = x.getImageData(0, 0, 48, 48).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, [(await p.screenshot()).toString("base64"), cx, cy]);
 
 const b = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const ctx = await b.newContext({ ...devices["Pixel 7"], deviceScaleFactor: 1 }); // 1× keeps the software renderer quick
@@ -42,8 +42,12 @@ await p.tap("#sheetClose").catch(() => {}); await p.waitForTimeout(800); // let 
 const meshes = await p.evaluate(() => window.__life.meshes?.() ?? 9999);
 check(meshes < 260, `R18 the city is merged into few draw calls for phones (${meshes} meshes)`);
 // R28 · golden hour: the light is warm.
-const warm = await warmth(p);
-check(warm.r > warm.b + 20, `R28 the city centre is lit by a low warm sun (red ${warm.r.toFixed(0)}, blue ${warm.b.toFixed(0)})`);
+const hallAt = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork"), vp = p.viewportSize();
+await p.addStyleTag({ content: "body.measure #labels, body.measure #hud, body.measure #hint, body.measure #dock, body.measure #viewCtl, body.measure #scrim { visibility: hidden !important; }" });
+await p.evaluate(() => document.body.classList.add("measure")); await p.waitForTimeout(300);
+const warm = await warmth(p, hallAt.x / vp.width, hallAt.y / vp.height); // the 3D alone, around the city hall
+await p.evaluate(() => document.body.classList.remove("measure"));
+check(warm.r > warm.b + 20, `R28 the city hall and its plaza are lit by a low warm sun (red ${warm.r.toFixed(0)}, blue ${warm.b.toFixed(0)})`);
 // R27 · an overdue task shows on its district (scaffolding, cones, flickering lamp) and goes when it is done.
 const mood0 = await p.evaluate(() => window.__life.moods?.().paperwork);
 const lateId = await p.evaluate(() => window.__life.store.add({ type: "task", title: "Late form", parent: "paperwork", due: "2020-01-01" }));

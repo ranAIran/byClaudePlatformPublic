@@ -204,9 +204,9 @@ function facade(cols, rows, base, seed, share = 0.45) {
 
 function buildMapInto() {
   const cfg = { ...CONFIG, world: { ...CONFIG.world, water: { ...CONFIG.world.water, color: "#46a9b8" } } };
-  const target = new THREE.Vector3(-2.6, 0.6, -2.6);
+  const target = new THREE.Vector3(-3.2, 0.6, -3.2);
   const HAZE = "#f9c9a0";
-  scene.background = new THREE.Color(HAZE); scene.fog = new THREE.Fog(HAZE, 66, 215);
+  scene.background = new THREE.Color(HAZE); scene.fog = new THREE.Fog(HAZE, 80, 240);
   // Low warm sun from the left, cool sky fill: long shadows to the right, sunlit left faces.
   lights({ target, size: 21, sunOff: [-32, 17, 12], sunColor: "#ffb066", sun: 4.0, hemiSky: "#c6ceff", hemiGround: "#e6a878", hemi: 1.2 });
   const water = W.makeWater(cfg); scene.add(water); updaters.push((t) => water.userData.update(t));
@@ -222,7 +222,7 @@ function buildMapInto() {
   }
 
   // ----- ground: blocks on a street grid, roads between them, a quay around the outside -----
-  const P = 6, B = 4.6, Y = 0.26;
+  const P = 7.5, B = 4.6, Y = 0.26, SW = B + 1.2; // street grid pitch, block, sidewalk (wider streets since 0.3.2)
   const CELLS = [[2, 2, "home"], [0, 1, "family"], [1, 1, "paperwork"], [0, 0, "work"], [1, 0, "health"], [2, 1, "shops"], [1, 2, "park"]];
   const has = (i, j) => CELLS.some((c) => c[0] === i && c[1] === j);
   const at = (i, j) => [(i - 1) * P, (j - 1) * P];
@@ -232,14 +232,15 @@ function buildMapInto() {
     const [cx, cz] = at(i, j);
     put(bx(P, 1.5, P, "#b0926f"), cx, -0.75, cz, ground);
     put(bx(P, 0.12, P, "#5c5e6e"), cx, 0.06, cz, ground);
-    put(bx(B + 0.18, 0.1, B + 0.18, "#a9a296"), cx, 0.17, cz, ground);
+    put(bx(SW + 0.12, 0.1, SW + 0.12, "#a9a296"), cx, 0.15, cz, ground);
+    put(bx(SW, 0.12, SW, "#dcc5a6"), cx, 0.17, cz, ground);
     put(bx(B, 0.14, B, "#e4d9c8"), cx, 0.19, cz, ground);
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ex = cx + (di * P) / 2, ez = cz + (dj * P) / 2;
       if (!has(i + di, j + dj)) { put(bx(di ? 0.24 : P, 0.36, di ? P : 0.24, "#cfc4b2"), cx + di * (P / 2 - 0.12), 0.18, cz + dj * (P / 2 - 0.12), ground); continue; }
       if (di < 0 || dj < 0) continue; // each shared road is drawn once
-      for (const k of [-2.1, -1.4, 1.4, 2.1]) put(bx(di ? 0.07 : 0.45, 0.02, di ? 0.45 : 0.07, "#f2e8d2"), ex + (di ? 0 : k), 0.125, ez + (di ? k : 0), ground);
-      for (let s = -2; s <= 2; s++) put(bx(di ? 0.16 : 0.9, 0.02, di ? 0.9 : 0.16, "#f2e8d2"), ex + (di ? s * 0.28 : 0), 0.125, ez + (di ? 0 : s * 0.28), ground);
+      for (const k of [-2.8, -2.0, 2.0, 2.8]) put(bx(di ? 0.07 : 0.45, 0.02, di ? 0.45 : 0.07, "#f2e8d2"), ex + (di ? 0 : k), 0.125, ez + (di ? k : 0), ground);
+      for (let s = -2; s <= 2; s++) put(bx(di ? 0.16 : 1.4, 0.02, di ? 1.4 : 0.16, "#f2e8d2"), ex + (di ? s * 0.28 : 0), 0.125, ez + (di ? 0 : s * 0.28), ground);
     }
     const g = new THREE.Group(); g.position.set(cx, Y, cz); scene.add(g); G[id] = g; g.userData.district = id;
   }
@@ -307,6 +308,16 @@ function buildMapInto() {
   const solids = [], doors = {};
   const solid = (id, x, z, w, d, h) => { const g = G[id]; solids.push({ x0: g.position.x + x - w / 2, x1: g.position.x + x + w / 2, z0: g.position.z + z - d / 2, z1: g.position.z + z + d / 2, h: Y + h }); };
   const door = (id, x, z) => { doors[id] = [G[id].position.x + x, G[id].position.z + z]; };
+  // Street trees on the sidewalks of every block, so the wider streets feel like boulevards.
+  const avenue = new THREE.Group(); scene.add(avenue);
+  for (const [i, j, id] of CELLS) {
+    const [cx, cz] = at(i, j), e = B / 2 + 0.32;
+    [[-1.5, e], [1.5, e], [e, -1.5], [e, 1.5], [-1.5, -e], [1.5, -e], [-e, -1.5], [-e, 1.5]].forEach(([dx, dz], k) => {
+      const t = (i + j + k) % 2 ? tree(0.5, LEAVES[(i * 3 + j + k) % 4]) : pine(0.52);
+      t.position.set(cx + dx, 0.23, cz + dz); avenue.add(t);
+      solids.push({ x0: cx + dx - 0.18, x1: cx + dx + 0.18, z0: cz + dz - 0.18, z1: cz + dz + 0.18, h: 1.6 });
+    });
+  }
   const signs = {};
   const dress = (id, { scaf, cones = [], bar, lamp = [2.2, 2.2], extra }) => {
     const g = G[id], od = new THREE.Group(), cl = new THREE.Group(); od.userData.live = cl.userData.live = true; g.add(od, cl);
@@ -458,12 +469,12 @@ function buildMapInto() {
   }
 
   // ----- street life: parked cars, sailing boats, a balloon, evening clouds -----
-  for (const [x, z, ry, c] of [[3.34, -1.3, Math.PI / 2, "#5fb7e6"], [2.66, 4.2, -Math.PI / 2, "#ffd166"], [-1.2, 2.66, 0, "#8fe388"], [-4.3, -2.66, Math.PI, "#b48cff"], [0.9, -3.34, 0, "#ff9f6b"]]) {
+  for (const [x, z, ry, c] of [[4.08, -1.6, Math.PI / 2, "#5fb7e6"], [3.42, 5.2, -Math.PI / 2, "#ffd166"], [-1.5, 3.42, 0, "#8fe388"], [-5.4, -3.42, Math.PI, "#b48cff"], [1.1, -4.08, 0, "#ff9f6b"]]) {
     const k = car(c); k.position.set(x, 0.12, z); k.rotation.y = ry; ground.add(k);
     const lx = Math.abs(Math.sin(ry)) > 0.5 ? 0.26 : 0.5, lz = Math.abs(Math.sin(ry)) > 0.5 ? 0.5 : 0.26; solids.push({ x0: x - lx, x1: x + lx, z0: z - lz, z1: z + lz, h: 0.75 });
   }
   const boat = (c) => { const b = new THREE.Group(); b.userData.live = true; put(bx(1.0, 0.2, 0.38, "#fff6e6"), 0, 0.1, 0, b); put(bx(0.7, 0.06, 0.3, c), 0, 0.22, 0, b); put(cy(0.02, 0.02, 1.3, "#6b4a2e", 5), 0.05, 0.8, 0, b); const sail = prism(0.7, 1.1, 0.02, "#fff1dc"); put(sail, -0.28, 0.3, 0, b); bake(b); return b; };
-  const boats = [[10.2, 4.4, 0.5, "#e0504b"], [4.2, 10.6, 2.2, "#3e8fb0"]].map(([x, z, ry, c]) => { const b = boat(c); b.position.set(x, 0, z); b.rotation.y = ry; scene.add(b); return b; });
+  const boats = [[12.6, 5.5, 0.5, "#e0504b"], [5.2, 13.1, 2.2, "#3e8fb0"]].map(([x, z, ry, c]) => { const b = boat(c); b.position.set(x, 0, z); b.rotation.y = ry; scene.add(b); return b; });
   const balloon = new THREE.Group(); balloon.userData.live = true;
   { const env = sp(0.9, "#ff9f6b", 16); env.scale.y = 1.15; put(env, 0, 1.6, 0, balloon); for (let k = 0; k < 6; k++) { const st = sp(0.905, k % 2 ? "#ffd166" : "#e0504b", 12); st.scale.set(0.34, 1.15, 1); st.rotation.y = (k / 6) * Math.PI; put(st, 0, 1.6, 0, balloon); }
     put(cy(0.3, 0.2, 0.3, "#e0504b", 10), 0, 0.62, 0, balloon); put(bx(0.3, 0.26, 0.3, "#8a5a3a"), 0, 0.13, 0, balloon); for (const [dx, dz] of [[-0.13, -0.13], [0.13, -0.13], [-0.13, 0.13], [0.13, 0.13]]) put(bx(0.012, 0.36, 0.012, "#3b2a20"), dx, 0.42, dz, balloon); }
@@ -476,7 +487,7 @@ function buildMapInto() {
   updaters.push((t) => {
     boats.forEach((b, i) => { b.position.y = 0.02 + Math.sin(t * 1.3 + i * 2) * 0.04; b.rotation.z = Math.sin(t * 0.9 + i) * 0.05; });
     const bu = balloon.userData; bu.vy = (bu.vy || 0) + (-(bu.off || 0) * 9 - (bu.vy || 0) * 1.4) * 0.016; bu.off = (bu.off || 0) + bu.vy * 0.016; // a tap sets vy; the spring settles it
-    balloon.position.set(3.6 + Math.sin(t * 0.11) * 0.9, 5.4 + Math.sin(t * 0.5) * 0.18 + bu.off, -6.2 + Math.cos(t * 0.09) * 0.7); balloon.rotation.z = bu.vy * 0.04;
+    balloon.position.set(4.5 + Math.sin(t * 0.11) * 0.9, 5.6 + Math.sin(t * 0.5) * 0.18 + bu.off, -7.8 + Math.cos(t * 0.09) * 0.7); balloon.rotation.z = bu.vy * 0.04;
     clouds.forEach((c, i) => { c.position.x += 0.004 * (i + 1); if (c.position.x > 16) c.position.x = -16; });
     // An overdue district's street lamp flickers; the others burn steady.
     for (const s of Object.values(signs)) s.bulb.emissiveIntensity = s.state === "overdue" ? (Math.sin(t * 23) + Math.sin(t * 7.3) > 0.5 ? 2.6 : 0.12) : 2.4;
@@ -487,7 +498,7 @@ function buildMapInto() {
     const grp = new THREE.Group(), mt = new THREE.MeshStandardMaterial({ color: "#ffe9b8", emissive: new THREE.Color("#ffd27a"), emissiveIntensity: 1 }), rr = W.rng(40 + k);
     for (let i = 0; i < 34; i++) {
       const a = rr() * 6.283, d = 11 + rr() * 13, x = Math.cos(a) * d, z = Math.sin(a) * d;
-      if (Math.abs(x) < 9.6 && Math.abs(z) < 9.6 && !(x > 3 && z < -3) && !(x < -3 && z > 3)) continue; // keep off the blocks
+      if (Math.abs(x) < 11.8 && Math.abs(z) < 11.8 && !(x > 3.8 && z < -3.8) && !(x < -3.8 && z > 3.8)) continue; // keep off the blocks
       const f = bx(0.14 + rr() * 0.22, 0.01, 0.04, mt); f.rotation.y = Math.PI / 4; f.position.set(x, 0.13, z); grp.add(f);
     }
     scene.add(grp); bake(grp); grp.children.forEach((o) => { o.receiveShadow = false; });
@@ -497,7 +508,7 @@ function buildMapInto() {
 
   // The two open corners: a lighthouse on a rock, and a small marina.
   {
-    const lh = new THREE.Group(); lh.position.set(6.2, 0, -6.2);
+    const lh = new THREE.Group(); lh.position.set(7.6, 0, -7.6);
     const rock = sp(1.9, "#8d8a92", 9); rock.scale.y = 0.42; put(rock, 0, 0.1, 0, lh); const rock2 = sp(1.0, "#7d7a84", 7); rock2.scale.y = 0.5; put(rock2, 1.3, 0.1, 0.9, lh);
     put(cy(0.4, 0.55, 2.9, "#fff6e6", 14), 0, 2.2, 0, lh); for (const y of [1.4, 2.5]) put(cy(0.47 - (y - 1.4) * 0.045, 0.5 - (y - 1.4) * 0.045, 0.5, "#e0504b", 14), 0, y, 0, lh);
     put(cy(0.55, 0.55, 0.1, "#3b4250", 14), 0, 3.7, 0, lh); put(cy(0.05, 0.05, 0.5, "#3b4250", 6), 0.4, 3.95, 0, lh); put(cy(0.05, 0.05, 0.5, "#3b4250", 6), -0.4, 3.95, 0, lh);
@@ -505,7 +516,7 @@ function buildMapInto() {
     put(cy(0.3, 0.3, 0.45, lampMat, 12), 0, 3.98, 0, lh); put(new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.5, 12), W.mat("#e0504b")), 0, 4.47, 0, lh);
     updaters.push((t) => { lampMat.emissiveIntensity = 1.6 + 2.4 * Math.max(0, Math.sin(t * 1.6)) ** 3; });
     scene.add(lh); bake(lh);
-    const mar = new THREE.Group(); mar.position.set(-3, 0, 6);
+    const mar = new THREE.Group(); mar.position.set(-3.8, 0, 7.5);
     put(bx(3.6, 0.1, 0.8, "#b98a5a"), -1.9, 0.22, 0, mar); put(bx(0.8, 0.1, 2.2, "#b98a5a"), -3.3, 0.22, 1.2, mar);
     for (const [x, z] of [[-0.6, 0.35], [-0.6, -0.35], [-2.0, 0.35], [-2.0, -0.35], [-3.6, 0.3], [-3.6, 2.2], [-3.0, 2.2]]) put(cy(0.07, 0.07, 0.9, "#6b4a2e", 6), x, -0.05, z, mar);
     for (const [x, z, c] of [[-1.6, -0.95, "#ffd166"], [-2.5, 1.2, "#5fb7e6"]]) { put(bx(0.9, 0.2, 0.4, "#fff6e6"), x, 0.08, z, mar); put(bx(0.6, 0.06, 0.32, c), x, 0.2, z, mar); }
@@ -514,9 +525,9 @@ function buildMapInto() {
   }
 
   for (const g of Object.values(G)) bake(g);
-  bake(ground);
+  bake(ground); bake(avenue);
 
-  cam = viewCam(target, { dist: 64 });
+  cam = viewCam(target, { dist: 76 });
   const labelY = { home: 3.0, family: 2.3, paperwork: 4.1, work: 7.7, health: 2.5 };
   const isles = ["home", "family", "paperwork", "work", "health"].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), pos: [G[id].position.x, G[id].position.z], radius: 3.1, labelY: labelY[id] }));
   // ----- things that react physically (R32): two balls to kick, reward coins, splashes -----
