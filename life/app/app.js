@@ -10,6 +10,7 @@ import { isoDate } from "./core/capture.js";
 import { initBridge } from "./bridge.js";
 import { buildFeedback } from "./core/feedback.js";
 import { districtMood } from "./core/mood.js";
+import { applyEdit, placeChoices } from "./core/edit.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
@@ -17,7 +18,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.3.2";
+export const VERSION = "0.4.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -178,7 +179,7 @@ function itemHtml(n, { bag = false } = {}) {
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
   const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">Open ${esc(n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
-  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><div class="t">${esc(n.title)}</div>${meta ? `<div class="meta">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost" data-act="del" data-id="${n.id}" aria-label="Delete">✕</button></div>`;
+  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="Edit ${esc(n.title)}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="Edit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
 }
 function openSheet(id) {
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
@@ -214,8 +215,46 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "place") { store.place(id, b.dataset.to); toast(`Placed in ${title(b.dataset.to)}`); }
   if (b.dataset.act === "open") bridge.openExternal(b.dataset.url);
   if (b.dataset.act === "photo") { const src = await media.getImage(n.images[0]); if (src) showPhoto(src); }
-  if (b.dataset.act === "del") { const copy = { ...n }; store.remove(id); toast("Deleted", () => store.add(copy)); }
+  if (b.dataset.act === "edit") openEditor(id);
 });
+
+// ---------- R33 · edit an item ----------
+let editing = null;
+const isoIn = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return isoDate(d); };
+function openEditor(id) {
+  const n = store.get(id); if (!n) return; editing = id;
+  const opts = placeChoices(store).map((p) => `<option value="${p.id}" ${p.id === n.parent ? "selected" : ""}>${p.kind === "room" ? "Home › " : ""}${esc(p.title)}</option>`).join("");
+  $("edTitle").value = n.title; $("edDue").value = n.due || ""; $("edNotes").value = n.notes || ""; $("edUrl").value = n.url || ""; $("edPlace").innerHTML = opts;
+  $("edType").value = ["task", "note", "item", "link", "person", "pet", "document", "photo"].includes(n.type) ? n.type : "note";
+  setEffort(n.effort || 1); renderSteps((n.steps || []).map((st, i) => ({ from: i, title: st.title, done: st.done })));
+  $("edRepeat").value = n.repeat ? `${n.repeat.every}:${n.repeat.unit}` : "";
+  $("edError").textContent = ""; $("editor").hidden = false; editorTypeChanged();
+}
+function setEffort(v) { $("edEffort").dataset.v = v; for (const b of $("edEffort").children) b.classList.toggle("on", +b.dataset.v === v); }
+function renderSteps(list) {
+  $("edSteps").innerHTML = list.map((st, i) => `<div class="edstep" data-from="${st.from ?? ""}"><i class="${st.done ? "on" : ""}"></i><input value="${esc(st.title)}" aria-label="Step ${i + 1}"><button type="button" class="x ghost" data-act="rmstep" aria-label="Remove step">✕</button></div>`).join("");
+}
+function readSteps() { return [...$("edSteps").children].map((r) => ({ from: r.dataset.from === "" ? null : +r.dataset.from, title: r.querySelector("input").value, done: r.querySelector("i").classList.contains("on") })); }
+function editorTypeChanged() { const task = $("edType").value === "task"; for (const id of ["edDueRow", "edEffortRow", "edStepsRow", "edRepeatRow"]) $(id).hidden = !task; $("edUrlRow").hidden = $("edType").value !== "link" && !$("edUrl").value; }
+function closeEditor() { $("editor").hidden = true; editing = null; }
+$("edType").addEventListener("change", editorTypeChanged);
+$("edEffort").addEventListener("click", (e) => { const b = e.target.closest("[data-v]"); if (b) setEffort(+b.dataset.v); });
+$("edDueChips").addEventListener("click", (e) => { const b = e.target.closest("[data-days]"); if (b) $("edDue").value = b.dataset.days === "" ? "" : isoIn(+b.dataset.days); });
+$("edSteps").addEventListener("click", (e) => { if (e.target.closest('[data-act="rmstep"]')) e.target.closest(".edstep").remove(); });
+$("edAddStep").addEventListener("click", () => { renderSteps([...readSteps(), { from: null, title: "" }]); $("edSteps").lastElementChild.querySelector("input").focus(); });
+$("edCancel").addEventListener("click", closeEditor);
+$("edClose").addEventListener("click", closeEditor);
+$("editorForm").addEventListener("submit", (e) => {
+  e.preventDefault(); if (!editing) return;
+  const task = $("edType").value === "task", rp = $("edRepeat").value;
+  const form = { title: $("edTitle").value, notes: $("edNotes").value, type: $("edType").value, parent: $("edPlace").value, url: $("edUrl").value };
+  if (task) Object.assign(form, { due: $("edDue").value, effort: +$("edEffort").dataset.v, steps: readSteps(), repeat: rp ? { every: +rp.split(":")[0], unit: rp.split(":")[1] } : null });
+  const r = applyEdit(store, editing, form);
+  if (!r.ok) { $("edError").textContent = r.error; $(r.field === "due" ? "edDue" : r.field === "parent" ? "edPlace" : "edTitle")?.focus(); return; }
+  const moved = store.get(editing).parent; closeEditor(); toast("Saved");
+  if (sheetFor && moved !== sheetFor && sheetFor !== "home") toast(`Moved to ${title(moved)}`);
+});
+$("edDelete").addEventListener("click", () => { const n = store.get(editing); if (!n) return; const copy = { ...n }; closeEditor(); store.remove(copy.id); toast("Deleted", () => store.add(copy)); });
 function showPhoto(src) {
   const o = document.createElement("div"); o.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.88);display:grid;place-items:center;z-index:20";
   o.innerHTML = `<img src="${src}" style="max-width:96%;max-height:90%;border-radius:12px">`; o.addEventListener("click", () => o.remove()); document.body.append(o);
@@ -261,9 +300,10 @@ function zoomView(w, k) { const L = w.cam.userData.limits; w.v.zoom = clamp(w.v.
 el.addEventListener("contextmenu", (e) => e.preventDefault());
 el.addEventListener("pointerdown", (e) => {
   el.setPointerCapture?.(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
-  if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, moved: false, turn: e.button === 2 || e.shiftKey || e.altKey };
+  if (ptrs.size === 1) down = { x: e.clientX, y: e.clientY, moved: false, pan: e.button === 1, turn: e.button !== 1 && (e.button === 2 || e.shiftKey || e.altKey) };
   else { down = null; const [a, b] = [...ptrs.values()]; pinch = Math.hypot(a.x - b.x, a.y - b.y); twist = Math.atan2(b.y - a.y, b.x - a.x); midY = (a.y + b.y) / 2; }
 });
+el.addEventListener("mousedown", (e) => { if (e.button === 1) e.preventDefault(); }); // no auto-scroll: the middle button pans
 el.addEventListener("pointermove", (e) => {
   const prev = ptrs.get(e.pointerId); if (!prev) return; const cur = { x: e.clientX, y: e.clientY }; ptrs.set(e.pointerId, cur);
   const w = world();
@@ -276,14 +316,14 @@ el.addEventListener("pointermove", (e) => {
   if (!down) return; if (Math.hypot(cur.x - down.x, cur.y - down.y) > 9) down.moved = true;
   if (!down.moved) return; hideHint();
   const dx = cur.x - prev.x, dy = cur.y - prev.y;
-  if (down.turn || (mode === "walk" && view === "map")) { turnView(w, -dx * 0.006, dy * 0.005); return; }
+  if (down.turn || (!down.pan && mode === "walk" && view === "map")) { turnView(w, -dx * 0.006, dy * 0.005); return; }
   const { right, forward } = panBasis(w.v.yaw), upp = (2 * viewDist(w) * Math.tan((w.cam.fov * Math.PI) / 360)) / innerHeight, f = (dy * upp) / Math.max(0.3, Math.sin(w.v.pitch));
   w.pan.x += -dx * upp * right[0] + f * forward[0]; w.pan.z += -dx * upp * right[2] + f * forward[2]; w.pan.clampLength(0, view === "map" ? 17 : 7);
 });
 function endPtr(e) { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch = 0; const d = down; down = null; return d; }
 el.addEventListener("pointercancel", endPtr);
 el.addEventListener("pointerup", (e) => {
-  const d = endPtr(e); if (!d || d.moved) return;
+  const d = endPtr(e); if (!d || d.moved || d.pan) return; // a middle click never opens anything
   const w = world(); ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, w.cam);
   if (view === "map") { // things that react when touched (R32): the balloon bobs, a ball gets a kick
     const poked = ray.intersectObjects([map.balloon, ...map.toys.map((t) => t.mesh)], true)[0];
@@ -431,6 +471,7 @@ async function onShare(p) {
 }
 function onVoice(text) { if (!text) return; $("capInput").value = text; $("capForm").requestSubmit(); }
 function onBack() {
+  if (!$("editor").hidden) { closeEditor(); return true; }
   if (!$("feedback").hidden) { $("feedback").hidden = true; return true; }
   if (!$("menu").hidden) { $("menu").hidden = true; return true; }
   if (!$("searchBox").hidden) { $("searchBox").hidden = true; return true; }
@@ -553,11 +594,12 @@ renderer.setAnimationLoop(() => {
   placeLabels();
   if (frames === 3) { $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700); }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
+    ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
     goTo: (id) => walkTo(map.walk.doors[id]), screenOf: (x, y, z) => { const [sx, sy] = projectTo(map.cam, new THREE.Vector3(x, y, z)); return { x: sx, y: sy }; },
     walk: () => ({ mode, x: me.position.x, z: me.position.z, k: W.k, left: W.path?.length || 0, arrived: W.arrived }),
     props: () => ({ coins: physics.bodies.filter((b) => b.kind === "coin").length, toys: map.toys.map((t) => { const [x, y] = projectTo(map.cam, t.mesh.position); return { x, y, p: [...t.body.p], speed: Math.hypot(...t.body.v) }; }) }),
-    cam: () => ({ yaw: world().v.yaw, pitch: world().v.pitch, zoom: world().v.zoom, perspective: !!world().cam.isPerspectiveCamera }), setCam: (o) => { Object.assign(world().v, o); },
+    cam: () => ({ yaw: world().v.yaw, pitch: world().v.pitch, zoom: world().v.zoom, pan: world().pan.length(), perspective: !!world().cam.isPerspectiveCamera }), setCam: (o) => { if (o.pan === 0) world().pan.set(0, 0, 0); const { pan, ...rest } = o; Object.assign(world().v, rest); },
     meshes: () => { let n = 0; map.scene.traverse((o) => { if (o.isMesh && o.visible) n++; }); return n; },
     districts: () => map.isles.map((d) => { const [x, y] = projectTo(map.cam, new THREE.Vector3(d.pos[0], 1.0, d.pos[1])); return { id: d.id, x, y }; }),
     moods: () => Object.fromEntries(map.isles.map((d) => [d.id, { state: districtMood(store, d.id).state, signs: map.moodSigns(d.id) }])),

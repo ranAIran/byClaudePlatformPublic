@@ -41,6 +41,19 @@ check(!(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).incl
 await p.tap("#sheetClose").catch(() => {}); await p.waitForTimeout(800); // let the scrim behind the sheet fade out
 const meshes = await p.evaluate(() => window.__life.meshes?.() ?? 9999);
 check(meshes < 260, `R18 the city is merged into few draw calls for phones (${meshes} meshes)`);
+// R33 · edit an item: tap its name, change the name and the date, save; the row shows the change.
+{
+  const hallE = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork");
+  await p.mouse.click(hallE.x, hallE.y); await p.waitForTimeout(400);
+  await p.click('#sheetBody .t:text("Pay electricity bill")'); await p.waitForTimeout(300);
+  const opened = !(await p.isHidden("#editor"));
+  await p.fill("#edTitle", "Pay the electricity bill"); await p.click('#edDueChips [data-days="1"]'); await p.click("#edSave"); await p.waitForTimeout(400);
+  const row = await p.evaluate(() => [...document.querySelectorAll("#sheetBody .item")].map((r) => r.innerText).find((t) => t.includes("Pay the electricity bill")) || "");
+  await p.screenshot({ path: `${out}/v-edit.png` });
+  check(opened && /tomorrow/.test(row) && (await p.isHidden("#editor")), `R33 editing an item changes its name and date (${row.replace(/\s+/g, " ").slice(0, 60)})`);
+  await p.click('#sheetBody .t:text("Pay the electricity bill")'); await p.waitForTimeout(200); await p.fill("#edTitle", "Pay electricity bill"); await p.click("#edSave"); await p.waitForTimeout(200);
+  await p.tap("#sheetClose"); await p.waitForTimeout(800);
+}
 // R28 · golden hour: the light is warm.
 const hallAt = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork"), vp = p.viewportSize();
 await p.addStyleTag({ content: "body.measure #labels, body.measure #hud, body.measure #hint, body.measure #dock, body.measure #viewCtl, body.measure #scrim { visibility: hidden !important; }" });
@@ -70,6 +83,12 @@ await p.mouse.click(hall2.x, hall2.y); await p.waitForTimeout(350);
 check(!(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).includes("Paperwork"), "R29 after turning, tapping the city hall still opens Paperwork");
 await p.tap("#sheetClose").catch(() => {}); await p.tap("#rotL"); await yawIs(cam0.yaw); await p.waitForTimeout(300);
 check(dist(await thumb(p), mapThumb) < 3, "R29 turning back returns to the same view");
+// R29 · the middle mouse button pans (moves the view across the ground, without turning it).
+const free = await p.evaluate(() => { const c = document.querySelector("#stage canvas"); for (let y = 300; y < 650; y += 25) for (let x = 60; x < 360; x += 25) if (document.elementFromPoint(x, y) === c && document.elementFromPoint(x + 60, y + 40) === c) return { x, y }; return { x: 200, y: 400 }; });
+await p.mouse.move(free.x, free.y); await p.mouse.down({ button: "middle" }); await p.mouse.move(free.x + 60, free.y + 40, { steps: 4 }); await p.mouse.up({ button: "middle" }); await p.waitForTimeout(400);
+const panned = await p.evaluate(() => window.__life.cam());
+check(panned.pan > 0.5 && Math.abs(panned.yaw - cam0.yaw) < 0.01 && (await p.isHidden("#sheet")), `R29 middle-drag pans the view and opens nothing (moved ${panned.pan.toFixed(2)} units, yaw kept)`);
+await p.evaluate(() => window.__life.setCam({ pan: 0 })); await p.waitForTimeout(300);
 // R30 · a true 3D world: tilt down and the sky and horizon fill the top of the view.
 await p.evaluate(() => window.__life.setCam({ pitch: 0.14 })); await p.waitForTimeout(700);
 await p.screenshot({ path: `${out}/v-horizon.png` });

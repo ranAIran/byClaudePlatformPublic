@@ -12,6 +12,7 @@ import { celebrationFor } from "../app/core/reward.js";
 import { ISO, orbitOffset, panBasis, turn } from "../app/core/orbit.js";
 import { makeWalker } from "../app/core/walk.js";
 import { createPhysics } from "../app/core/physics.js";
+import { applyEdit, placeChoices } from "../app/core/edit.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -303,5 +304,39 @@ describe("R32 · things react physically", () => {
     const ph = flat(); ph.add({ p: [0, 1, 0], life: 1, kind: "coin" }); ph.add({ p: [1, 1, 0], kind: "ball" });
     for (let i = 0; i < 120; i++) ph.step(1 / 60);
     expect(ph.bodies.map((b) => b.kind)).toEqual(["ball"]);
+  });
+});
+
+describe("R33 · edit an item", () => {
+  it("changes title, due date, notes and effort, and keeps the id, creation time and XP already paid", () => {
+    const s = fresh(); const id = s.add({ type: "task", title: "Pay bill", parent: "paperwork" });
+    s.complete(id); s.reopen(id); const before = s.get(id), xp = s.xp();
+    const r = applyEdit(s, id, { title: "  Pay electricity bill ", due: "2026-11-20", notes: "NorthGrid", effort: 9 });
+    expect(r.ok).toBe(true);
+    const n = s.get(id);
+    expect(n).toMatchObject({ id, title: "Pay electricity bill", due: "2026-11-20", notes: "NorthGrid", effort: 5, created: before.created, awarded: true });
+    expect(s.xp()).toBe(xp);
+  });
+  it("refuses an empty title or a date that isn't a date, and changes nothing", () => {
+    const s = fresh(); const id = s.add({ type: "task", title: "Keep me", parent: "work" });
+    expect(applyEdit(s, id, { title: "   " })).toMatchObject({ ok: false, field: "title" });
+    expect(applyEdit(s, id, { due: "31/02/2026" })).toMatchObject({ ok: false, field: "due" });
+    expect(s.get(id).title).toBe("Keep me");
+  });
+  it("moves an item to another place, but only to a real place", () => {
+    const s = fresh(); const id = s.add({ type: "item", title: "Laptop", parent: "office" });
+    expect(applyEdit(s, id, { parent: "work" }).ok).toBe(true); expect(s.get(id).parent).toBe("work");
+    expect(applyEdit(s, id, { parent: "nowhere" })).toMatchObject({ ok: false, field: "parent" });
+    expect(applyEdit(s, id, { parent: id })).toMatchObject({ ok: false, field: "parent" });
+    const choices = placeChoices(s).map((c) => c.id);
+    expect(choices).toEqual(expect.arrayContaining(["bag", "home", "living", "paperwork"])); expect(choices).not.toContain("world");
+  });
+  it("edits steps: done steps stay done, new steps start open, and no XP is paid again", () => {
+    const s = fresh(); const id = s.add({ type: "task", title: "Passport", parent: "paperwork", steps: [{ title: "Book" }, { title: "Photo" }, { title: "Go" }] });
+    s.completeStep(id, 0); const xp = s.xp();
+    applyEdit(s, id, { steps: [{ from: 0, title: "Book an appointment" }, { from: 2, title: "Go to the office" }, { title: "Pick up" }] });
+    expect(s.get(id).steps).toEqual([{ title: "Book an appointment", done: true }, { title: "Go to the office", done: false }, { title: "Pick up", done: false }]);
+    expect(s.xp()).toBe(xp);
+    applyEdit(s, id, { steps: [] }); expect(s.get(id).steps).toBeNull();
   });
 });
