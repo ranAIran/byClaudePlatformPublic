@@ -21,6 +21,7 @@ import { openSavedBackend } from "../app/storage.js";
 import { IDBFactory } from "fake-indexeddb";
 import { backupDue, backupName } from "../app/core/backup.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
+import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -529,5 +530,24 @@ describe("R36 · coins buy decorations for the city", () => {
     const s = fresh(); s.earnCoins(10, "test"); buy(s, "health", "flowers");
     const t = fresh(); t.restore(s.snapshot());
     expect(t.coins()).toBe(s.coins()); expect(decorationsFor(t, "health").length).toBe(1);
+  });
+});
+
+describe("R37 · the interface in Hebrew", () => {
+  it("every phrase exists in both English and Hebrew, and Hebrew uses only placeholders English has", () => {
+    const ph = (v) => [...String(v).matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+    expect(Object.keys(DICTS.he).sort()).toEqual(Object.keys(DICTS.en).sort());
+    for (const k of Object.keys(DICTS.en)) for (const p of ph(DICTS.he[k])) expect(ph(DICTS.en[k]), k).toContain(p);
+    for (const c of CATALOG) expect(DICTS.he["item_" + c.id], c.id).toBeTruthy();
+  });
+  it("fills in values, and follows the device language unless the owner chose one", () => {
+    expect(makeT("he")("nOverdue", { n: 3 })).toBe("3 באיחור");
+    expect(makeT("en")("inDays", { n: 4 })).toBe("in 4 days");
+    expect(pickLang(null, "he-IL")).toBe("he"); expect(pickLang(null, "en-US")).toBe("en"); expect(pickLang("en", "he-IL")).toBe("en");
+  });
+  it("translates the built-in place names, but never a name the owner chose", () => {
+    expect(placeTitle("paperwork", "Paperwork", "he")).toBe("ניירת");
+    expect(placeTitle("paperwork", "Bills and forms", "he")).toBe("Bills and forms");
+    expect(placeTitle("paperwork", "Paperwork", "en")).toBe("Paperwork");
   });
 });

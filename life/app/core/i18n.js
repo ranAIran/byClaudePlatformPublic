@@ -1,0 +1,101 @@
+// The interface in English and Hebrew (R37). t(key, vars) fills {name} placeholders.
+// Item titles are the owner's own words and are never translated; the built-in place names are,
+// unless the owner renamed them.
+export const LANGS = { en: "English", he: "עברית" };
+
+const en = {
+  appName: "Life Archipelago", level: "Level {n} · Life explorer", levelAria: "Level {n}", today: "Today", openToday: "Open Today",
+  overdueD: "overdue {n}d", dueToday: "today", tomorrow: "tomorrow", inDays: "in {n} days",
+  nOverdue: "{n} overdue", nDueSoon: "{n} due soon", nOpen: "{n} open", allClear: "all clear", allClearCap: "All clear", nToday: "{n} today", nThisWeek: "{n} this week",
+  overdue: "Overdue", thisWeek: "This week", nothingDue: "Nothing due", nothingDueEvening: "Nothing due. Enjoy the evening.",
+  bagWaiting: "{n} thing waiting in your bag", bagWaitingN: "{n} things waiting in your bag", bagOldest: "The oldest has waited {n} days.", tapToFileIt: "Tap to file it", tapToFileThem: "Tap to file them",
+  backupLine: "Back up your life", lastBackup: "Last backup {d}.", noBackup: "No backup yet.", tapToSave: "Tap to save a file.",
+  yourBag: "Your bag", nThings: "{n} thing", nThingsN: "{n} things", bagSub: "{n} waiting. Tap a suggestion to file it.", nothingWaiting: "Nothing waiting",
+  bagEmpty: "Your bag is empty. Type, speak or snap a photo below; it waits here until you place it.", placeEmpty: "Nothing here yet. Add a task, item or note below.",
+  addTo: "Add to {place}… (try “change filter by 20/11”)", add: "Add", addedTo: "Added to {place}", placedIn: "Placed in {place}", wholeHome: "Whole home",
+  markDone: "Mark as done", doneReopen: "Done. Tap to reopen", edit: "Edit", editX: "Edit {t}", effortN: "effort {n}", example: "example", openLink: "Open {u}",
+  type_task: "task", type_note: "note", type_item: "thing", type_link: "link", type_person: "person", type_pet: "pet", type_document: "document", type_photo: "photo",
+  repeatEvery_day: "every day", repeatEvery_week: "every week", repeatEvery_month: "every month", repeatEvery_year: "every year",
+  repeatEveryN_day: "every {n} days", repeatEveryN_week: "every {n} weeks", repeatEveryN_month: "every {n} months", repeatEveryN_year: "every {n} years",
+  backAgain: "↻ Back {d}", districtClear: "{place} is all clear. The lights are up!",
+  decorate: "Decorate {place}", decorateChip: "✦ Decorate {place} · {n} coins", coinsSpots: "{c} coins · {s} free spots", fullyDecorated: "This district is fully decorated. Try another one.",
+  nCoins: "{n} coins", buy: "Buy", shopHelp: "Finish tasks to earn coins: 1 for a task or a step, 5 more for a whole quest. In walk mode, step on the coins that burst out of a building.",
+  notEnoughCoins: "Not enough coins yet", noSpot: "No free spot left here", cantBuy: "Can't buy that", decorPlaced: "{item} placed in {place}",
+  item_flowers: "Flower bed", item_bench: "Bench", item_tree: "Tree", item_lamp: "Lantern", item_flag: "Flag", item_fountain: "Fountain",
+  saved: "Saved", movedTo: "Moved to {place}", deleted: "Deleted", undo: "Undo", backupSaved: "Backup saved", stepN: "Step {n}", removeStep: "Remove step", homeSep: "Home › ",
+  walkTip: "Tap where you want to go, or tap a building to walk to its door", inBag: "In your bag", inBagDue: "In your bag · due {d}", suggests: "suggests {place}",
+  noVoice: "Voice input isn't available in this browser", photoInBag: "Photo in your bag", scanSaved: "Scan saved to your bag · suggests Paperwork", sharedIn: "Shared into your bag",
+  scannedDoc: "Scanned document · {n} pages", photoOf: "Photo · {d}", gone: "That item is no longer here",
+  backedUp: "Backed up: {name}", backupFailed: "The backup could not be written. Choose the folder again in the menu.",
+  summaryCopied: "Summary copied to the clipboard", backupExported: "Backup exported", summaryExported: "Summary exported", examplesRemoved: "Example items removed",
+  soundOn: "Sound is on", soundOff: "Sound is off", soundState: "Sound: {s}", on: "on", off: "off", about: "Life Archipelago v{v} · {r}",
+  imported: "Backup imported", notBackup: "That file isn't a Life Archipelago backup", noDetails: "Device details will not be included.",
+  thanksGitHub: "Thank you! Press Submit on GitHub to send it", feedbackCopied: "Feedback copied: paste it in an email or chat",
+  cantStart3d: "This device couldn't start the 3D view. Try updating your browser.", levelUp: "Level up!", reachedLevel: "You reached level {n}", questComplete: "Quest complete!",
+  cityHome: "City · ", sep: " › ", language: "Language: {l}", wantNotifications: "Allow notifications so tasks can remind you on their day.",
+  // static interface (index.html)
+  s_search: "Search", s_menu: "Menu", s_searchPh: "Search items, people, tasks…", s_closeSearch: "Close search", s_close: "Close",
+  s_capturePh: "Drop anything into your bag…", s_capture: "Capture", s_speak: "Speak", s_photo: "Photo", s_scan: "Scan a document", s_openBag: "Open the bag",
+  s_hint: "Tap a building to open it. Drag to move, twist to turn.", s_walk: "Walk in the city", s_turnL: "Turn the view left", s_turnR: "Turn the view right",
+  m_feedback: "Send feedback…", m_share: "Share a summary…", m_autobackup: "Daily backup to a folder…", m_export: "Export backup (JSON)", m_exportmd: "Export notes (Markdown)", m_import: "Import backup…", m_examples: "Remove example items", m_about: "About this version", m_quality: "Graphics: {q}",
+  e_title: "Edit", e_name: "Name", e_kind: "Kind", e_place: "Place", e_due: "Due", e_repeats: "Repeats", e_effort: "Effort", e_steps: "Steps", e_addStep: "+ Add a step", e_link: "Link", e_notes: "Notes", e_delete: "Delete", e_cancel: "Cancel", e_save: "Save",
+  e_never: "Never", e_none: "None", e_nextWeek: "Next week", e_tomorrow: "Tomorrow", k_task: "Task", k_note: "Note", k_item: "Thing", k_link: "Link", k_person: "Person", k_pet: "Pet", k_document: "Document", k_photo: "Photo",
+  r_day: "Every day", r_week: "Every week", r_2week: "Every 2 weeks", r_month: "Every month", r_3month: "Every 3 months", r_6month: "Every 6 months", r_year: "Every year",
+  f_title: "Send feedback", f_idea: "Idea", f_bug: "Something's wrong", f_praise: "I like…", f_ph: "What happened, or what would make this better?", f_details: "Include version and device details", f_github: "Open on GitHub", f_share: "Share…", f_help: "GitHub opens a new issue with this filled in: sign in and press Submit. Or share it by email or chat.",
+  splash: "Lighting up your city…", errTitle: "Give it a name.", errDate: "That date doesn't exist.", errPlace: "Choose a place.",
+  q_light: "light", q_enhanced: "enhanced",
+};
+
+const he = {
+  appName: "Life Archipelago", level: "רמה {n} · חוקר/ת חיים", levelAria: "רמה {n}", today: "היום", openToday: "פתיחת היום",
+  overdueD: "באיחור {n} ימים", dueToday: "היום", tomorrow: "מחר", inDays: "בעוד {n} ימים",
+  nOverdue: "{n} באיחור", nDueSoon: "{n} בקרוב", nOpen: "{n} פתוחות", allClear: "הכול נעשה", allClearCap: "הכול נעשה", nToday: "{n} היום", nThisWeek: "{n} השבוע",
+  overdue: "באיחור", thisWeek: "השבוע", nothingDue: "אין משימות", nothingDueEvening: "אין משימות להיום. ערב נעים.",
+  bagWaiting: "פריט אחד מחכה בתיק", bagWaitingN: "{n} פריטים מחכים בתיק", bagOldest: "הוותיק מחכה כבר {n} ימים.", tapToFileIt: "הקש כדי לסדר אותו", tapToFileThem: "הקש כדי לסדר אותם",
+  backupLine: "גיבוי הנתונים", lastBackup: "גיבוי אחרון {d}.", noBackup: "עוד אין גיבוי.", tapToSave: "הקש כדי לשמור קובץ.",
+  yourBag: "התיק שלך", nThings: "פריט אחד", nThingsN: "{n} פריטים", bagSub: "{n} מחכים. הקש על הצעה כדי לסדר.", nothingWaiting: "שום דבר לא מחכה",
+  bagEmpty: "התיק ריק. הקלד, דבר או צלם למטה; זה יחכה כאן עד שתסדר.", placeEmpty: "עוד אין כאן כלום. הוסף משימה, פריט או הערה למטה.",
+  addTo: "הוספה ל{place}… (נסה “להחליף פילטר עד 20/11”)", add: "הוסף", addedTo: "נוסף ל{place}", placedIn: "סודר ב{place}", wholeHome: "כל הבית",
+  markDone: "סמן כבוצע", doneReopen: "בוצע. הקש כדי לפתוח שוב", edit: "עריכה", editX: "עריכת {t}", effortN: "מאמץ {n}", example: "דוגמה", openLink: "פתיחת {u}",
+  type_task: "משימה", type_note: "הערה", type_item: "חפץ", type_link: "קישור", type_person: "אדם", type_pet: "חיית מחמד", type_document: "מסמך", type_photo: "תמונה",
+  repeatEvery_day: "כל יום", repeatEvery_week: "כל שבוע", repeatEvery_month: "כל חודש", repeatEvery_year: "כל שנה",
+  repeatEveryN_day: "כל {n} ימים", repeatEveryN_week: "כל {n} שבועות", repeatEveryN_month: "כל {n} חודשים", repeatEveryN_year: "כל {n} שנים",
+  backAgain: "↻ חוזרת {d}", districtClear: "ב{place} הכול נעשה. האורות דולקים!",
+  decorate: "קישוט {place}", decorateChip: "✦ קישוט {place} · {n} מטבעות", coinsSpots: "{c} מטבעות · {s} מקומות פנויים", fullyDecorated: "הרובע הזה מקושט עד הסוף. נסה רובע אחר.",
+  nCoins: "{n} מטבעות", buy: "קנה", shopHelp: "מסיימים משימות ומרוויחים מטבעות: 1 למשימה או לשלב, ועוד 5 למשימה שלמה. במצב הליכה, דרוך על המטבעות שקופצים מבניין.",
+  notEnoughCoins: "עוד אין מספיק מטבעות", noSpot: "אין כאן מקום פנוי", cantBuy: "אי אפשר לקנות את זה", decorPlaced: "{item} הוצב ב{place}",
+  item_flowers: "ערוגת פרחים", item_bench: "ספסל", item_tree: "עץ", item_lamp: "פנס", item_flag: "דגל", item_fountain: "מזרקה",
+  saved: "נשמר", movedTo: "הועבר ל{place}", deleted: "נמחק", undo: "ביטול", backupSaved: "הגיבוי נשמר", stepN: "שלב {n}", removeStep: "הסרת שלב", homeSep: "בית › ",
+  walkTip: "הקש איפה ללכת, או על בניין כדי ללכת לדלת שלו", inBag: "בתיק שלך", inBagDue: "בתיק שלך · עד {d}", suggests: "מוצע: {place}",
+  noVoice: "הקלטה קולית לא זמינה בדפדפן הזה", photoInBag: "התמונה בתיק", scanSaved: "הסריקה נשמרה בתיק · מוצע: ניירת", sharedIn: "נשמר בתיק",
+  scannedDoc: "מסמך סרוק · {n} עמודים", photoOf: "תמונה · {d}", gone: "הפריט הזה כבר לא כאן",
+  backedUp: "גובה: {name}", backupFailed: "לא הצלחתי לכתוב את הגיבוי. בחר שוב את התיקייה בתפריט.",
+  summaryCopied: "הסיכום הועתק", backupExported: "הגיבוי יוצא", summaryExported: "הסיכום יוצא", examplesRemoved: "פריטי הדוגמה הוסרו",
+  soundOn: "הצליל פועל", soundOff: "הצליל כבוי", soundState: "צליל: {s}", on: "פועל", off: "כבוי", about: "Life Archipelago גרסה {v} · {r}",
+  imported: "הגיבוי יובא", notBackup: "הקובץ הזה אינו גיבוי של Life Archipelago", noDetails: "פרטי המכשיר לא ייכללו.",
+  thanksGitHub: "תודה! לחץ Submit ב-GitHub כדי לשלוח", feedbackCopied: "המשוב הועתק: הדבק אותו במייל או בצ'אט",
+  cantStart3d: "המכשיר לא הצליח להפעיל את התצוגה התלת-ממדית. נסה לעדכן את הדפדפן.", levelUp: "עלית רמה!", reachedLevel: "הגעת לרמה {n}", questComplete: "המשימה הושלמה!",
+  cityHome: "עיר · ", sep: " ‹ ", language: "שפה: {l}", wantNotifications: "אשר התראות כדי שמשימות יזכירו לך ביום שלהן.",
+  s_search: "חיפוש", s_menu: "תפריט", s_searchPh: "חיפוש פריטים, אנשים, משימות…", s_closeSearch: "סגירת החיפוש", s_close: "סגירה",
+  s_capturePh: "זרוק כל דבר לתיק…", s_capture: "קליטה", s_speak: "דיבור", s_photo: "צילום", s_scan: "סריקת מסמך", s_openBag: "פתיחת התיק",
+  s_hint: "הקש על בניין כדי לפתוח. גרור כדי לזוז, סובב בשתי אצבעות.", s_walk: "הליכה בעיר", s_turnL: "סיבוב המבט שמאלה", s_turnR: "סיבוב המבט ימינה",
+  m_feedback: "שליחת משוב…", m_share: "שיתוף סיכום…", m_autobackup: "גיבוי יומי לתיקייה…", m_export: "ייצוא גיבוי (JSON)", m_exportmd: "ייצוא הערות (Markdown)", m_import: "ייבוא גיבוי…", m_examples: "הסרת פריטי הדוגמה", m_about: "על הגרסה", m_quality: "גרפיקה: {q}",
+  e_title: "עריכה", e_name: "שם", e_kind: "סוג", e_place: "מקום", e_due: "תאריך יעד", e_repeats: "חזרה", e_effort: "מאמץ", e_steps: "שלבים", e_addStep: "+ הוספת שלב", e_link: "קישור", e_notes: "הערות", e_delete: "מחיקה", e_cancel: "ביטול", e_save: "שמירה",
+  e_never: "אף פעם", e_none: "בלי", e_nextWeek: "שבוע הבא", e_tomorrow: "מחר", k_task: "משימה", k_note: "הערה", k_item: "חפץ", k_link: "קישור", k_person: "אדם", k_pet: "חיית מחמד", k_document: "מסמך", k_photo: "תמונה",
+  r_day: "כל יום", r_week: "כל שבוע", r_2week: "כל שבועיים", r_month: "כל חודש", r_3month: "כל 3 חודשים", r_6month: "כל חצי שנה", r_year: "כל שנה",
+  f_title: "שליחת משוב", f_idea: "רעיון", f_bug: "משהו לא עובד", f_praise: "אהבתי…", f_ph: "מה קרה, או מה ישפר את זה?", f_details: "לכלול גרסה ופרטי מכשיר", f_github: "פתיחה ב-GitHub", f_share: "שיתוף…", f_help: "GitHub יפתח דיווח חדש מלא: התחבר ולחץ Submit. או שתף במייל או בצ'אט.",
+  splash: "מדליקים את העיר שלך…", errTitle: "צריך שם.", errDate: "התאריך הזה לא קיים.", errPlace: "בחר מקום.",
+  q_light: "קלה", q_enhanced: "משופרת",
+};
+
+// Built-in places, translated while the owner hasn't renamed them.
+const PLACES = { he: { home: "בית", work: "עבודה", health: "בריאות", family: "משפחה", paperwork: "ניירת", bag: "תיק", living: "סלון", kitchen: "מטבח", bedroom: "חדר שינה", office: "חדר עבודה" } };
+const PLACE_EN = { home: "Home", work: "Work", health: "Health", family: "Family", paperwork: "Paperwork", bag: "Bag", living: "Living room", kitchen: "Kitchen", bedroom: "Bedroom", office: "Office" };
+
+export const DICTS = { en, he };
+export function pickLang(saved, navLang) { if (saved && DICTS[saved]) return saved; return /^(he|iw)/i.test(navLang || "") ? "he" : "en"; }
+export function makeT(lang) {
+  const d = DICTS[lang] || en;
+  return (key, vars = {}) => String(d[key] ?? en[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => (vars[k] ?? `{${k}}`));
+}
+export function placeTitle(id, title, lang) { return PLACES[lang]?.[id] && title === PLACE_EN[id] ? PLACES[lang][id] : title; }

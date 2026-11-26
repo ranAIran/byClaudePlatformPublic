@@ -4,7 +4,7 @@ const COLORS = ["#ffc94d", "#ff9f1c", "#ff7a6b", "#5fe09a", "#6aa9ff", "#ff9fd0"
 const STAR = `<svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M12 2l3 7 7 .6-5.3 4.6 1.6 7L12 17.6 5.7 21.2l1.6-7L2 9.6 9 9z"/></svg>`;
 const reduced = () => !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
-export function createFx({ xpBar, levelBadge, soundOn = () => true }) {
+export function createFx({ xpBar, levelBadge, soundOn = () => true, text = (k, v) => ({ levelUp: "Level up!", reachedLevel: `You reached level ${v?.n}`, questComplete: "Quest complete!" })[k] }) {
   // ----- confetti on one full-screen canvas; the loop only runs while pieces are in the air -----
   const canvas = document.createElement("canvas"); canvas.id = "fx"; canvas.setAttribute("aria-hidden", "true"); document.body.append(canvas);
   const g = canvas.getContext("2d"); let parts = [], raf = 0, lastT = 0, last = null;
@@ -81,7 +81,7 @@ export function createFx({ xpBar, levelBadge, soundOn = () => true }) {
   function levelUp(n, pieces) {
     document.getElementById("levelUp")?.remove();
     const el = document.createElement("div"); el.id = "levelUp"; el.setAttribute("role", "status");
-    el.innerHTML = `<div class="rays"></div><div class="lu-card"><div class="lu-badge">${n}</div><b>Level up!</b><span>You reached level ${n}</span></div>`;
+    el.innerHTML = `<div class="rays"></div><div class="lu-card"><div class="lu-badge">${n}</div><b>${text("levelUp")}</b><span>${text("reachedLevel", { n })}</span></div>`;
     document.body.append(el);
     const close = () => { if (el.classList.contains("out")) return; el.classList.add("out"); setTimeout(() => el.remove(), 300); };
     el.addEventListener("click", close); setTimeout(close, 3000);
@@ -98,7 +98,7 @@ export function createFx({ xpBar, levelBadge, soundOn = () => true }) {
     try { navigator.vibrate?.(c.levelUp ? [25, 50, 25, 50, 40] : c.kind === "quest" ? [20, 40, 30] : c.kind === "step" ? 10 : 18); } catch (e) { /* not allowed */ }
     if (c.levelUp) { burst(x, y, 20); setTimeout(() => levelUp(c.levelUp, c.confetti), 450); }
     else burst(x, y, c.confetti, c.kind === "quest" ? { spread: Math.PI * 1.3, power: 680 } : undefined);
-    if (c.kind === "quest") banner("Quest complete!", `${title} · +${c.xp} XP`);
+    if (c.kind === "quest") banner(text("questComplete"), `${title} · +${c.xp} XP`);
   }
   return { play, burst, chime, banner, confetti: () => parts.length, last: () => last };
 }

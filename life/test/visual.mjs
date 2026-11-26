@@ -206,6 +206,17 @@ await p.tap("#fbGitHub"); await p.waitForTimeout(200);
 const opened = await p.evaluate(() => window.__opened || "");
 const q = opened ? new URL(opened).searchParams : new URLSearchParams();
 check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issues/new?") && q.get("title").includes("Bug: The kitchen label overlaps the fridge") && q.get("body").includes("renderer:"), `R16 feedback opens a prefilled GitHub issue (${q.get("title")})`);
+// R37 · the interface in Hebrew, right to left; and back to English.
+{
+  await p.tap("#menuBtn"); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(500);
+  const he = await p.evaluate(() => ({ dir: document.documentElement.dir, pill: document.querySelector(".pill.today")?.innerText || "", ph: document.getElementById("capInput").placeholder, label: [...document.querySelectorAll(".lbl .nm")].map((x) => x.textContent) }));
+  await p.evaluate(() => window.__life.ui.openSheet("today")); await p.waitForTimeout(400);
+  await p.screenshot({ path: `${out}/v-hebrew.png` });
+  await p.evaluate(() => window.__life.ui.closeSheet()); await p.waitForTimeout(400);
+  await p.tap("#menuBtn"); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(400);
+  const en = await p.evaluate(() => document.documentElement.dir);
+  check(he.dir === "rtl" && /היום/.test(he.pill) && /תיק/.test(he.ph) && he.label.includes("ניירת") && en === "ltr", `R37 the menu switches to Hebrew (right to left) and back (${he.pill.replace(/\s+/g, " ")}, ${he.label.join(", ")})`);
+}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
   const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp() }; });

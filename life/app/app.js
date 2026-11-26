@@ -17,6 +17,7 @@ import { todayList } from "./core/today.js";
 import { describeRepeat } from "./core/repeat.js";
 import { reminderList } from "./core/reminders.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "./core/shop.js";
+import { LANGS, makeT, pickLang, placeTitle } from "./core/i18n.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
@@ -25,14 +26,17 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.4.4";
+export const VERSION = "0.5.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
 const store = createStore(saved);
+// R37 · language: follows the device unless chosen in the menu.
+let lang = pickLang((() => { try { return localStorage.getItem("life-lang"); } catch (e) { return null; } })(), navigator.language);
+let t = makeT(lang);
 const ISL_COLOR = { home: "#ffc94d", work: "#b48cff", health: "#4ee08a", family: "#ff8fb1", paperwork: "#7ad1ff" };
 const ROOMS = ["living", "kitchen", "bedroom", "office"];
-const title = (id) => store.get(id)?.title || id;
+const title = (id) => { const n = store.get(id); return n ? placeTitle(id, n.title, lang) : id; };
 const islandOf = (id) => { const p = [id, ...store.path(id)].find((x) => ISL_COLOR[x]); return p || store.path(id)[0] || null; };
 
 // ---------- example content on first run ----------
@@ -65,7 +69,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.AgXToneMapping; renderer.toneMappingExposure = 1.15;
 $("stage").append(renderer.domElement);
-try { await renderer.init(); } catch (e) { $("splashMsg").textContent = "This device couldn't start the 3D view. Try updating your browser."; throw e; }
+try { await renderer.init(); } catch (e) { $("splashMsg").textContent = t("cantStart3d"); throw e; }
 const backendName = renderer.backend?.isWebGPUBackend ? "WebGPU" : "WebGL2";
 
 // Post-processing with its own screen quad per world. THREE.PostProcessing (r170) shares one quad and
@@ -104,7 +108,7 @@ const PLACE_ICON = {
 const pIcon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${PLACE_ICON[id] || PLACE_ICON.home}"/></svg>`;
 for (const d of map.isles) {
   const el = document.createElement("button"); el.className = "lbl";
-  el.innerHTML = `<b><i style="background:${ISL_COLOR[d.id]}">${pIcon(d.id)}</i>${d.name}</b><span class="badge"></span>`;
+  el.innerHTML = `<b><i style="background:${ISL_COLOR[d.id]}">${pIcon(d.id)}</i><span class="nm">${d.name}</span></b><span class="badge"></span>`;
   el.addEventListener("click", () => (mode === "walk" && view === "map" && W.arrived !== d.id ? walkTo(map.walk.doors[d.id]) : openIsland(d.id)));
   el.userData = new THREE.Vector3(d.pos[0], d.labelY, d.pos[1]);
   $("labels").append(el); labelEls[d.id] = el;
@@ -128,25 +132,28 @@ function hp() {
   const done = store.descendants("health").filter((n) => n.type === "task" && n.done && Date.parse(n.updated) > week).length;
   return Math.min(100, 70 + done * 6);
 }
+const repeatText = (r) => (r.every === 1 ? t("repeatEvery_" + r.unit) : t("repeatEveryN_" + r.unit, { n: r.every }));
+const isLate = (iso) => !!iso && iso < isoDate(new Date());
 function dueText(iso) {
   if (!iso) return "";
   const d = Math.round((Date.parse(iso) - Date.parse(isoDate(new Date()))) / 864e5);
-  if (d < 0) return `overdue ${-d}d`; if (d === 0) return "today"; if (d === 1) return "tomorrow"; if (d < 7) return `in ${d} days`;
-  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  if (d < 0) return t("overdueD", { n: -d }); if (d === 0) return t("dueToday"); if (d === 1) return t("tomorrow"); if (d < 7) return t("inDays", { n: d });
+  return new Date(iso).toLocaleDateString(lang === "he" ? "he-IL" : undefined, { day: "numeric", month: "short" });
 }
 function renderHud() {
   const L = store.level();
-  $("lvl").textContent = L.level; $("lvlName").textContent = `Level ${L.level} · Life explorer`; $("lvl").setAttribute("aria-label", `Level ${L.level}`);
+  $("lvl").textContent = L.level; $("lvlName").textContent = t("level", { n: L.level }); $("lvl").setAttribute("aria-label", t("levelAria", { n: L.level }));
   $("coinTxt").textContent = store.coins();
   $("xpBar").style.width = `${(100 * L.into) / L.need}%`; $("xpTxt").textContent = `${L.into}/${L.need}`;
   const h = hp(); $("hpBar").style.width = h + "%"; $("hpTxt").textContent = h;
-  $("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  $("today").textContent = new Date().toLocaleDateString(lang === "he" ? "he-IL" : undefined, { weekday: "short", day: "numeric", month: "short" });
   const open = store.all().filter((n) => n.type === "task" && !n.done && n.parent !== "bag").sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 4);
   const td = todayList(store), late = td.overdue.length, due = late + td.today.length;
-  $("quests").innerHTML = `<button class="pill today ${late ? "late" : ""}" data-today="1"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Today${due ? ` <b>${due}</b>` : ""}</button>` + open.map((n) => `<button class="pill" data-id="${n.id}"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span class="due ${dueText(n.due).startsWith("overdue") ? "late" : ""}">${dueText(n.due)}</span>` : ""}</button>`).join("");
+  $("quests").innerHTML = `<button class="pill today ${late ? "late" : ""}" data-today="1"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>${t("today")}${due ? ` <b>${due}</b>` : ""}</button>` + open.map((n) => `<button class="pill" data-id="${n.id}"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span class="due ${isLate(n.due) ? "late" : ""}">${dueText(n.due)}</span>` : ""}</button>`).join("");
   for (const [id, el] of Object.entries(labelEls)) {
     const md = districtMood(store, id), badge = el.querySelector(".badge");
-    badge.textContent = md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : md.open ? `${md.open} open` : "all clear";
+    badge.textContent = md.overdue ? t("nOverdue", { n: md.overdue }) : md.soon ? t("nDueSoon", { n: md.soon }) : md.open ? t("nOpen", { n: md.open }) : t("allClear");
+    el.querySelector(".nm").textContent = title(id);
     el.dataset.state = md.overdue ? "overdue" : md.soon ? "soon" : md.open ? "open" : "clear";
     badge.style.background = el.dataset.state === "open" ? ISL_COLOR[id] : "";
     map.setMood(id, md.state);
@@ -159,7 +166,7 @@ $("today").addEventListener("click", () => openToday());
 
 // ---------- R26 · celebrations ----------
 let sound = true; try { sound = localStorage.getItem("life-sound") !== "off"; } catch (e) { /* storage unavailable */ }
-const fx = createFx({ xpBar: $("xpBar"), levelBadge: $("lvl"), soundOn: () => sound });
+const fx = createFx({ xpBar: $("xpBar"), levelBadge: $("lvl"), soundOn: () => sound, text: (k, v) => t(k, v) });
 let justDone = null; const pendingCoins = {};
 // Finish something through `act` (which returns the XP gained) and play the celebration it earned.
 function finish(id, from, act, { isStep = false } = {}) {
@@ -167,10 +174,10 @@ function finish(id, from, act, { isStep = false } = {}) {
   justDone = id; const gained = act(); const after = store.get(id);
   const c = celebrationFor({ gained, isStep, questDone: isStep && !!after?.done, levelBefore, levelAfter: store.level().level });
   fx.play(c, from, { title: n.title });
-  if (c && after?.repeat && after.due) setTimeout(() => toast(`↻ Back ${dueText(after.due)}`), 1300);
+  if (c && after?.repeat && after.due) setTimeout(() => toast(t("backAgain", { d: dueText(after.due) })), 1300);
   const place = islandOf(id);
   if (c && map.walk.doors[place]) pendingCoins[place] = Math.min(40, (pendingCoins[place] || 0) + (c.levelUp ? 30 : c.kind === "quest" ? 20 : c.kind === "task" ? 9 : 4));
-  if (c && !wasClear && place && districtMood(store, place).state === "clear") setTimeout(() => toast(`${title(place)} is all clear. The lights are up!`), c.levelUp ? 3400 : 900);
+  if (c && !wasClear && place && districtMood(store, place).state === "clear") setTimeout(() => toast(t("districtClear", { place: title(place) })), c.levelUp ? 3400 : 900);
   setTimeout(() => { if (justDone === id) justDone = null; }, 700);
 }
 
@@ -185,23 +192,23 @@ const TYPE_ICON = {
 const svgIcon = (t) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;color:var(--muted)"><path d="${TYPE_ICON[t] || TYPE_ICON.note}"/></svg>`;
 let sheetFor = null;
 function itemHtml(n, { bag = false, where = "" } = {}) {
-  const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? "Done. Tap to reopen" : "Mark as done"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
+  const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? t("doneReopen") : t("markDone")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
-  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="font-weight:700;color:${dueText(n.due).startsWith("overdue") ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.repeat ? `↻ ${describeRepeat(n.repeat)}` : "", n.effort > 1 ? `effort ${n.effort}` : "", where ? esc(where) : "", n.tags.includes("example") ? "example" : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
+  const meta = [n.type !== "task" ? t("type_" + n.type) : "", n.due ? `<span style="font-weight:700;color:${isLate(n.due) ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.repeat ? `↻ ${repeatText(n.repeat)}` : "", n.effort > 1 ? t("effortN", { n: n.effort }) : "", where ? esc(where) : "", n.tags.includes("example") ? t("example") : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
-  const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">Open ${esc(n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32))}</button>` : "";
+  const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">${esc(t("openLink", { u: n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32) }))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
-  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="Edit ${esc(n.title)}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="Edit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
+  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="${esc(t("editX", { t: n.title }))}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="${t("edit")}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
 }
 // R36 · the shop: coins buy decorations that appear in the district.
 function openShop(district) {
   sheetFor = "shop:" + district; $("sheet").hidden = false; document.body.classList.add("sheet-open"); $("sheetTabs").hidden = true;
-  $("sheetTitle").textContent = `Decorate ${title(district)}`; $("sheetDot").style.background = ISL_COLOR[district]; $("sheetDot").innerHTML = pIcon(district);
+  $("sheetTitle").textContent = t("decorate", { place: title(district) }); $("sheetDot").style.background = ISL_COLOR[district]; $("sheetDot").innerHTML = pIcon(district);
   const used = decorationsFor(store, district).length, coins = store.coins();
-  $("sheetSub").textContent = `${coins} coin${coins === 1 ? "" : "s"} · ${SLOTS - used} free spot${SLOTS - used === 1 ? "" : "s"}`;
-  $("sheetBody").innerHTML = (used >= SLOTS ? `<div class="empty">This district is fully decorated. Try another one.</div>` : "") + CATALOG.map((c) =>
-    `<div class="item shopitem"><span class="sec-ic">${SHOP_ICON[c.id] || ""}</span><div class="main"><div class="t" style="cursor:default">${esc(c.name)}</div><div class="meta">${c.price} coins</div></div><button class="btn ${coins >= c.price && used < SLOTS ? "primary" : ""}" data-act="buy" data-item="${c.id}" data-district="${district}" ${coins >= c.price && used < SLOTS ? "" : "disabled"} style="padding:8px 14px">Buy</button></div>`).join("")
-    + `<p class="muted" style="font-size:12.5px;margin:4px 2px">Finish tasks to earn coins: 1 for a task or a step, 5 more for a whole quest. In walk mode, step on the coins that burst out of a building.</p>`;
+  $("sheetSub").textContent = t("coinsSpots", { c: coins, s: SLOTS - used });
+  $("sheetBody").innerHTML = (used >= SLOTS ? `<div class="empty">${t("fullyDecorated")}</div>` : "") + CATALOG.map((c) =>
+    `<div class="item shopitem"><span class="sec-ic">${SHOP_ICON[c.id] || ""}</span><div class="main"><div class="t" style="cursor:default">${esc(t("item_" + c.id))}</div><div class="meta">${t("nCoins", { n: c.price })}</div></div><button class="btn ${coins >= c.price && used < SLOTS ? "primary" : ""}" data-act="buy" data-item="${c.id}" data-district="${district}" ${coins >= c.price && used < SLOTS ? "" : "disabled"} style="padding:8px 14px">${t("buy")}</button></div>`).join("")
+    + `<p class="muted" style="font-size:12.5px;margin:4px 2px">${t("shopHelp")}</p>`;
 }
 const SHOP_ICON = {
   flowers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M12 11v9M8 16c2 0 4 1 4 4M16 16c-2 0-4 1-4 4"/></svg>',
@@ -216,36 +223,36 @@ for (const d of store.decorations()) map.placeDecor(d.district, d.slot, d.item);
 // R34 · Today: overdue, today and this week in one list.
 function openToday() {
   sheetFor = "today"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
-  const t = todayList(store), n = t.overdue.length + t.today.length + t.week.length;
-  $("sheetTitle").textContent = "Today"; $("sheetDot").style.background = "#ffc94d";
+  const L = todayList(store), n = L.overdue.length + L.today.length + L.week.length;
+  $("sheetTitle").textContent = t("today"); $("sheetDot").style.background = "#ffc94d";
   $("sheetDot").innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>`;
-  $("sheetSub").textContent = n ? [t.overdue.length ? `${t.overdue.length} overdue` : "", t.today.length ? `${t.today.length} today` : "", t.week.length ? `${t.week.length} this week` : ""].filter(Boolean).join(" · ") : "Nothing due";
+  $("sheetSub").textContent = n ? [L.overdue.length ? t("nOverdue", { n: L.overdue.length }) : "", L.today.length ? t("nToday", { n: L.today.length }) : "", L.week.length ? t("nThisWeek", { n: L.week.length }) : ""].filter(Boolean).join(" · ") : t("nothingDue");
   $("sheetTabs").hidden = true;
-  const sec = (label, list, cls) => list.length ? `<div class="sec ${cls}">${label}</div>` + list.map((x) => { const node = store.get(x.id); return itemHtml(node, { where: x.where }); }).join("") : "";
-  $("sheetBody").innerHTML = (t.empty ? `<div class="empty">Nothing due. Enjoy the evening.</div>` : sec("Overdue", t.overdue, "late") + sec("Today", t.today, "") + sec("This week", t.week, ""))
-    + (!bridge.canBackup && store.all().filter((x) => !x.system).length > 3 && exportReminderDue(lsGet("life-backup-last")) ? `<button class="item bagline" data-act="backup"><span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg></span><div class="main"><div class="t">Back up your life</div><div class="meta">${lsGet("life-backup-last") ? `Last backup ${lsGet("life-backup-last")}` : "No backup yet"}. Tap to save a file.</div></div></button>` : "")
-    + (t.bag ? `<button class="item bagline" data-act="openbag"><span class="sec-ic">${pIcon("bag")}</span><div class="main"><div class="t">${t.bag} thing${t.bag === 1 ? "" : "s"} waiting in your bag</div><div class="meta">${t.bagDays > 3 ? `<span style="color:var(--bad);font-weight:700">The oldest has waited ${t.bagDays} days.</span> ` : ""}Tap to file ${t.bag === 1 ? "it" : "them"}</div></div></button>` : "");
+  const sec = (label, list, cls) => list.length ? `<div class="sec ${cls}">${label}</div>` + list.map((x) => { const node = store.get(x.id); return itemHtml(node, { where: x.path.map(title).join(t("sep")) }); }).join("") : "";
+  $("sheetBody").innerHTML = (L.empty ? `<div class="empty">${t("nothingDueEvening")}</div>` : sec(t("overdue"), L.overdue, "late") + sec(t("today"), L.today, "") + sec(t("thisWeek"), L.week, ""))
+    + (!bridge.canBackup && store.all().filter((x) => !x.system).length > 3 && exportReminderDue(lsGet("life-backup-last")) ? `<button class="item bagline" data-act="backup"><span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg></span><div class="main"><div class="t">${t("backupLine")}</div><div class="meta">${lsGet("life-backup-last") ? t("lastBackup", { d: lsGet("life-backup-last") }) : t("noBackup")} ${t("tapToSave")}</div></div></button>` : "")
+    + (L.bag ? `<button class="item bagline" data-act="openbag"><span class="sec-ic">${pIcon("bag")}</span><div class="main"><div class="t">${t(L.bag === 1 ? "bagWaiting" : "bagWaitingN", { n: L.bag })}</div><div class="meta">${L.bagDays > 3 ? `<span style="color:var(--bad);font-weight:700">${t("bagOldest", { n: L.bagDays })}</span> ` : ""}${t(L.bag === 1 ? "tapToFileIt" : "tapToFileThem")}</div></div></button>` : "");
 }
 function openSheet(id) {
   if (id === "today") return openToday();
   if (String(id).startsWith("shop:")) return openShop(id.slice(5));
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
   const isBag = id === "bag";
-  $("sheetTitle").textContent = isBag ? "Your bag" : title(id);
+  $("sheetTitle").textContent = isBag ? t("yourBag") : title(id);
   $("sheetDot").style.background = isBag ? "#ffc94d" : ISL_COLOR[islandOf(id)] || "#ffc94d"; $("sheetDot").innerHTML = pIcon(isBag ? "bag" : id);
   document.body.classList.add("sheet-open");
   const tabs = $("sheetTabs"); tabs.hidden = view !== "home" || isBag;
-  if (!tabs.hidden) tabs.innerHTML = ROOMS.map((r) => `<button class="chip ${r === id ? "on" : ""}" data-room="${r}">${esc(title(r))} · ${store.children(r).length}</button>`).join("") + `<button class="chip ${id === "home" ? "on" : ""}" data-room="home">Whole home</button>`;
+  if (!tabs.hidden) tabs.innerHTML = ROOMS.map((r) => `<button class="chip ${r === id ? "on" : ""}" data-room="${r}">${esc(title(r))} · ${store.children(r).length}</button>`).join("") + `<button class="chip ${id === "home" ? "on" : ""}" data-room="home">${t("wholeHome")}</button>`;
   const list = (id === "home" ? store.children("home").filter((n) => n.type !== "place") : store.children(id)).filter((n) => n.type !== "place");
   list.sort((a, b) => (a.done - b.done) || ((a.type === "task") === (b.type === "task") ? 0 : a.type === "task" ? -1 : 1) || (a.due || "9999").localeCompare(b.due || "9999"));
-  const md = districtMood(store, id), things = list.filter((n) => n.type !== "task").length, plural = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
-  $("sheetSub").textContent = isBag ? (list.length ? `${plural(list.length, "thing")} waiting. Tap a suggestion to file it.` : "Nothing waiting")
-    : [md.open ? `${md.open} open` : "All clear", md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : "", things ? plural(things, "thing") : ""].filter(Boolean).join(" · ");
+  const md = districtMood(store, id), things = list.filter((n) => n.type !== "task").length, nThings = (k) => t(k === 1 ? "nThings" : "nThingsN", { n: k });
+  $("sheetSub").textContent = isBag ? (list.length ? t("bagSub", { n: list.length }) : t("nothingWaiting"))
+    : [md.open ? t("nOpen", { n: md.open }) : t("allClearCap"), md.overdue ? t("nOverdue", { n: md.overdue }) : md.soon ? t("nDueSoon", { n: md.soon }) : "", things ? nThings(things) : ""].filter(Boolean).join(" · ");
   const shopFor = ISL_COLOR[id] ? id : null;
-  const empty = isBag ? "Your bag is empty. Type, speak or snap a photo below; it waits here until you place it." : "Nothing here yet. Add a task, item or note below.";
+  const empty = isBag ? t("bagEmpty") : t("placeEmpty");
   $("sheetBody").innerHTML = (list.length ? list.map((n) => itemHtml(n, { bag: isBag })).join("") : `<div class="empty">${empty}</div>`) +
-    (shopFor ? `<button class="chip decorate" data-act="shop" data-district="${shopFor}">✦ Decorate ${esc(title(shopFor))} · ${store.coins()} coins</button>` : "") +
-    (isBag ? "" : `<form class="addrow" data-to="${id}"><input placeholder="Add to ${esc(title(id))}… (try “change filter by 20/11”)"><button class="btn primary" style="padding:10px 14px">Add</button></form>`);
+    (shopFor ? `<button class="chip decorate" data-act="shop" data-district="${shopFor}">${esc(t("decorateChip", { place: title(shopFor), n: store.coins() }))}</button>` : "") +
+    (isBag ? "" : `<form class="addrow" data-to="${id}"><input placeholder="${esc(t("addTo", { place: title(id) }))}"><button class="btn primary" style="padding:10px 14px">${t("add")}</button></form>`);
 }
 const refreshSheet = () => { if (sheetFor && !$("sheet").hidden) openSheet(sheetFor); };
 function closeSheet() { $("sheet").hidden = true; sheetFor = null; document.body.classList.remove("sheet-open"); releaseCoins(); }
@@ -253,7 +260,7 @@ $("sheetClose").addEventListener("click", closeSheet);
 $("sheetTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-room]"); if (b) { if (b.dataset.room === "home") openSheet("home"); else selectRoom(b.dataset.room); } });
 $("sheetBody").addEventListener("submit", (e) => {
   e.preventDefault(); const f = e.target.closest("form"); const inp = f.querySelector("input"); const v = inp.value.trim(); if (!v) return;
-  const id = store.capture(v); store.place(id, f.dataset.to); inp.value = ""; toast(`Added to ${title(f.dataset.to)}`);
+  const id = store.capture(v); store.place(id, f.dataset.to); inp.value = ""; toast(t("addedTo", { place: title(f.dataset.to) }));
 });
 $("sheetBody").addEventListener("click", async (e) => {
   const b = e.target.closest("[data-act]"); if (!b) return;
@@ -261,7 +268,7 @@ $("sheetBody").addEventListener("click", async (e) => {
   const from = b.getBoundingClientRect();
   if (b.dataset.act === "toggle") { if (n.done) store.reopen(id); else finish(id, from, () => store.complete(id)); }
   if (b.dataset.act === "step") finish(id, from, () => store.completeStep(id, +b.dataset.i), { isStep: true });
-  if (b.dataset.act === "place") { store.place(id, b.dataset.to); toast(`Placed in ${title(b.dataset.to)}`); }
+  if (b.dataset.act === "place") { store.place(id, b.dataset.to); toast(t("placedIn", { place: title(b.dataset.to) })); }
   if (b.dataset.act === "open") bridge.openExternal(b.dataset.url);
   if (b.dataset.act === "photo") { const src = await media.getImage(n.images[0]); if (src) showPhoto(src); }
   if (b.dataset.act === "edit") openEditor(id);
@@ -269,12 +276,12 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "shop") openShop(b.dataset.district);
   if (b.dataset.act === "buy") {
     const r = buy(store, b.dataset.district, b.dataset.item);
-    if (!r.ok) { toast(r.reason === "coins" ? "Not enough coins yet" : r.reason === "full" ? "No free spot left here" : "Can't buy that"); return; }
+    if (!r.ok) { toast(t(r.reason === "coins" ? "notEnoughCoins" : r.reason === "full" ? "noSpot" : "cantBuy")); return; }
     const g = map.placeDecor(b.dataset.district, r.slot, b.dataset.item, true); walker.invalidate(); fx.chime([659.25, 987.77]);
-    toast(`${r.item.name} placed in ${title(b.dataset.district)}`); closeSheet();
+    toast(t("decorPlaced", { item: t("item_" + r.item.id), place: title(b.dataset.district) })); closeSheet();
     if (view === "map" && g) { map.pan.set(0, 0, 0); map.pan.x = g.position.x - map.cam.userData.target.x; map.pan.z = g.position.z - map.cam.userData.target.z; map.v.zoom = Math.max(map.v.zoom, 1.6); }
   }
-  if (b.dataset.act === "backup") { const d = isoDate(new Date()); bridge.saveFile(`life-backup-${d}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", d); toast("Backup saved"); refreshSheet(); }
+  if (b.dataset.act === "backup") { const d = isoDate(new Date()); bridge.saveFile(`life-backup-${d}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", d); toast(t("backupSaved")); refreshSheet(); }
 });
 
 // ---------- R33 · edit an item ----------
@@ -282,18 +289,18 @@ let editing = null;
 const isoIn = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return isoDate(d); };
 function openEditor(id) {
   const n = store.get(id); if (!n) return; editing = id;
-  const opts = placeChoices(store).map((p) => `<option value="${p.id}" ${p.id === n.parent ? "selected" : ""}>${p.kind === "room" ? "Home › " : ""}${esc(p.title)}</option>`).join("");
+  const opts = placeChoices(store).map((p) => `<option value="${p.id}" ${p.id === n.parent ? "selected" : ""}>${p.kind === "room" ? esc(t("homeSep")) : ""}${esc(title(p.id))}</option>`).join("");
   $("edTitle").value = n.title; $("edDue").value = n.due || ""; $("edNotes").value = n.notes || ""; $("edUrl").value = n.url || ""; $("edPlace").innerHTML = opts;
   $("edType").value = ["task", "note", "item", "link", "person", "pet", "document", "photo"].includes(n.type) ? n.type : "note";
   setEffort(n.effort || 1); renderSteps((n.steps || []).map((st, i) => ({ from: i, title: st.title, done: st.done })));
   const rv = n.repeat ? `${n.repeat.every}:${n.repeat.unit}` : "";
-  if (rv && ![...$("edRepeat").options].some((o) => o.value === rv)) $("edRepeat").add(new Option(describeRepeat(n.repeat).replace(/^e/, "E"), rv));
+  if (rv && ![...$("edRepeat").options].some((o) => o.value === rv)) $("edRepeat").add(new Option(repeatText(n.repeat), rv));
   $("edRepeat").value = rv;
   $("edError").textContent = ""; $("editor").hidden = false; editorTypeChanged();
 }
 function setEffort(v) { $("edEffort").dataset.v = v; for (const b of $("edEffort").children) b.classList.toggle("on", +b.dataset.v === v); }
 function renderSteps(list) {
-  $("edSteps").innerHTML = list.map((st, i) => `<div class="edstep" data-from="${st.from ?? ""}"><i class="${st.done ? "on" : ""}"></i><input value="${esc(st.title)}" aria-label="Step ${i + 1}"><button type="button" class="x ghost" data-act="rmstep" aria-label="Remove step">✕</button></div>`).join("");
+  $("edSteps").innerHTML = list.map((st, i) => `<div class="edstep" data-from="${st.from ?? ""}"><i class="${st.done ? "on" : ""}"></i><input value="${esc(st.title)}" aria-label="${t("stepN", { n: i + 1 })}"><button type="button" class="x ghost" data-act="rmstep" aria-label="${t("removeStep")}">✕</button></div>`).join("");
 }
 function readSteps() { return [...$("edSteps").children].map((r) => ({ from: r.dataset.from === "" ? null : +r.dataset.from, title: r.querySelector("input").value, done: r.querySelector("i").classList.contains("on") })); }
 function editorTypeChanged() { const task = $("edType").value === "task"; for (const id of ["edDueRow", "edEffortRow", "edStepsRow", "edRepeatRow"]) $(id).hidden = !task; $("edUrlRow").hidden = $("edType").value !== "link" && !$("edUrl").value; }
@@ -311,11 +318,11 @@ $("editorForm").addEventListener("submit", (e) => {
   const form = { title: $("edTitle").value, notes: $("edNotes").value, type: $("edType").value, parent: $("edPlace").value, url: $("edUrl").value };
   if (task) Object.assign(form, { due: $("edDue").value, effort: +$("edEffort").dataset.v, steps: readSteps(), repeat: rp ? { every: +rp.split(":")[0], unit: rp.split(":")[1] } : null });
   const r = applyEdit(store, editing, form);
-  if (!r.ok) { $("edError").textContent = r.error; $(r.field === "due" ? "edDue" : r.field === "parent" ? "edPlace" : "edTitle")?.focus(); return; }
-  const moved = store.get(editing).parent; closeEditor(); toast("Saved");
-  if (sheetFor && moved !== sheetFor && sheetFor !== "home") toast(`Moved to ${title(moved)}`);
+  if (!r.ok) { $("edError").textContent = t(r.field === "due" ? "errDate" : r.field === "parent" ? "errPlace" : "errTitle"); $(r.field === "due" ? "edDue" : r.field === "parent" ? "edPlace" : "edTitle")?.focus(); return; }
+  const moved = store.get(editing).parent; closeEditor(); toast(t("saved"));
+  if (sheetFor && moved !== sheetFor && sheetFor !== "home") toast(t("movedTo", { place: title(moved) }));
 });
-$("edDelete").addEventListener("click", () => { const n = store.get(editing); if (!n) return; const copy = { ...n }; closeEditor(); store.remove(copy.id); toast("Deleted", () => store.add(copy)); });
+$("edDelete").addEventListener("click", () => { const n = store.get(editing); if (!n) return; const copy = { ...n }; closeEditor(); store.remove(copy.id); toast(t("deleted"), () => store.add(copy)); });
 function showPhoto(src) {
   const o = document.createElement("div"); o.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.88);display:grid;place-items:center;z-index:20";
   o.innerHTML = `<img src="${src}" style="max-width:96%;max-height:90%;border-radius:12px">`; o.addEventListener("click", () => o.remove()); document.body.append(o);
@@ -426,7 +433,7 @@ function setWalk(on) {
   mode = on ? "walk" : "overview"; const v = map.v;
   $("walkBtn").classList.toggle("on", on); $("walkBtn").setAttribute("aria-pressed", on); map.doorMarks.visible = on; document.body.classList.toggle("walking", on);
   W.path = null; W.keys.clear(); closeSheet(); hideHint();
-  if (on) { W.back = { pitch: v.pitch, yaw: v.yaw }; W.arrived = nearDoor(); v.pitchGoal = 0.36; map.zoomGoal = 1; if (!W.told) { W.told = true; toast("Tap where you want to go, or tap a building to walk to its door"); } }
+  if (on) { W.back = { pitch: v.pitch, yaw: v.yaw }; W.arrived = nearDoor(); v.pitchGoal = 0.36; map.zoomGoal = 1; if (!W.told) { W.told = true; toast(t("walkTip")); } }
   else { v.pitchGoal = W.back?.pitch ?? v.pitch; if (W.back) v.yawGoal = v.yaw + turn(v.yaw, W.back.yaw); map.zoomGoal = 1; me.userData.state = null; }
 }
 function walkTo(pt) { if (pt) W.path = walker.route(me.position.x, me.position.z, pt[0], pt[1]); }
@@ -501,7 +508,7 @@ function physicsTick(dt) {
 $("capForm").addEventListener("submit", (e) => {
   e.preventDefault(); const v = $("capInput").value.trim(); if (!v) return;
   const id = store.capture(v); $("capInput").value = "";
-  const n = store.get(id); toast(`In your bag${n.due ? ` · due ${dueText(n.due)}` : ""} · suggests ${title(n.suggest[0])}`);
+  const n = store.get(id); toast(`${n.due ? t("inBagDue", { d: dueText(n.due) }) : t("inBag")} · ${t("suggests", { place: title(n.suggest[0]) })}`);
   bounceBag();
 });
 const bounceBag = () => $("bagBtn").animate([{ transform: "translateX(-50%) scale(1)" }, { transform: "translateX(-50%) scale(1.18)" }, { transform: "translateX(-50%) scale(1)" }], { duration: 380 });
@@ -510,7 +517,7 @@ const speechLang = () => (/^he|^iw/.test(navigator.language) ? "he-IL" : "en-US"
 let rec = null;
 $("micBtn").addEventListener("click", () => {
   if (bridge.canNativeVoice) { bridge.voice(speechLang()); return; }
-  if (!SR) { toast("Voice input isn't available in this browser"); return; }
+  if (!SR) { toast(t("noVoice")); return; }
   if (rec) { rec.stop(); return; }
   rec = new SR(); rec.lang = speechLang(); rec.interimResults = true;
   $("micBtn").classList.add("live");
@@ -522,20 +529,20 @@ $("camBtn").addEventListener("click", () => $("photoInput").click());
 $("photoInput").addEventListener("change", async () => {
   const f = $("photoInput").files[0]; $("photoInput").value = ""; if (!f) return;
   const { images, thumb } = await media.storeImages([await media.fileToDataURL(f)]);
-  store.add({ type: "photo", title: `Photo · ${new Date().toLocaleDateString()}`, images, thumb, parent: "bag", suggest: ["home", "paperwork", "living"] });
-  toast("Photo in your bag"); bounceBag();
+  store.add({ type: "photo", title: t("photoOf", { d: new Date().toLocaleDateString(lang === "he" ? "he-IL" : undefined) }), images, thumb, parent: "bag", suggest: ["home", "paperwork", "living"] });
+  toast(t("photoInBag")); bounceBag();
 });
 $("scanBtn").addEventListener("click", () => bridge.scan());
 async function onScan(res) {
   const pages = res?.pages || []; if (!pages.length) return;
   const { images, thumb } = await media.storeImages(pages);
-  store.add({ type: "document", title: `Scanned document · ${pages.length} page${pages.length > 1 ? "s" : ""}`, images, thumb, parent: "bag", suggest: ["paperwork", "home", "work"], notes: "" });
-  toast("Scan saved to your bag · suggests Paperwork"); openSheet("bag");
+  store.add({ type: "document", title: t("scannedDoc", { n: pages.length }), images, thumb, parent: "bag", suggest: ["paperwork", "home", "work"], notes: "" });
+  toast(t("scanSaved")); openSheet("bag");
 }
 async function onShare(p) {
   const n = shareToNode(p || {});
   if (n.images?.length) Object.assign(n, await media.storeImages(n.images));
-  store.add(n); toast("Shared into your bag"); openSheet("bag");
+  store.add(n); toast(t("sharedIn")); openSheet("bag");
 }
 function onVoice(text) { if (!text) return; $("capInput").value = text; $("capForm").requestSubmit(); }
 function onBack() {
@@ -551,9 +558,9 @@ function onBack() {
 function onLink(url) {
   const a = parseDeepLink(url); if (!a) return;
   closeSheet(); $("searchBox").hidden = true; $("menu").hidden = true;
-  if (a.action === "add") { const id = store.capture(a.text); const n = store.get(id); toast(`In your bag${n.due ? ` · due ${dueText(n.due)}` : ""}`); bounceBag(); }
+  if (a.action === "add") { const id = store.capture(a.text); const n = store.get(id); toast(n.due ? t("inBagDue", { d: dueText(n.due) }) : t("inBag")); bounceBag(); }
   if (a.action === "capture") setTimeout(() => $("capInput").focus(), 300);
-  if (a.action === "open") { if (store.get(a.id)) openFor(a.id); else toast("That item is no longer here"); }
+  if (a.action === "open") { if (store.get(a.id)) openFor(a.id); else toast(t("gone")); }
   if (a.action === "place") { if (store.get(a.id)?.type === "place") openFor(a.id); }
   if (a.action === "today") openToday();
   if (a.action === "scan") bridge.scan();
@@ -561,7 +568,7 @@ function onLink(url) {
 }
 // R20 · backups: daily into a folder on the phone; a monthly reminder to export on the web.
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } };
-function onBackup(ok, name) { if (ok) { lsSet("life-backup-last", isoDate(new Date())); if (backupAsked) toast(`Backed up: ${name}`); } else toast("The backup could not be written. Choose the folder again in the menu."); backupAsked = false; }
+function onBackup(ok, name) { if (ok) { lsSet("life-backup-last", isoDate(new Date())); if (backupAsked) toast(t("backedUp", { name })); } else toast(t("backupFailed")); backupAsked = false; }
 let backupAsked = false;
 const bridge = initBridge({ onShare, onScan, onVoice, onBack, onLink, onBackup, onError: (m) => toast(m) });
 function autoBackup() { if (bridge.canBackup && bridge.hasBackupFolder() && backupDue(lsGet("life-backup-last"))) bridge.backup(backupName(), exportJSON(store)); }
@@ -586,20 +593,32 @@ $("menu").addEventListener("click", async (e) => {
   const act = e.target.closest("[data-act]")?.dataset.act; if (!act) return; $("menu").hidden = true;
   const stamp = isoDate(new Date());
   if (act === "feedback") openFeedback();
-  if (act === "share") { const r = await bridge.shareText("Life Archipelago", exportDigest(store)); if (r === "copied") toast("Summary copied to the clipboard"); }
-  if (act === "export") { bridge.saveFile(`life-backup-${stamp}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", stamp); toast("Backup exported"); }
+  if (act === "share") { const r = await bridge.shareText("Life Archipelago", exportDigest(store)); if (r === "copied") toast(t("summaryCopied")); }
+  if (act === "export") { bridge.saveFile(`life-backup-${stamp}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", stamp); toast(t("backupExported")); }
   if (act === "autobackup") { backupAsked = true; bridge.backup(backupName(), exportJSON(store), true); }
-  if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast("Summary exported"); }
+  if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast(t("summaryExported")); }
   if (act === "import") $("importInput").click();
-  if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast("Example items removed"); }
-  if (act === "sound") { sound = !sound; try { localStorage.setItem("life-sound", sound ? "on" : "off"); } catch (e) { /* ignore */ } renderSound(); if (sound) fx.chime([523.25, 783.99]); toast(sound ? "Sound is on" : "Sound is off"); }
-  if (act === "about") toast(`Life Archipelago v${VERSION} · ${backendName}${bridge.android ? ` · Android ${bridge.version || ""}` : ""}`);
+  if (act === "lang") { lang = lang === "he" ? "en" : "he"; lsSet("life-lang", lang); t = makeT(lang); applyLang(); }
+  if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast(t("examplesRemoved")); }
+  if (act === "sound") { sound = !sound; try { localStorage.setItem("life-sound", sound ? "on" : "off"); } catch (e) { /* ignore */ } renderSound(); if (sound) fx.chime([523.25, 783.99]); toast(t(sound ? "soundOn" : "soundOff")); }
+  if (act === "about") toast(t("about", { v: VERSION, r: backendName }) + (bridge.android ? ` · Android ${bridge.version || ""}` : ""));
 });
-const renderSound = () => { const b = $("menu").querySelector('[data-act="sound"]'); if (b) b.querySelector("span").textContent = `Sound: ${sound ? "on" : "off"}`; };
+const renderSound = () => { const b = $("menu").querySelector('[data-act="sound"]'); if (b) b.querySelector("span").textContent = t("soundState", { s: t(sound ? "on" : "off") }); };
 renderSound();
+// R37 · put the chosen language on the static page: texts, placeholders, labels, direction.
+function applyLang() {
+  document.documentElement.lang = lang; document.documentElement.dir = lang === "he" ? "rtl" : "ltr";
+  for (const el of document.querySelectorAll("[data-i18n]")) el.textContent = t(el.dataset.i18n);
+  for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
+  for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
+  const lb = $("menu").querySelector('[data-act="lang"] span'); if (lb) lb.textContent = t("language", { l: LANGS[lang] });
+  $("back").querySelector("b").textContent = title("home");
+  renderSound(); renderHud(); placeLabels(); refreshSheet();
+}
+applyLang();
 $("importInput").addEventListener("change", async () => {
   const f = $("importInput").files[0]; $("importInput").value = ""; if (!f) return;
-  try { importJSON(store, await f.text()); toast("Backup imported"); } catch (err) { toast("That file isn't a Life Archipelago backup"); }
+  try { importJSON(store, await f.text()); toast(t("imported")); } catch (err) { toast(t("notBackup")); }
 });
 
 // ---------- R16 · feedback ----------
@@ -618,7 +637,7 @@ function diag() {
   };
 }
 function feedbackNow() { return buildFeedback({ kind: fbKind, text: $("fbText").value, diag: diag(), includeDetails: $("fbDetails").checked }); }
-function renderDiag() { $("fbDiag").textContent = $("fbDetails").checked ? Object.entries(diag()).map(([k, v]) => `${k}: ${v}`).join("\n") : "Device details will not be included."; }
+function renderDiag() { $("fbDiag").textContent = $("fbDetails").checked ? Object.entries(diag()).map(([k, v]) => `${k}: ${v}`).join("\n") : t("noDetails"); }
 function openFeedback() {
   $("menu").hidden = true; closeSheet(); $("searchBox").hidden = true;
   $("feedback").hidden = false; renderDiag(); $("fbText").focus();
@@ -628,19 +647,19 @@ $("fbDetails").addEventListener("change", renderDiag);
 $("fbClose").addEventListener("click", () => { $("feedback").hidden = true; });
 $("fbGitHub").addEventListener("click", () => {
   bridge.openExternal(feedbackNow().url);
-  $("feedback").hidden = true; $("fbText").value = ""; toast("Thank you! Press Submit on GitHub to send it");
+  $("feedback").hidden = true; $("fbText").value = ""; toast(t("thanksGitHub"));
 });
 $("fbShare").addEventListener("click", async () => {
   const f = feedbackNow(); const r = await bridge.shareText(f.title, f.text);
-  if (r === "copied") toast("Feedback copied: paste it in an email or chat");
+  if (r === "copied") toast(t("feedbackCopied"));
 });
 
 // ---------- toast ----------
 let toastT = 0;
 function toast(text, undo) {
-  const t = $("toast"); t.innerHTML = esc(text) + (undo ? ` <button class="chip" style="margin-inline-start:8px">Undo</button>` : ""); t.hidden = false;
-  if (undo) t.querySelector("button").onclick = () => { undo(); t.hidden = true; };
-  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, undo ? 4500 : 2600);
+  const el = $("toast"); el.innerHTML = esc(text) + (undo ? ` <button class="chip" style="margin-inline-start:8px">${t("undo")}</button>` : ""); el.hidden = false;
+  if (undo) el.querySelector("button").onclick = () => { undo(); el.hidden = true; };
+  clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, undo ? 4500 : 2600);
 }
 
 // ---------- loop ----------
