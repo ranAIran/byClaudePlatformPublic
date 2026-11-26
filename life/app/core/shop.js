@@ -1,5 +1,5 @@
 // Coins buy decorations for the city (R36). Gentle: nothing is ever lost, there are no streaks.
-export const DISTRICTS = ["home", "family", "paperwork", "work", "health"];
+export const DISTRICTS = ["home", "family", "paperwork", "work", "health", "shopping"];
 export const SLOTS = 3; // spots per district (the corners of its sidewalk)
 export const CATALOG = [
   { id: "flowers", name: "Flower bed", price: 3 },
@@ -13,7 +13,7 @@ export const decorationsFor = (store, district) => store.decorations().filter((d
 
 export function buy(store, district, itemId) {
   const item = CATALOG.find((c) => c.id === itemId);
-  if (!DISTRICTS.includes(district)) return { ok: false, reason: "place" };
+  if (!DISTRICTS.includes(district) && !store.get(district)?.custom) return { ok: false, reason: "place" };
   if (!item) return { ok: false, reason: "item" };
   const used = new Set(decorationsFor(store, district).map((d) => d.slot));
   let slot = 0; while (used.has(slot)) slot++;

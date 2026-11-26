@@ -15,6 +15,7 @@ export const SEED = [
   { id: "health", type: "place", kind: "island", title: "Health", parent: "world" },
   { id: "family", type: "place", kind: "island", title: "Family", parent: "world" },
   { id: "paperwork", type: "place", kind: "island", title: "Paperwork", parent: "world" },
+  { id: "shopping", type: "place", kind: "island", title: "Shopping", parent: "world" },
   { id: "living", type: "place", kind: "room", title: "Living room", parent: "home" },
   { id: "kitchen", type: "place", kind: "room", title: "Kitchen", parent: "home" },
   { id: "bedroom", type: "place", kind: "room", title: "Bedroom", parent: "home" },
@@ -49,7 +50,7 @@ export function createStore(backend, { now = () => new Date() } = {}) {
   function normalize(n) {
     return {
       id: n.id, type: n.type || "note", title: n.title || "", parent: n.parent === undefined ? "bag" : n.parent,
-      kind: n.kind ?? null, system: !!n.system, tags: n.tags ? [...n.tags] : [], due: n.due ?? null, done: !!n.done,
+      kind: n.kind ?? null, system: !!n.system, custom: !!n.custom, tags: n.tags ? [...n.tags] : [], due: n.due ?? null, done: !!n.done,
       effort: n.effort ?? 1, steps: n.steps ? n.steps.map((s) => ({ title: s.title, done: !!s.done })) : null,
       notes: n.notes ?? "", url: n.url ?? null, images: n.images ? [...n.images] : [], thumb: n.thumb ?? null, suggest: n.suggest ? [...n.suggest] : [],
       awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), created: n.created || stamp(), updated: n.updated || stamp(),

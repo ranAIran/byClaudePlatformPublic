@@ -19,6 +19,7 @@ import { reminderList } from "./core/reminders.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "./core/shop.js";
 import { LANGS, makeT, pickLang, placeTitle } from "./core/i18n.js";
 import { pickQuality, canChooseQuality } from "./core/quality.js";
+import { categories, addCategory, renameCategory, removeCategory } from "./core/categories.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
@@ -27,7 +28,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.6.0";
+export const VERSION = "0.6.1";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -35,7 +36,7 @@ const store = createStore(saved);
 // R37 · language: follows the device unless chosen in the menu.
 let lang = pickLang((() => { try { return localStorage.getItem("life-lang"); } catch (e) { return null; } })(), navigator.language);
 let t = makeT(lang);
-const ISL_COLOR = { home: "#ffc94d", work: "#b48cff", health: "#4ee08a", family: "#ff8fb1", paperwork: "#7ad1ff" };
+const ISL_COLOR = { home: "#ffc94d", work: "#b48cff", health: "#4ee08a", family: "#ff8fb1", paperwork: "#7ad1ff", shopping: "#ff9f6b" };
 const ROOMS = ["living", "kitchen", "bedroom", "office"];
 const title = (id) => { const n = store.get(id); return n ? placeTitle(id, n.title, lang) : id; };
 const islandOf = (id) => { const p = [id, ...store.path(id)].find((x) => ISL_COLOR[x]); return p || store.path(id)[0] || null; };
@@ -88,7 +89,10 @@ function screenPass(node) {
 // R39 · enhanced graphics on computers; phones stay light. ?quality=light|enhanced overrides (tests).
 const quality = params.get("quality") === "light" || params.get("quality") === "enhanced" ? (coarse ? "light" : params.get("quality"))
   : pickQuality({ coarse, width: innerWidth, saved: (() => { try { return localStorage.getItem("life-quality"); } catch (e) { return null; } })() });
-const map = buildMap({ quality }), home = buildHome();
+// R42 · the first new category gets the park block; it is drawn in teal.
+const firstCustom = categories(store).find((c) => c.custom) || null;
+if (firstCustom) ISL_COLOR[firstCustom.id] = "#5fd4c4";
+const map = buildMap({ quality, custom: firstCustom }), home = buildHome();
 for (const w of [map, home]) {
   fitCamera(w.cam);
   // The view: where the camera is on its orbit (R29). Goals are eased to; null means "stay".
@@ -107,9 +111,10 @@ const PLACE_ICON = {
   home: "M4 11l8-7 8 7M6 10v9h12v-9M10 19v-5h4v5", work: "M4 8h16v11H4zM9 8V5h6v3M4 13h16", health: "M12 20s-7-4.6-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.400-7 10-7 10z",
   family: "M9 11a3 3 0 1 0 0-6a3 3 0 0 0 0 6M3 20c.6-3.4 2.9-5 6-5s5.400 1.600 6 5M16.500 11a2.500 2.500 0 1 0 0-5M17 15c2.200.4 3.600 1.900 4 5", paperwork: "M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6",
   bag: "M6 8h12l-1 12H7L6 8zM9 8V6a3 3 0 0 1 6 0v2", living: "M5 12V9a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3M3 13a2 2 0 0 1 4 0v2h10v-2a2 2 0 0 1 4 0v5H3zM6 18v2M18 18v2",
-  kitchen: "M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 2-2 6 0 8v10", bedroom: "M3 18V7M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3", office: "M4 5h16v10H4zM9 19h6M12 15v4",
+  kitchen: "M7 3v8M5 3v4a2 2 0 0 0 4 0V3M7 11v10M16 3c-2 2-2 6 0 8v10",
+  shopping: "M4 5h2l2 10h10l2-7H7M10 19a1 1 0 1 0 0 .1M17 19a1 1 0 1 0 0 .1", custom: "M12 3l2.600 5.400 5.900.8-4.300 4.100 1 5.800L12 16.300 6.800 19.100l1-5.800L3.500 9.200l5.900-.8z", bedroom: "M3 18V7M3 14h18v4M21 14a3 3 0 0 0-3-3h-7v3", office: "M4 5h16v10H4zM9 19h6M12 15v4",
 };
-const pIcon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${PLACE_ICON[id] || PLACE_ICON.home}"/></svg>`;
+const pIcon = (id) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${PLACE_ICON[id] || (store.get(id)?.custom ? PLACE_ICON.custom : PLACE_ICON.home)}"/></svg>`;
 for (const d of map.isles) {
   const el = document.createElement("button"); el.className = "lbl";
   el.innerHTML = `<b><i style="background:${ISL_COLOR[d.id]}">${pIcon(d.id)}</i><span class="nm">${d.name}</span></b><span class="badge"></span>`;
@@ -224,6 +229,30 @@ const SHOP_ICON = {
 };
 for (const d of store.decorations()) map.placeDecor(d.district, d.slot, d.item);
 
+// R42 · Categories: rename any island or room; add new categories and remove them again.
+function openCategories() {
+  sheetFor = "categories"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open"); $("sheetTabs").hidden = true;
+  $("sheetTitle").textContent = t("catTitle"); $("sheetSub").textContent = t("catSub"); $("sheetDot").style.background = "#ffc94d"; $("sheetDot").innerHTML = pIcon("custom");
+  const row = (n) => `<form class="item catrow" data-cat="${n.id}"><span class="sec-ic" style="background:${ISL_COLOR[n.id] || "var(--well-2)"}">${pIcon(n.id)}</span><div class="main"><input value="${esc(title(n.id))}" aria-label="${esc(t("catRename"))}" maxlength="40"><div class="meta">${n.kind === "island" ? (map.walk.doors[n.id] ? t("catOnMap") : t("catListOnly")) + " · " : ""}${t(store.children(n.id).length === 1 ? "nThings" : "nThingsN", { n: store.children(n.id).length })}</div></div>${n.custom ? `<button type="button" class="btn danger" data-act="rmcat" data-id="${n.id}" style="padding:8px 12px">${t("catRemove")}</button>` : ""}</form>`;
+  $("sheetBody").innerHTML = categories(store).map(row).join("") + `<div class="sec">${t("catRooms")}</div>` + store.children("home").filter((n) => n.type === "place").map(row).join("")
+    + `<form class="addrow" id="catAddForm"><input placeholder="${esc(t("catAddPh"))}" maxlength="40"><button class="btn primary" style="padding:10px 14px">${t("catAdd")}</button></form><p class="muted" style="font-size:12px;margin:2px">${t("catBuiltin")}</p>`;
+}
+const reopenCity = async () => { await saved.flush(); location.reload(); }; // a new category on the map needs the city built again
+$("sheetBody").addEventListener("change", (e) => {
+  const f = e.target.closest("form.catrow"); if (!f) return;
+  const r = renameCategory(store, f.dataset.cat, e.target.value);
+  if (!r.ok) { toast(t(r.error === "taken" ? "catTaken" : "catNeedsName")); e.target.value = title(f.dataset.cat); } else toast(t("catRenamed"));
+});
+$("sheetBody").addEventListener("submit", (e) => {
+  if (e.target.id !== "catAddForm" && !e.target.classList.contains("catrow")) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.target.classList.contains("catrow")) { e.target.querySelector("input").blur(); return; }
+  const inp = e.target.querySelector("input"), r = addCategory(store, inp.value);
+  if (!r.ok) { toast(t(r.error === "taken" ? "catTaken" : "catNeedsName")); return; }
+  toast(t("catAdded", { name: store.get(r.id).title }));
+  if (!firstCustom) setTimeout(reopenCity, 900); else openCategories();
+}, true);
+
 // R34 · Today: overdue, today and this week in one list.
 function openToday() {
   sheetFor = "today"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
@@ -239,6 +268,7 @@ function openToday() {
 }
 function openSheet(id) {
   if (id === "today") return openToday();
+  if (id === "categories") return openCategories();
   if (String(id).startsWith("shop:")) return openShop(id.slice(5));
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
   const isBag = id === "bag";
@@ -252,7 +282,7 @@ function openSheet(id) {
   const md = districtMood(store, id), things = list.filter((n) => n.type !== "task").length, nThings = (k) => t(k === 1 ? "nThings" : "nThingsN", { n: k });
   $("sheetSub").textContent = isBag ? (list.length ? t("bagSub", { n: list.length }) : t("nothingWaiting"))
     : [md.open ? t("nOpen", { n: md.open }) : t("allClearCap"), md.overdue ? t("nOverdue", { n: md.overdue }) : md.soon ? t("nDueSoon", { n: md.soon }) : "", things ? nThings(things) : ""].filter(Boolean).join(" · ");
-  const shopFor = ISL_COLOR[id] ? id : null;
+  const shopFor = map.walk.doors[id] ? id : null;
   const empty = isBag ? t("bagEmpty") : t("placeEmpty");
   $("sheetBody").innerHTML = (list.length ? list.map((n) => itemHtml(n, { bag: isBag })).join("") : `<div class="empty">${empty}</div>`) +
     (shopFor ? `<button class="chip decorate" data-act="shop" data-district="${shopFor}">${esc(t("decorateChip", { place: title(shopFor), n: store.coins() }))}</button>` : "") +
@@ -278,6 +308,7 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "edit") openEditor(id);
   if (b.dataset.act === "openbag") openSheet("bag");
   if (b.dataset.act === "shop") openShop(b.dataset.district);
+  if (b.dataset.act === "rmcat") { const name = store.get(b.dataset.id)?.title, wasOnMap = !!map.walk.doors[b.dataset.id]; if (removeCategory(store, b.dataset.id).ok) { toast(t("catRemoved", { name })); if (wasOnMap) setTimeout(reopenCity, 1200); else openCategories(); } }
   if (b.dataset.act === "buy") {
     const r = buy(store, b.dataset.district, b.dataset.item);
     if (!r.ok) { toast(t(r.reason === "coins" ? "notEnoughCoins" : r.reason === "full" ? "noSpot" : "cantBuy")); return; }
@@ -645,6 +676,7 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "autobackup") { backupAsked = true; bridge.backup(backupName(), exportJSON(store), true); }
   if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast(t("summaryExported")); }
   if (act === "import") $("importInput").click();
+  if (act === "categories") openCategories();
   if (act === "quality") { lsSet("life-quality", quality === "enhanced" ? "light" : "enhanced"); location.reload(); }
   if (act === "lang") { lang = lang === "he" ? "en" : "he"; lsSet("life-lang", lang); t = makeT(lang); applyLang(); }
   if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast(t("examplesRemoved")); }

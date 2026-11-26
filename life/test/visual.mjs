@@ -25,7 +25,7 @@ const dist = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.leng
 const warmth = async (p, cx = 0.5, cy = 0.52) => p.evaluate(async ([b64, cx, cy]) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, im.width * (cx - 0.15), im.height * (cy - 0.07), im.width * 0.3, im.height * 0.14, 0, 0, 48, 48); const d = x.getImageData(0, 0, 48, 48).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, [(await p.screenshot()).toString("base64"), cx, cy]);
 
 const b = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
-const ctx = await b.newContext({ ...devices["Pixel 7"], deviceScaleFactor: 1 }); // 1× keeps the software renderer quick
+const ctx = await b.newContext({ ...devices["Pixel 7"], deviceScaleFactor: 1, timezoneId: "Asia/Jerusalem" }); // 1× keeps the software renderer quick; Israel time catches time-zone bugs (R40)
 const p = await ctx.newPage(); const errs = [];
 p.on("pageerror", (e) => errs.push(e.message)); p.on("console", (m) => { if (m.type() === "error") errs.push(m.text().slice(0, 200)); });
 await p.goto(base); await p.waitForFunction(() => window.__life?.ready, null, { timeout: 120000 }); await p.waitForTimeout(800);
@@ -230,6 +230,21 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   await p.tap("#menuBtn"); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(400);
   const en = await p.evaluate(() => document.documentElement.dir);
   check(he.dir === "rtl" && /היום/.test(he.pill) && /תיק/.test(he.ph) && he.label.includes("ניירת") && en === "ltr", `R37 the menu switches to Hebrew (right to left) and back (${he.pill.replace(/\s+/g, " ")}, ${he.label.join(", ")})`);
+}
+// R41 · Shopping is a district; R42 · categories can be renamed, and a new one gets the free block after the city rebuilds.
+{
+  const has = (await p.evaluate(() => window.__life.districts())).some((d) => d.id === "shopping");
+  await p.tap("#menuBtn"); await p.tap('#menu [data-act="categories"]'); await p.waitForTimeout(300);
+  await p.fill('#sheetBody form.catrow[data-cat="work"] input', "Job"); await p.press('#sheetBody form.catrow[data-cat="work"] input', "Enter"); await p.waitForTimeout(300);
+  const renamed = await p.evaluate(() => window.__life.store.get("work").title);
+  await p.screenshot({ path: `${out}/v-categories.png` });
+  await p.fill("#catAddForm input", "Hobbies"); await p.press("#catAddForm input", "Enter");
+  await p.waitForFunction(() => window.__life?.ready && window.__life.districts().length === 7, null, { timeout: 180000 }).catch(() => {});
+  await p.waitForTimeout(800);
+  const ds = await p.evaluate(() => window.__life.districts().map((d) => d.id)), names = await p.evaluate(() => [...document.querySelectorAll(".lbl .nm")].map((x) => x.textContent));
+  await p.screenshot({ path: `${out}/v-newcat.png` });
+  check(has && renamed === "Job" && ds.length === 7 && names.includes("Hobbies") && names.includes("Job"), `R41/R42 Shopping is on the map; renaming and adding a category work (${names.join(", ")})`);
+  await p.evaluate(() => window.__life.store.update("work", { title: "Work" }));
 }
 // R19 · the data lives in IndexedDB and survives a reload.
 {

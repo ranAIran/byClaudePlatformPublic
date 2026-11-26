@@ -44,6 +44,10 @@ const en = {
   f_title: "Send feedback", f_idea: "Idea", f_bug: "Something's wrong", f_praise: "I like…", f_ph: "What happened, or what would make this better?", f_details: "Include version and device details", f_github: "Open on GitHub", f_share: "Share…", f_help: "GitHub opens a new issue with this filled in: sign in and press Submit. Or share it by email or chat.",
   splash: "Lighting up your city…", errTitle: "Give it a name.", errDate: "That date doesn't exist.", errPlace: "Choose a place.",
   q_light: "light", q_enhanced: "enhanced",
+  m_categories: "Categories…", catTitle: "Categories", catSub: "Rename any of them; new ones can be removed again", catAddPh: "New category, e.g. Hobbies", catAdd: "Add",
+  catRename: "Rename", catRemove: "Remove", catRooms: "Rooms in the home", catTaken: "That name is already used", catNeedsName: "Give it a name",
+  catBuiltin: "Built-in categories stay; you can rename them", catAdded: "{name} added", catRemoved: "{name} removed; its things are back in the bag", catRenamed: "Renamed",
+  catOnMap: "on the map", catListOnly: "in lists",
 };
 
 const he = {
@@ -86,11 +90,15 @@ const he = {
   f_title: "שליחת משוב", f_idea: "רעיון", f_bug: "משהו לא עובד", f_praise: "אהבתי…", f_ph: "מה קרה, או מה ישפר את זה?", f_details: "לכלול גרסה ופרטי מכשיר", f_github: "פתיחה ב-GitHub", f_share: "שיתוף…", f_help: "GitHub יפתח דיווח חדש מלא: התחבר ולחץ Submit. או שתף במייל או בצ'אט.",
   splash: "מדליקים את העיר שלך…", errTitle: "צריך שם.", errDate: "התאריך הזה לא קיים.", errPlace: "בחר מקום.",
   q_light: "קלה", q_enhanced: "משופרת",
+  m_categories: "קטגוריות…", catTitle: "קטגוריות", catSub: "אפשר לשנות שם לכל אחת; קטגוריות חדשות אפשר גם להסיר", catAddPh: "קטגוריה חדשה, למשל תחביבים", catAdd: "הוסף",
+  catRename: "שינוי שם", catRemove: "הסרה", catRooms: "חדרים בבית", catTaken: "השם הזה כבר בשימוש", catNeedsName: "צריך שם",
+  catBuiltin: "קטגוריות מובנות נשארות; אפשר לשנות להן שם", catAdded: "{name} נוספה", catRemoved: "{name} הוסרה; הפריטים שלה חזרו לתיק", catRenamed: "השם שונה",
+  catOnMap: "על המפה", catListOnly: "ברשימות",
 };
 
 // Built-in places, translated while the owner hasn't renamed them.
-const PLACES = { he: { home: "בית", work: "עבודה", health: "בריאות", family: "משפחה", paperwork: "ניירת", bag: "תיק", living: "סלון", kitchen: "מטבח", bedroom: "חדר שינה", office: "חדר עבודה" } };
-const PLACE_EN = { home: "Home", work: "Work", health: "Health", family: "Family", paperwork: "Paperwork", bag: "Bag", living: "Living room", kitchen: "Kitchen", bedroom: "Bedroom", office: "Office" };
+const PLACES = { he: { home: "בית", work: "עבודה", health: "בריאות", family: "משפחה", paperwork: "ניירת", shopping: "קניות", bag: "תיק", living: "סלון", kitchen: "מטבח", bedroom: "חדר שינה", office: "חדר עבודה" } };
+const PLACE_EN = { home: "Home", work: "Work", health: "Health", family: "Family", paperwork: "Paperwork", shopping: "Shopping", bag: "Bag", living: "Living room", kitchen: "Kitchen", bedroom: "Bedroom", office: "Office" };
 
 export const DICTS = { en, he };
 export function pickLang(saved, navLang) { if (saved && DICTS[saved]) return saved; return /^(he|iw)/i.test(navLang || "") ? "he" : "en"; }

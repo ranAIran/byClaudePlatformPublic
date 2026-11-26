@@ -23,6 +23,7 @@ import { backupDue, backupName } from "../app/core/backup.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
 import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
 import { pickQuality, canChooseQuality } from "../app/core/quality.js";
+import { addCategory, renameCategory, removeCategory, categories } from "../app/core/categories.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -81,9 +82,9 @@ describe("R3 · places hold things", () => {
     expect(s.search("tv").map((n) => n.id)).toContain(id);
     expect(s.path(id)).toEqual(["home", "living"]);
   });
-  it("seeds the world with five islands and four home rooms", () => {
+  it("seeds the world with six islands (Shopping added, R41) and four home rooms", () => {
     const s = fresh();
-    expect(s.children("world").map((n) => n.id).sort()).toEqual(["family", "health", "home", "paperwork", "work"]);
+    expect(s.children("world").map((n) => n.id).sort()).toEqual(["family", "health", "home", "paperwork", "shopping", "work"]);
     expect(s.children("home").map((n) => n.id).sort()).toEqual(["bedroom", "kitchen", "living", "office"]);
   });
   it("placing a bag item moves it to the chosen place", () => {
@@ -565,5 +566,50 @@ describe("R39 · enhanced graphics on computers only", () => {
   it("a phone never changes, whatever was saved, and has no switch", () => {
     expect(pickQuality({ coarse: true, width: 1440, saved: "enhanced" })).toBe("light");
     expect(canChooseQuality({ coarse: true })).toBe(false); expect(canChooseQuality({ coarse: false })).toBe(true);
+  });
+});
+
+describe("R40 · dates are checked in the owner's own time zone", () => {
+  it("in Israel (UTC+2) a picked date is a real date, and a wrong one is still refused", () => {
+    const tz = process.env.TZ; process.env.TZ = "Asia/Jerusalem";
+    try {
+      const s = fresh(); const id = s.add({ type: "task", title: "ללכת לסופר פארם", parent: "home" });
+      expect(applyEdit(s, id, { due: "2026-11-26" })).toMatchObject({ ok: true }); expect(s.get(id).due).toBe("2026-11-26");
+      expect(applyEdit(s, id, { due: "2026-03-01" }).ok).toBe(true);
+      expect(applyEdit(s, id, { due: "2026-02-30" })).toMatchObject({ ok: false, field: "due" });
+    } finally { process.env.TZ = tz; }
+  });
+});
+
+describe("R41 · a Shopping category", () => {
+  it("exists in a new world and is added to an older saved world", () => {
+    expect(fresh().get("shopping")).toMatchObject({ type: "place", kind: "island", title: "Shopping" });
+    const back = memoryBackend(); const old = createStore(back, { now: () => NOW }); const snap = old.snapshot();
+    snap.nodes = snap.nodes.filter((n) => n.id !== "shopping"); back.save(snap);
+    expect(createStore(back, { now: () => NOW }).get("shopping")).toBeTruthy();
+  });
+  it("shopping words suggest Shopping first, in English and Hebrew", () => {
+    for (const t of ["buy milk and eggs", "go to the supermarket", "לקנות חלב", "ללכת לסופר פארם", "רשימת קניות"]) expect(suggestPlaces(t)[0], t).toBe("shopping");
+  });
+});
+
+describe("R42 · edit the categories", () => {
+  it("renames a category (built-in or new); an empty name is refused", () => {
+    const s = fresh();
+    expect(renameCategory(s, "paperwork", "Bills and forms").ok).toBe(true); expect(s.get("paperwork").title).toBe("Bills and forms");
+    expect(renameCategory(s, "paperwork", "  ").ok).toBe(false);
+    expect(renameCategory(s, "living", "Salon").ok).toBe(true);
+  });
+  it("adds a new category, which can hold things and can be removed; its things go back to the bag", () => {
+    const s = fresh(); const r = addCategory(s, "Hobbies"); expect(r.ok).toBe(true);
+    const id = r.id; expect(s.get(id)).toMatchObject({ type: "place", kind: "island", title: "Hobbies", custom: true });
+    expect(categories(s).map((c) => c.id)).toContain(id);
+    const thing = s.add({ type: "task", title: "Guitar lesson", parent: id });
+    expect(removeCategory(s, id).ok).toBe(true); expect(s.get(id)).toBeNull(); expect(s.get(thing).parent).toBe("bag");
+  });
+  it("built-in categories and the bag can't be removed, and names must be unique", () => {
+    const s = fresh();
+    expect(removeCategory(s, "home").ok).toBe(false); expect(removeCategory(s, "bag").ok).toBe(false);
+    expect(addCategory(s, "work").ok).toBe(false); expect(addCategory(s, "").ok).toBe(false);
   });
 });

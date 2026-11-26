@@ -192,6 +192,9 @@ button.item{align-items:center}
 .sec-ic svg{width:16px;height:16px}
 .chip.decorate{justify-self:start;background:rgba(255,201,77,.14);border-color:rgba(255,201,77,.45);color:var(--gold)}
 .shopitem{align-items:center}
+.catrow{align-items:center}
+.catrow input{background:transparent;border:0;border-bottom:1px dashed var(--line);color:var(--ink);font:inherit;font-weight:600;font-size:14.5px;padding:2px 0;outline:none;width:100%}
+.catrow input:focus{border-bottom-color:var(--gold)}
 .shopitem .btn[disabled]{opacity:.45}
 .item{transition:transform .18s ease-out,background .15s;touch-action:pan-y}
 .item.swipe-done{background:rgba(95,224,154,.22)}
@@ -319,6 +322,7 @@ button.item{align-items:center}
   <button data-act="import"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V4M8 8l4-4 4 4M5 19h14"/></svg><span data-i18n="m_import">Import backup…</span></button>
   <hr>
   <button data-act="examples"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg><span data-i18n="m_examples">Remove example items</span></button>
+  <button data-act="categories"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z"/></svg><span data-i18n="m_categories">Categories…</span></button>
   <button data-act="quality" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 3-3 6 5M3 5h18v14H3z"/></svg><span>Graphics</span></button>
   <button data-act="lang"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18zM3.600 9h16.800M3.600 15h16.800M12 3c2.500 2.500 3.600 5.500 3.600 9s-1.100 6.500-3.600 9c-2.500-2.500-3.600-5.500-3.600-9S9.500 5.500 12 3z"/></svg><span>Language: English</span></button>
   <button data-act="about"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 11v6M12 7.500v.01M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18z"/></svg><span data-i18n="m_about">About this version</span></button>

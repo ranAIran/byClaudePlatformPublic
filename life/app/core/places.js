@@ -6,14 +6,15 @@ export const PLACE_WORDS = {
   health: { en: ["gym", "workout", "run", "running", "doctor", "dentist", "sleep", "yoga", "walk", "swim", "legs", "pills", "vitamins", "clinic", "checkup", "physio"], he: ["כושר", "אימון", "ריצה", "רופא", "רופאה", "רופא שיניים", "שינה", "יוגה", "הליכה", "שחייה", "כדורים", "ויטמינים", "קופת חולים", "בדיקה", "פיזיותרפיה"] },
   family: { en: ["mom", "mother", "dad", "father", "grandma", "grandpa", "kids", "son", "daughter", "birthday", "wife", "husband", "sister", "brother", "parents", "family", "anniversary"], he: ["אמא", "אבא", "סבתא", "סבא", "ילדים", "הבן", "הבת", "יום הולדת", "אשתי", "בעלי", "אחות", "אח", "הורים", "משפחה", "יום נישואין"] },
   work: { en: ["meeting", "project", "client", "report", "deadline", "boss", "team", "presentation", "office hours", "colleague", "standup", "review", "salary"], he: ["פגישה", "פרויקט", "לקוח", "דוח", "דדליין", "מנהל", "צוות", "מצגת", "עמית", "משכורת", "עבודה"] },
-  kitchen: { en: ["fridge", "dishwasher", "groceries", "cook", "oven", "kitchen", "recipe", "milk", "bread", "coffee", "microwave"], he: ["מקרר", "מדיח", "קניות", "לבשל", "תנור", "מטבח", "מתכון", "חלב", "לחם", "קפה", "מיקרוגל"] },
+  shopping: { en: ["buy", "shop", "shopping", "groceries", "supermarket", "store", "mall", "order", "milk", "eggs", "bread", "pharmacy"], he: ["לקנות", "קניות", "קנייה", "סופר", "סופרמרקט", "סופר פארם", "חנות", "קניון", "להזמין", "חלב", "ביצים", "לחם", "בית מרקחת", "רשימת קניות"] },
+  kitchen: { en: ["fridge", "dishwasher", "cook", "oven", "kitchen", "recipe", "coffee", "microwave"], he: ["מקרר", "מדיח", "לבשל", "תנור", "מטבח", "מתכון", "קפה", "מיקרוגל"] },
   living: { en: ["tv", "sofa", "couch", "lamp", "living room", "plants", "netflix", "router"], he: ["טלוויזיה", "ספה", "מנורה", "סלון", "עציצים", "צמחים", "ראוטר"] },
   bedroom: { en: ["bed", "sheets", "closet", "wardrobe", "bedroom", "mattress", "pillow"], he: ["מיטה", "סדינים", "ארון", "חדר שינה", "מזרן", "כרית"] },
   office: { en: ["laptop", "printer", "desk", "backup", "computer", "monitor", "wifi", "wi-fi"], he: ["מחשב", "מדפסת", "שולחן עבודה", "גיבוי", "מסך"] },
   home: { en: ["repair", "clean", "plumber", "electrician", "rent", "paint", "laundry", "washing machine", "garden", "home", "house"], he: ["תיקון", "לנקות", "אינסטלטור", "חשמלאי", "שכירות", "צבע", "כביסה", "מכונת כביסה", "גינה", "בית"] },
 };
-const ORDER = ["paperwork", "health", "family", "work", "kitchen", "living", "bedroom", "office", "home"];
-const WEIGHT = { bill: 2, passport: 2, tax: 2, insurance: 2, "חשבון": 2, "דרכון": 2, "ביטוח": 2 };
+const ORDER = ["paperwork", "shopping", "health", "family", "work", "kitchen", "living", "bedroom", "office", "home"];
+const WEIGHT = { bill: 2, passport: 2, tax: 2, insurance: 2, "חשבון": 2, "דרכון": 2, "ביטוח": 2, buy: 2, supermarket: 2, "לקנות": 2, "סופר": 2, "סופר פארם": 2, "קניות": 2 };
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 

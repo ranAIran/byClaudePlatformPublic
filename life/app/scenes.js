@@ -9,7 +9,7 @@ const VW = () => window.innerWidth, VH = () => window.innerHeight;
 let scene = null, cam = null, updaters = [];
 // R39 · graphics quality for the city: "enhanced" on computers (drawn surfaces with relief, lamps that
 // light the street, sharper shadows, glossier water), "light" everywhere else.
-let QUALITY = "light";
+let QUALITY = "light", customId = null, customName = ""; // the first new category (R42) gets the park block
 const HQ = () => QUALITY === "enhanced";
 // A surface drawn on a canvas: grey-ish colour (tinted by the material colour) and a relief map.
 const surfCache = new Map();
@@ -247,7 +247,7 @@ function buildMapInto() {
 
   // ----- ground: blocks on a street grid, roads between them, a quay around the outside -----
   const P = 7.5, B = 4.6, Y = 0.26, SW = B + 1.2; // street grid pitch, block, sidewalk (wider streets since 0.3.2)
-  const CELLS = [[2, 2, "home"], [0, 1, "family"], [1, 1, "paperwork"], [0, 0, "work"], [1, 0, "health"], [2, 1, "shops"], [1, 2, "park"]];
+  const CELLS = [[2, 2, "home"], [0, 1, "family"], [1, 1, "paperwork"], [0, 0, "work"], [1, 0, "health"], [2, 1, "shopping"], [1, 2, "park"]];
   const has = (i, j) => CELLS.some((c) => c[0] === i && c[1] === j);
   const at = (i, j) => [(i - 1) * P, (j - 1) * P];
   const ground = new THREE.Group(); scene.add(ground);
@@ -348,6 +348,7 @@ function buildMapInto() {
     });
   }
   const signs = {};
+  let parkG = null; // the park block, also when a new category lives there
   const dress = (id, { scaf, cones = [], bar, lamp = [2.2, 2.2], extra }) => {
     const g = G[id], od = new THREE.Group(), cl = new THREE.Group(); od.userData.live = cl.userData.live = true; g.add(od, cl);
     const sc = scaffold(scaf.w, scaf.h); sc.position.set(scaf.x, 0.06, scaf.z); sc.rotation.y = scaf.ry || 0; od.add(sc);
@@ -472,9 +473,9 @@ function buildMapInto() {
     dress("home", { scaf: { x: 0.38, z: -0.8, w: 1.7, h: 1.3, ry: Math.PI / 2 }, cones: [[1.0, -0.2], [0.95, 2.0]], bar: [1.5, 2.15] });
   }
 
-  // ----- Shops and the park: the two spare blocks, ready for new life areas -----
+  // ----- Shopping (R41): a row of shops. The park is the spare block: the first new category lives there (R42). -----
   {
-    const g = G.shops; delete g.userData.district; lawn(g, "#dcd2c2");
+    const g = G.shopping; lawn(g, "#dcd2c2");
     [["#ffd9a0", "#e0504b"], ["#cfe3f5", "#3e8fb0"], ["#ffd0e0", "#6f9f52"]].forEach(([wall, aw], k) => {
       const x = -1.45 + k * 1.45; put(bx(1.36, 1.25, 1.3, wall), x, 0.68, -1.2, g); put(bx(1.42, 0.1, 1.36, tint(wall, -0.18)), x, 1.36, -1.2, g);
       put(bx(1.22, 0.03, 1.16, tint(wall, -0.3)), x, 1.42, -1.2, g); put(bx(0.3, 0.2, 0.3, "#c9ced8"), x + 0.3, 1.52, -1.4, g); put(cy(0.07, 0.07, 0.3, "#9aa3b2", 8), x - 0.35, 1.57, -1.5, g);
@@ -485,17 +486,19 @@ function buildMapInto() {
     solids.push({ x0: g.position.x - 2.13, x1: g.position.x + 2.13, z0: g.position.z - 1.85, z1: g.position.z - 0.55, h: Y + 1.4 });
     for (const [x, z, c] of [[-1.2, 0.9, "#ff9f6b"], [0.5, 1.2, "#ffd166"]]) { put(cy(0.26, 0.26, 0.04, "#fff6e6", 14), x, 0.42, z, g); put(cy(0.03, 0.03, 0.42, "#6b7280", 6), x, 0.21, z, g); put(cy(0.02, 0.02, 0.6, "#6b7280", 6), x, 0.72, z, g); put(new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.22, 8), W.mat(c)), x, 1.1, z, g); }
     add(g, tree(0.6, LEAVES[3]), 1.8, 1.6, 0, 0); add(g, tree(0.55, LEAVES[0]), -1.95, 1.9, 0, 0);
-    const bulb = glow("#ffd27a", 2.4); add(g, lampPost(bulb), 2.2, 2.2, -Math.PI * 0.75, 0);
+    door("shopping", 0.45, -0.2);
+    dress("shopping", { scaf: { x: -1.45, z: -0.42, w: 1.3, h: 1.3 }, cones: [[-0.6, 0.3], [0.9, 0.2]], bar: [0.2, 0.6] });
   }
   {
-    const g = G.park; delete g.userData.district; lawn(g, "#8fcf72");
+    const g = G.park; parkG = g; if (customId) { G[customId] = g; g.userData.district = customId; delete G.park; } else delete g.userData.district; lawn(g, "#8fcf72");
     const path = bx(0.5, 0.02, 5.6, "#e4d9c8"); path.rotation.y = Math.PI / 4; put(path, 0, 0.07, 0, g);
     put(cy(0.8, 0.85, 0.12, "#e4d9c8", 8), -0.1, 0.12, -0.2, g); for (let k = 0; k < 6; k++) { const a = (k / 6) * 6.283; put(cy(0.035, 0.035, 0.8, "#fff6e6", 6), -0.1 + Math.cos(a) * 0.68, 0.58, -0.2 + Math.sin(a) * 0.68, g); }
     put(new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.5, 8), W.mat("#d0573f")), -0.1, 1.23, -0.2, g); put(sp(0.07, "#ffd166", 8), -0.1, 1.52, -0.2, g);
     [[-1.6, -1.5, 0.95, 0], [1.5, -1.6, 0.75, 2], [-1.7, 1.4, 0.8, 3], [1.75, 0.6, 0.65, 1], [0.6, 1.8, 0.7, 4]].forEach(([x, z, s, c]) => add(g, tree(s, LEAVES[c]), x, z));
     add(g, bench(), 1.2, -0.4, -0.8); add(g, pine(0.7), -1.9, 0.1);
     const sl = bx(0.3, 0.04, 1.1, "#ffd166"); sl.rotation.x = 0.5; put(sl, 1.35, 0.42, 1.5, g); put(bx(0.34, 0.66, 0.3, "#e0504b"), 1.35, 0.39, 0.95, g);
-    const bulb = glow("#ffd27a", 2.4); add(g, lampPost(bulb), 2.2, 2.2, -Math.PI * 0.75, 0);
+    if (customId) { door(customId, 0.6, 0.6); dress(customId, { scaf: { x: -0.1, z: 0.55, w: 1.4, h: 1.2 }, cones: [[0.6, 0.9], [-0.9, 0.7]], bar: [0.2, 1.4] }); }
+    else { const bulb = glow("#ffd27a", 2.4); add(g, lampPost(bulb), 2.2, 2.2, -Math.PI * 0.75, 0); }
   }
 
   // ----- street life: parked cars, sailing boats, a balloon, evening clouds -----
@@ -558,10 +561,10 @@ function buildMapInto() {
   bake(ground); bake(avenue);
 
   cam = viewCam(target, { dist: 76 });
-  const labelY = { home: 3.0, family: 2.3, paperwork: 4.1, work: 7.7, health: 2.5 };
-  const isles = ["home", "family", "paperwork", "work", "health"].map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), pos: [G[id].position.x, G[id].position.z], radius: 3.1, labelY: labelY[id] }));
+  const labelY = { home: 3.0, family: 2.3, paperwork: 4.1, work: 7.7, health: 2.5, shopping: 2.3 };
+  const isles = ["home", "family", "paperwork", "work", "health", "shopping", ...(customId ? [customId] : [])].map((id) => ({ id, name: id === customId ? customName : id[0].toUpperCase() + id.slice(1), labelY: labelY[id] ?? 2.4, pos: [G[id].position.x, G[id].position.z], radius: 3.1 }));
   // ----- things that react physically (R32): two balls to kick, reward coins, splashes -----
-  const toys = [[G.home.position.x + 1.0, G.home.position.z + 1.55, 0.2, "#ff6b6b", "#fff6e6"], [G.park.position.x - 0.9, G.park.position.z + 1.0, 0.18, "#fff6e6", "#3b4250"]].map(([x, z, r, c1, c2]) => {
+  const toys = [[G.home.position.x + 1.0, G.home.position.z + 1.55, 0.2, "#ff6b6b", "#fff6e6"], [parkG.position.x - 0.9, parkG.position.z + 1.0, 0.18, "#fff6e6", "#3b4250"]].map(([x, z, r, c1, c2]) => {
     const ball = new THREE.Group(); put(sp(r, c1, 14), 0, 0, 0, ball); const band = sp(r * 1.01, c2, 14); band.scale.set(1, 0.34, 1); put(band, 0, 0, 0, ball); const band2 = sp(r * 1.01, c2, 14); band2.scale.set(0.34, 1, 1); put(band2, 0, 0, 0, ball);
     ball.position.set(x, Y + 0.06 + r, z); ball.userData.toy = true; scene.add(ball);
     return { mesh: ball, r, home: [x, Y + 0.06 + r + 0.6, z] };
@@ -714,7 +717,7 @@ function wrap(build) {
   scene = null; cam = null;
   return out;
 }
-export const buildMap = ({ quality = "light" } = {}) => { QUALITY = quality; try { return wrap(buildMapInto); } finally { QUALITY = "light"; } };
+export const buildMap = ({ quality = "light", custom = null } = {}) => { QUALITY = quality; customId = custom?.id || null; customName = custom?.title || ""; try { return wrap(buildMapInto); } finally { QUALITY = "light"; customId = null; } };
 export const buildHome = () => wrap(buildHomeInto);
 // Keep the whole scene in view on narrow (portrait) screens by standing further back.
 export function fitCamera(c) {

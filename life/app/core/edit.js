@@ -1,7 +1,9 @@
 // Editing an item (R33): turn what the edit form holds into a safe patch for the store.
 // Only the fields given are changed; XP flags, id and creation time are never touched here.
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
-const realDate = (v) => ISO.test(v) && new Date(v + "T00:00:00").toISOString().slice(0, 10) === v;
+// A real calendar date, checked with plain numbers: no time zone involved (R40: converting to UTC made
+// every date look invalid in Israel, UTC+2).
+const realDate = (v) => { if (!ISO.test(v)) return false; const [y, m, d] = v.split("-").map(Number); return m >= 1 && m <= 12 && d >= 1 && d <= new Date(y, m, 0).getDate(); };
 
 // Places an item can live in: the bag, the islands and the rooms, in that order.
 export function placeChoices(store) {
