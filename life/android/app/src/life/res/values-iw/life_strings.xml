@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_add_short">הוספה</string>
+    <string name="sc_add_long">הוספה לתיק</string>
+    <string name="sc_scan_short">סריקה</string>
+    <string name="sc_scan_long">סריקת מסמך</string>
+    <string name="sc_today_short">היום</string>
+    <string name="sc_today_long">מה להיום</string>
+    <string name="sc_voice_short">דיבור</string>
+    <string name="sc_voice_long">דיבור לתוך התיק</string>
+    <string name="tile_label">הוספה ל-Life</string>
+    <string name="widget_label">Life · היום</string>
+    <string name="widget_title">היום</string>
+    <string name="widget_empty">אין משימות להיום. ערב נעים.</string>
+</resources>

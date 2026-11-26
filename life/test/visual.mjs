@@ -206,6 +206,20 @@ await p.tap("#fbGitHub"); await p.waitForTimeout(200);
 const opened = await p.evaluate(() => window.__opened || "");
 const q = opened ? new URL(opened).searchParams : new URLSearchParams();
 check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issues/new?") && q.get("title").includes("Bug: The kitchen label overlaps the fridge") && q.get("body").includes("renderer:"), `R16 feedback opens a prefilled GitHub issue (${q.get("title")})`);
+// R38 · keys and gestures: "t" opens Today, Escape closes it; swiping a task to the right ticks it.
+{
+  await p.keyboard.press("t"); await p.waitForTimeout(300);
+  const tOpen = (await p.textContent("#sheetTitle")) === "Today" && !(await p.isHidden("#sheet"));
+  await p.keyboard.press("Escape"); await p.waitForTimeout(300);
+  const closed = await p.isHidden("#sheet");
+  const sid = await p.evaluate(() => window.__life.store.add({ type: "task", title: "Swipe me", parent: "work" }));
+  await p.evaluate(() => window.__life.ui.openSheet("work")); await p.waitForTimeout(300);
+  const box = await p.$(`#sheetBody [data-act="toggle"][data-id="${sid}"]`); await box.scrollIntoViewIfNeeded(); await p.waitForTimeout(200); const r = await (await box.evaluateHandle((b) => b.closest(".item"))).boundingBox();
+  await p.mouse.move(r.x + 60, r.y + r.height / 2); await p.mouse.down(); await p.mouse.move(r.x + 200, r.y + r.height / 2, { steps: 6 }); await p.mouse.up(); await p.waitForTimeout(400);
+  const swiped = await p.evaluate((id) => window.__life.store.get(id).done, sid);
+  check(tOpen && closed && swiped, `R38 "t" opens Today, Escape closes it, a right swipe ticks a task (${tOpen}, ${closed}, ${swiped})`);
+  await p.evaluate((id) => window.__life.store.remove(id), sid); await p.evaluate(() => window.__life.ui.closeSheet()); await p.waitForTimeout(500);
+}
 // R37 · the interface in Hebrew, right to left; and back to English.
 {
   await p.tap("#menuBtn"); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(500);

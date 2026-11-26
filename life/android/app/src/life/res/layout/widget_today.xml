@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R38 home-screen widget: today's first three tasks and a + that opens the bag's input. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:padding="12dp" android:background="@drawable/widget_bg">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/w_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="@string/widget_title" android:textColor="#FFC94D" android:textSize="15sp" android:textStyle="bold" />
+        <TextView android:id="@+id/w_add" android:layout_width="34dp" android:layout_height="34dp" android:gravity="center"
+            android:background="@drawable/widget_add_bg" android:text="+" android:textColor="#2A1A00" android:textSize="22sp" android:textStyle="bold" />
+    </LinearLayout>
+    <TextView android:id="@+id/w_line1" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+        android:textColor="#FFF7EC" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+    <TextView android:id="@+id/w_line2" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+        android:textColor="#FFF7EC" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+    <TextView android:id="@+id/w_line3" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="4dp"
+        android:textColor="#FFF7EC" android:textSize="14sp" android:maxLines="1" android:ellipsize="end" />
+</LinearLayout>

@@ -374,6 +374,13 @@ class MainActivity : ComponentActivity() {
             } else backupNow(name, json)
         }
 
+        /** R38: today's first tasks for the home-screen widget (only the Life app has the widget). */
+        @JavascriptInterface
+        fun setToday(json: String) {
+            getSharedPreferences("widget", MODE_PRIVATE).edit().putString("today", json).apply()
+            sendBroadcast(Intent("com.lifearchipelago.app.UPDATE_WIDGET").setPackage(packageName))
+        }
+
         @JavascriptInterface
         fun setReminders(json: String) {
             Reminders.apply(this@MainActivity, json)

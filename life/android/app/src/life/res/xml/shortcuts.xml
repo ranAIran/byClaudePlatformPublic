@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R38: long-press the app icon. Each opens a deep link the web app understands (core/links.js). -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="add" android:enabled="true" android:icon="@drawable/ic_sc_add"
+        android:shortcutShortLabel="@string/sc_add_short" android:shortcutLongLabel="@string/sc_add_long">
+        <intent android:action="android.intent.action.VIEW" android:data="lifearchipelago://add"
+            android:targetPackage="com.lifearchipelago.app" android:targetClass="com.lifearchipelago.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="today" android:enabled="true" android:icon="@drawable/ic_sc_today"
+        android:shortcutShortLabel="@string/sc_today_short" android:shortcutLongLabel="@string/sc_today_long">
+        <intent android:action="android.intent.action.VIEW" android:data="lifearchipelago://today"
+            android:targetPackage="com.lifearchipelago.app" android:targetClass="com.lifearchipelago.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="scan" android:enabled="true" android:icon="@drawable/ic_sc_scan"
+        android:shortcutShortLabel="@string/sc_scan_short" android:shortcutLongLabel="@string/sc_scan_long">
+        <intent android:action="android.intent.action.VIEW" android:data="lifearchipelago://scan"
+            android:targetPackage="com.lifearchipelago.app" android:targetClass="com.lifearchipelago.app.MainActivity" />
+    </shortcut>
+    <shortcut android:shortcutId="voice" android:enabled="true" android:icon="@drawable/ic_sc_voice"
+        android:shortcutShortLabel="@string/sc_voice_short" android:shortcutLongLabel="@string/sc_voice_long">
+        <intent android:action="android.intent.action.VIEW" android:data="lifearchipelago://voice"
+            android:targetPackage="com.lifearchipelago.app" android:targetClass="com.lifearchipelago.app.MainActivity" />
+    </shortcut>
+</shortcuts>

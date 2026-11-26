@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sc_add_short">Add</string>
+    <string name="sc_add_long">Add to the bag</string>
+    <string name="sc_scan_short">Scan</string>
+    <string name="sc_scan_long">Scan a document</string>
+    <string name="sc_today_short">Today</string>
+    <string name="sc_today_long">What\'s due today</string>
+    <string name="sc_voice_short">Speak</string>
+    <string name="sc_voice_long">Speak into the bag</string>
+    <string name="tile_label">Add to Life</string>
+    <string name="widget_label">Life · Today</string>
+    <string name="widget_title">Today</string>
+    <string name="widget_empty">Nothing due. Enjoy the evening.</string>
+</resources>

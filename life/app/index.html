@@ -193,6 +193,9 @@ button.item{align-items:center}
 .chip.decorate{justify-self:start;background:rgba(255,201,77,.14);border-color:rgba(255,201,77,.45);color:var(--gold)}
 .shopitem{align-items:center}
 .shopitem .btn[disabled]{opacity:.45}
+.item{transition:transform .18s ease-out,background .15s;touch-action:pan-y}
+.item.swipe-done{background:rgba(95,224,154,.22)}
+.item.swipe-edit{background:rgba(255,201,77,.18)}
 /* R33 · edit */
 #editor{position:fixed;left:var(--side);right:var(--side);bottom:calc(8px + var(--bot));padding:14px;border-radius:26px;z-index:8;max-height:88%;overflow:auto;animation:sheetIn .3s cubic-bezier(.2,.9,.3,1)}
 #editorForm{display:grid;gap:11px}

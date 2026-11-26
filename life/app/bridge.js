@@ -37,6 +37,7 @@ export function initBridge({ onShare, onScan, onVoice, onBack, onError, onLink, 
     backup(name, json, choose = false) { native?.backup?.(name, json, choose); },
     canRemind: !!native?.setReminders,
     setReminders(list) { native?.setReminders?.(JSON.stringify(list)); },
+    setToday(list) { native?.setToday?.(JSON.stringify(list)); },
     openExternal(url) { if (native?.openExternal) native.openExternal(url); else window.open(url, "_blank", "noopener"); },
   };
   native?.ready?.(); // lets Kotlin deliver anything shared before the page finished loading

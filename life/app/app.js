@@ -26,7 +26,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.5.0";
+export const VERSION = "0.5.1";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -284,6 +284,32 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "backup") { const d = isoDate(new Date()); bridge.saveFile(`life-backup-${d}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", d); toast(t("backupSaved")); refreshSheet(); }
 });
 
+// ---------- R38 · gestures: swipe a task right to tick it, left to edit it; long-press the bag to speak ----------
+{
+  let sw = null;
+  $("sheetBody").addEventListener("pointerdown", (e) => { const row = e.target.closest(".item"); const box = row?.querySelector('[data-act="toggle"]'); if (!box || e.target.closest("input,button.step")) return; sw = { row, id: box.dataset.id, x: e.clientX, y: e.clientY, dx: 0, on: false }; });
+  $("sheetBody").addEventListener("pointermove", (e) => {
+    if (!sw) return; const dx = e.clientX - sw.x, dy = e.clientY - sw.y;
+    if (!sw.on && Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { sw = null; return; } // a scroll, not a swipe
+    if (!sw.on && Math.abs(dx) > 14) sw.on = true;
+    if (sw.on) { sw.dx = dx; sw.row.style.transition = "none"; sw.row.style.transform = `translateX(${dx}px)`; sw.row.classList.toggle("swipe-done", dx > 70); sw.row.classList.toggle("swipe-edit", dx < -70); }
+  });
+  const endSwipe = () => {
+    if (!sw) return; const { row, id, dx, on } = sw; sw = null; row.style.transition = ""; row.style.transform = ""; row.classList.remove("swipe-done", "swipe-edit");
+    if (!on) return; swallowClick = true; setTimeout(() => { swallowClick = false; }, 50);
+    const rtl = document.documentElement.dir === "rtl", forward = rtl ? -dx : dx;
+    if (forward > 70) { const n = store.get(id); if (n && !n.done) finish(id, row.getBoundingClientRect(), () => store.complete(id)); }
+    else if (forward < -70) openEditor(id);
+  };
+  $("sheetBody").addEventListener("pointerup", endSwipe); $("sheetBody").addEventListener("pointercancel", endSwipe);
+  $("sheetBody").addEventListener("click", (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); } }, true);
+  let press = 0, pressed = false;
+  $("bagBtn").addEventListener("pointerdown", () => { pressed = false; press = setTimeout(() => { pressed = true; navigator.vibrate?.(15); $("micBtn").click(); }, 550); });
+  for (const ev of ["pointerup", "pointerleave", "pointercancel"]) $("bagBtn").addEventListener(ev, () => clearTimeout(press));
+  $("bagBtn").addEventListener("click", (e) => { if (pressed) { e.stopImmediatePropagation(); pressed = false; } }, true);
+}
+let swallowClick = false;
+
 // ---------- R33 · edit an item ----------
 let editing = null;
 const isoIn = (days) => { const d = new Date(); d.setDate(d.getDate() + days); return isoDate(d); };
@@ -415,9 +441,19 @@ el.addEventListener("pointerup", (e) => {
 el.addEventListener("wheel", (e) => { e.preventDefault(); zoomView(world(), e.deltaY > 0 ? 0.92 : 1.08); }, { passive: false });
 $("rotL").addEventListener("click", () => turnBy(-Math.PI / 4));
 $("rotR").addEventListener("click", () => turnBy(Math.PI / 4));
+let gPending = false;
 window.addEventListener("keydown", (e) => {
-  if (/^(INPUT|TEXTAREA)$/.test(document.activeElement?.tagName || "")) return;
-  const k = e.key.toLowerCase(); if (k === "q") turnBy(-Math.PI / 4); if (k === "e") turnBy(Math.PI / 4);
+  if (e.key === "Escape") { document.activeElement?.blur?.(); onBack(); return; }
+  if (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || "")) return;
+  const k = e.key.toLowerCase();
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  // R38 · desktop keys: / search, n new, t Today, g then a letter opens a district
+  if (gPending) { gPending = false; const id = { h: "home", w: "work", p: "paperwork", f: "family", e: "health", b: "bag" }[k]; if (id) { e.preventDefault(); id === "home" ? openIsland("home") : openSheet(id); } return; }
+  if (k === "/") { e.preventDefault(); $("searchBtn").click(); return; }
+  if (k === "n") { e.preventDefault(); $("capInput").focus(); return; }
+  if (k === "t") { e.preventDefault(); openToday(); return; }
+  if (k === "g") { gPending = true; setTimeout(() => { gPending = false; }, 1200); return; }
+  if (k === "q") turnBy(-Math.PI / 4); if (k === "e") turnBy(Math.PI / 4);
   if (WALK_KEYS[k] && mode === "walk") { W.keys.add(k); W.path = null; e.preventDefault(); }
 });
 window.addEventListener("keyup", (e) => W.keys.delete(e.key.toLowerCase()));
@@ -574,7 +610,14 @@ const bridge = initBridge({ onShare, onScan, onVoice, onBack, onLink, onBackup, 
 function autoBackup() { if (bridge.canBackup && bridge.hasBackupFolder() && backupDue(lsGet("life-backup-last"))) bridge.backup(backupName(), exportJSON(store)); }
 // R11 · tell the phone what to remind (a moment after each change, so typing doesn't flood it).
 let remindT = 0;
-const syncReminders = () => { if (!bridge.canRemind) return; clearTimeout(remindT); remindT = setTimeout(() => bridge.setReminders(reminderList(store)), 1200); };
+const syncReminders = () => {
+  if (!bridge.canRemind) return; clearTimeout(remindT);
+  remindT = setTimeout(() => {
+    bridge.setReminders(reminderList(store));
+    const L = todayList(store); // R38 · the widget's three lines: late first, then today, then this week
+    bridge.setToday([...L.overdue.map((x) => ({ ...x, late: true })), ...L.today, ...L.week].slice(0, 3).map((x) => ({ title: x.title, late: !!x.late })));
+  }, 1200);
+};
 syncReminders();
 $("scanBtn").hidden = !bridge.canScan;
 $("autoBackupItem").hidden = !bridge.canBackup;

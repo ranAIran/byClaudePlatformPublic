@@ -10,6 +10,24 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="lifearchipelago" />
             </intent-filter>
+            <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>
+
+        <!-- R38: home-screen widget with today's tasks -->
+        <receiver android:name=".TodayWidget" android:exported="true" android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.lifearchipelago.app.UPDATE_WIDGET" />
+            </intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/today_widget_info" />
+        </receiver>
+
+        <!-- R38: quick-settings tile "Add to Life" -->
+        <service android:name=".CaptureTile" android:exported="true" android:label="@string/tile_label"
+            android:icon="@drawable/ic_tile" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>
