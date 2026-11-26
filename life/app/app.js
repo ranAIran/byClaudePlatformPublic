@@ -18,6 +18,7 @@ import { describeRepeat } from "./core/repeat.js";
 import { reminderList } from "./core/reminders.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "./core/shop.js";
 import { LANGS, makeT, pickLang, placeTitle } from "./core/i18n.js";
+import { pickQuality, canChooseQuality } from "./core/quality.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
@@ -26,7 +27,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.5.1";
+export const VERSION = "0.6.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -84,14 +85,17 @@ function screenPass(node) {
     q.render(renderer); renderer.toneMapping = tm; renderer.outputColorSpace = cs;
   } };
 }
-const map = buildMap(), home = buildHome();
+// R39 · enhanced graphics on computers; phones stay light. ?quality=light|enhanced overrides (tests).
+const quality = params.get("quality") === "light" || params.get("quality") === "enhanced" ? (coarse ? "light" : params.get("quality"))
+  : pickQuality({ coarse, width: innerWidth, saved: (() => { try { return localStorage.getItem("life-quality"); } catch (e) { return null; } })() });
+const map = buildMap({ quality }), home = buildHome();
 for (const w of [map, home]) {
   fitCamera(w.cam);
   // The view: where the camera is on its orbit (R29). Goals are eased to; null means "stay".
   w.v = { yaw: w.cam.userData.yaw, pitch: w.cam.userData.pitch, dist: w.cam.userData.dist, zoom: 1, yawGoal: null, pitchGoal: null };
   w.pan = new THREE.Vector3();
   const sp = pass(w.scene, w.cam), c = sp.getTextureNode("output");
-  w.post = screenPass(c.add(bloom(c, 0.45, 0.35, 0.85)));
+  w.post = screenPass(c.add(bloom(c, quality === "enhanced" && w === map ? 0.6 : 0.45, 0.35, 0.85)));
 }
 let view = "map", room = "living";
 const world = () => (view === "map" ? map : home);
@@ -641,6 +645,7 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "autobackup") { backupAsked = true; bridge.backup(backupName(), exportJSON(store), true); }
   if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast(t("summaryExported")); }
   if (act === "import") $("importInput").click();
+  if (act === "quality") { lsSet("life-quality", quality === "enhanced" ? "light" : "enhanced"); location.reload(); }
   if (act === "lang") { lang = lang === "he" ? "en" : "he"; lsSet("life-lang", lang); t = makeT(lang); applyLang(); }
   if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast(t("examplesRemoved")); }
   if (act === "sound") { sound = !sound; try { localStorage.setItem("life-sound", sound ? "on" : "off"); } catch (e) { /* ignore */ } renderSound(); if (sound) fx.chime([523.25, 783.99]); toast(t(sound ? "soundOn" : "soundOff")); }
@@ -655,6 +660,7 @@ function applyLang() {
   for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
   for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
   const lb = $("menu").querySelector('[data-act="lang"] span'); if (lb) lb.textContent = t("language", { l: LANGS[lang] });
+  const qb = $("menu").querySelector('[data-act="quality"]'); if (qb) { qb.hidden = !canChooseQuality({ coarse }); qb.querySelector("span").textContent = t("m_quality", { q: t(quality === "enhanced" ? "q_enhanced" : "q_light") }); }
   $("back").querySelector("b").textContent = title("home");
   renderSound(); renderHud(); placeLabels(); refreshSheet();
 }
@@ -751,6 +757,7 @@ renderer.setAnimationLoop(() => {
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
+    quality: () => quality,
     today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
     decor: () => map.decorCount(),

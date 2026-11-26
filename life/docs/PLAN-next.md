@@ -1,5 +1,9 @@
 # Life Archipelago: next work plan (approved by the owner, 17 Nov 2026)
 
+**Status, 26 Nov 2026: all eight steps are built and tested (Life 0.4.0–0.6.0).** Ready-made CC0 models could not be
+downloaded from the cloud environment (sites blocked, no city kit on npm), so step 8 uses drawn textures. Android
+parts (reminders, widget, tile, shortcuts, backup folder) still need a check on a real phone.
+
 For the agent who picks this up. Read `CLAUDE.md` first: it has the way of working (tests first, small pushed
 steps, look at screenshots, answer the owner in Hebrew) and the lessons. Work on branch `claude/life-archipelago`.
 Do the steps in this order; each step is one or more pushes with its tests green (`npm test`, `npm run test:visual`).

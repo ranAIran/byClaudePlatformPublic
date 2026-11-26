@@ -65,7 +65,7 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <header>
   <h1>Life Archipelago · מסמך דרישות</h1>
   <p>מפת חיים תלת-ממדית: כל אזור בחיים הוא אי (או רובע בעיר), נכנסים למקומות ולחדרים, ו"תיק" בטלפון קולט כל דבר תוך שניות.</p>
-  <div class="meta"><span>גרסת אפליקציה 0.3.1</span><span>עודכן 16 בנובמבר 2026</span><span>ענף <span class="ltr">claude/life-archipelago</span></span></div>
+  <div class="meta"><span>גרסת אפליקציה 0.6.0</span><span>עודכן 26 בנובמבר 2026</span><span>ענף <span class="ltr">claude/life-archipelago</span></span></div>
   <nav>
     <a href="#vision">חזון ולולאת הליבה</a><a href="#reqs">דרישות</a><a href="#city">תצוגת העיר</a><a href="#market">מחקר שוק</a><a href="#refs">משחקי ייחוס</a><a href="#tech">טכנולוגיות</a><a href="#sources">מקורות</a>
   </nav>
@@ -100,7 +100,7 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <tr><td class="id">R8</td><td>נתונה משימת ניירת בת 4 שלבים · כאשר השלב האחרון מושלם · אז XP נוסף פעם אחת עם בונוס הבוס, ו-XP לעולם לא יורד</td><td>יחידה</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R9</td><td>נתון חשבון סרוק עם "Amount due 412.30" ו-"Due 20/11/2026" · כאשר הוא נקרא · אז נוצרת משימה "Pay electricity bill" עם הסכום והתאריך, וה-PDF מצורף</td><td>יחידה (מפענח) + אנדרואיד</td><td>2</td><td><span class="st warn">הסורק קיים, קריאת השדות לא</span></td></tr>
 <tr><td class="id">R10</td><td>נתון שהמצלמה מזהה "washing machine" בביטחון 80% ומעלה · כאשר מקישים · אז נוצר כרטיס פריט בחדר הנוכחי עם פעולות מוצעות</td><td>אנדרואיד</td><td>2</td><td><span class="st todo">לא התחיל</span></td></tr>
-<tr><td class="id">R11</td><td>נתונה משימה למחר ב-09:00 · כאשר מגיע הזמן · אז מופיעה התראה גם כשהאפליקציה סגורה</td><td>אנדרואיד</td><td>2</td><td><span class="st todo">לא התחיל</span></td></tr>
+<tr><td class="id">R11</td><td>נתונה משימה למחר ב-09:00 · כאשר מגיע הזמן · אז מופיעה התראה גם כשהאפליקציה סגורה</td><td>אנדרואיד</td><td>2</td><td><span class="st warn">עובר בבדיקות; לבדוק בטלפון</span></td></tr>
 <tr><td class="id">R12</td><td>נתונים זמן השכמה אחרון 07:00, חלון של 30 דקות ותנועה ב-06:20 וב-06:41 · כאשר כלל השעון רץ · אז הוא מצלצל ב-06:41; בלי תנועה בחלון הוא מצלצל ב-07:00</td><td>יחידה (Kotlin ו-JS)</td><td>4</td><td><span class="st todo">לא התחיל</span></td></tr>
 <tr><td class="id">R13</td><td>נתון שבוע עם ממוצע 7.2 שעות שינה מול יעד 7–8 · כאשר השבוע נסגר · אז נקודות הבריאות עולות, ולילה אחד של 4 שעות מוריד אותן ב-5% לכל היותר</td><td>יחידה</td><td>4</td><td><span class="st todo">לא התחיל</span></td></tr>
 <tr><td class="id">R14</td><td>נתונה התקנה חדשה · אז שום חיישן לא נקרא עד שהמתג שלו מופעל</td><td>אנדרואיד</td><td>2</td><td><span class="st todo">לא התחיל</span></td></tr>
@@ -108,13 +108,16 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <tr><td class="id">R16</td><td>נתון שהמשתמש פותח "Send feedback" · כאשר הוא בוחר סוג וכותב טקסט · אז נפתח issue ב-GitHub עם הכותרת, גרסת האפליקציה ופרטי המכשיר, או שהטקסט משותף</td><td>יחידה + ויזואלית</td><td>1</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R17</td><td>נתון חדר השינה בבית · אז יש בו מיטה, שולחן מחשב ושני טרריומים במידות 60×60×45 ו-60×45×45 ס״מ (רוחב×גובה×עומק)</td><td>ויזואלית</td><td>1</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R18</td><td>נתונה מפת החיים · אז כל אזור חיים הוא רובע בעיר על רשת רחובות (Work מגדלים, Paperwork עירייה, Health פארק וחדר כושר, Family רחוב ההורים, Home הבית שלך), והקשה על בניין פותחת את הרובע שלו</td><td>ויזואלית + קצה לקצה</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
-<tr><td class="id">R19</td><td>נתוני גרסה 1 עוברים בפתיחה ל-IndexedDB עם מספר גרסה, סימון מחיקה והסבה, בלי לאבד אף פריט</td><td>יחידה</td><td>2</td><td><span class="st new">מוצע</span></td></tr>
-<tr><td class="id">R20</td><td>גיבוי אוטומטי יומי לתיקייה שבוחרים, ושחזור ממנו מחזיר בדיוק אותם נתונים</td><td>יחידה + אנדרואיד</td><td>2</td><td><span class="st new">מוצע</span></td></tr>
-<tr><td class="id">R21</td><td>פתיחת קישור <span class="ltr">lifearchipelago://add?text=…</span> מוסיפה לתיק, גם מתג NFC או מ-QR</td><td>אנדרואיד</td><td>2</td><td><span class="st new">מוצע</span></td></tr>
+<tr><td class="id">R19</td><td>נתוני גרסה 1 עוברים בפתיחה ל-IndexedDB עם מספר גרסה, סימון מחיקה והסבה, בלי לאבד אף פריט</td><td>יחידה</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
+<tr><td class="id">R20</td><td>גיבוי אוטומטי יומי לתיקייה שבוחרים, ושחזור ממנו מחזיר בדיוק אותם נתונים</td><td>יחידה + אנדרואיד</td><td>2</td><td><span class="st warn">עובר בבדיקות; לבדוק בטלפון</span></td></tr>
+<tr><td class="id">R21</td><td>פתיחת קישור <span class="ltr">lifearchipelago://add?text=…</span> מוסיפה לתיק, גם מתג NFC או מ-QR</td><td>אנדרואיד</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R22</td><td>ייצוא ICS של משימות עם תאריך, שנפתח תקין ביומן Google</td><td>יחידה</td><td>2</td><td><span class="st new">מוצע</span></td></tr>
 <tr><td class="id">R23</td><td>שרת MCP מקומי לקריאה בלבד (חיפוש, משימות קרובות) מעל קובץ הגיבוי</td><td>יחידה</td><td>3</td><td><span class="st new">מוצע</span></td></tr>
 <tr><td class="id">R24</td><td>סנכרון בין שני מכשירים ואי Family משותף; משתמש אחר לא רואה את הנתונים שלך</td><td>אינטגרציה</td><td>3</td><td><span class="st new">מוצע</span></td></tr>
 <tr><td class="id">R25</td><td>MCP מרוחק עם התחברות, כולל הוספה וסימון כבוצע באישור</td><td>אינטגרציה</td><td>3</td><td><span class="st new">מוצע</span></td></tr>
+<tr><td class="id">R33</td><td>נתון פריט · כאשר מקישים על השם שלו · אז נפתח מסך עריכה: שם, סוג, מקום, תאריך, חזרה, מאמץ, שלבים, קישור והערות; המחיקה נמצאת שם עם ביטול</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
+<tr><td class="id">R34</td><td>נתון שיש משימות · כאשר פותחים את "היום" · אז רואים באיחור, היום והשבוע ברשימה אחת, וכמה מחכה בתיק; כשיש איחור, המסך נפתח לבד פעם ביום</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
+<tr><td class="id">R35</td><td>נתונה משימה חוזרת ("כל חצי שנה", "every week") · כאשר מסמנים אותה · אז היא חוזרת פתוחה עם התאריך הבא באותו קצב</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R26</td><td>נתונה משימה פתוחה · כאשר מסמנים אותה · אז ה-XP שלה עף אל סרגל ה-XP עם קונפטי וצליל; שלב במשימה שקט יותר, משימה מרובת שלבים גדולה יותר, ועליית רמה מקבלת רגע משלה. משימה שכבר זיכתה לא מזכה שוב</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R27</td><td>נתון רובע עם משימה באיחור · אז רואים בו מנוף, פיגומים, קונוסים ופנס מהבהב; כשהכול נעשה, הרובע מקושט בדגלונים ואורות</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R28</td><td>נתונה העיר · אז היא מוארת בשמש נמוכה וחמה של שעת הזהב, עם צללים ארוכים וחלונות מוארים</td><td>ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
@@ -122,6 +125,10 @@ footer{margin-top:40px;color:var(--muted);font-size:13px}
 <tr><td class="id">R30</td><td>נתון העולם · כאשר מטים את המבט למטה · אז רואים שמיים, שמש, ים עד האופק וגבעות; העולם מלא מכל זווית</td><td>ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R31</td><td>נתון מצב הליכה · כאשר מקישים על הקרקע או על בניין · אז הדמות שלך הולכת לשם בדרך שעוקפת בניינים, המצלמה עוקבת מאחור, והגעה לדלת פותחת את המקום</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
 <tr><td class="id">R32</td><td>נתונים חפצים שמגיבים פיזית · כאשר מקישים על כדור או נתקלים בו · אז הוא עף, קופץ, נעצר בקירות ונופל למים עם התזה; סיום משימות מפזר מטבעות קופצים מדלת המקום</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
+<tr><td class="id">R36</td><td>נתונים מטבעות שהרווחת · כאשר קונים קישוט לרובע · אז הוא מופיע בפינת המדרכה ונשמר; אי אפשר לבזבז יותר ממה שיש</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
+<tr><td class="id">R37</td><td>נתון טלפון בעברית או בחירה בתפריט · אז כל הממשק בעברית מימין לשמאל, ושמות המקומות המובנים מתורגמים</td><td>יחידה + ויזואלית</td><td>2</td><td><span class="st ok">עובר</span></td></tr>
+<tr><td class="id">R38</td><td>קיצורים: לחיצה ארוכה על האייקון, ווידג'ט "היום", אריח בהגדרות המהירות, החלקה לסימון ולעריכה, ומקשים במחשב</td><td>ויזואלית + אנדרואיד</td><td>2</td><td><span class="st warn">עובר בבדיקות; לבדוק בטלפון</span></td></tr>
+<tr><td class="id">R39</td><td>נתון מחשב · אז הגרפיקה משופרת (מדרכות, דשא ותאורת רחוב) עם מתג לגרסה הקלה; בטלפון היא לא משתנה</td><td>יחידה + ויזואלית</td><td>3</td><td><span class="st ok">עובר</span></td></tr>
 </tbody></table></div>
 <p class="note">הערכים המספריים ב-R8 וב-R13 הם ערכי התחלה; משנים אותם על ידי שינוי הבדיקה קודם. סורק המסמכים, המצלמה, ההקלטה הקולית והשיתוף לתוך האפליקציה בנויים באנדרואיד, אבל עדיין לא נבדקו על טלפון אמיתי.</p>
 </section>

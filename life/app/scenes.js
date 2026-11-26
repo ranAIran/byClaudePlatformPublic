@@ -7,6 +7,29 @@ import { ISO, orbitOffset } from "./core/orbit.js";
 
 const VW = () => window.innerWidth, VH = () => window.innerHeight;
 let scene = null, cam = null, updaters = [];
+// R39 · graphics quality for the city: "enhanced" on computers (drawn surfaces with relief, lamps that
+// light the street, sharper shadows, glossier water), "light" everywhere else.
+let QUALITY = "light";
+const HQ = () => QUALITY === "enhanced";
+// A surface drawn on a canvas: grey-ish colour (tinted by the material colour) and a relief map.
+const surfCache = new Map();
+function surface(kind, tint, repeat = [1, 1], { rough = 0.9, bump = 2 } = {}) {
+  if (!surfCache.has(kind)) {
+    const rr = W.rng(kind.length * 7 + 3), draw = (relief) => canvasTex(256, 256, (x) => SURF_DRAW[kind](x, relief, rr));
+    const map = draw(false), bm = draw(true); bm.colorSpace = THREE.NoColorSpace;
+    surfCache.set(kind, { map, bm });
+  }
+  const { map, bm } = surfCache.get(kind), mapR = map.clone(), bmR = bm.clone();
+  for (const t of [mapR, bmR]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); t.needsUpdate = true; }
+  return new THREE.MeshStandardMaterial({ color: tint, map: mapR, bumpMap: bmR, bumpScale: bump, roughness: rough });
+}
+const speck = (x, n, a, rr, light = true) => { for (let i = 0; i < n; i++) { const v = light && rr() < 0.5 ? 255 : 0; x.fillStyle = `rgba(${v},${v},${v},${a * rr()})`; x.fillRect(rr() * 256, rr() * 256, 1 + rr() * 2.5, 1 + rr() * 2.5); } };
+const SURF_DRAW = {
+  asphalt: (x, relief, rr) => { x.fillStyle = relief ? "#777" : "#c8c8c8"; x.fillRect(0, 0, 256, 256); speck(x, 3200, relief ? 0.55 : 0.25, rr); for (let i = 0; i < 5; i++) { x.strokeStyle = relief ? "#333" : "rgba(60,60,60,.35)"; x.lineWidth = 1.2; x.beginPath(); let px = rr() * 256, py = rr() * 256; x.moveTo(px, py); for (let k = 0; k < 6; k++) { px += (rr() - 0.5) * 40; py += (rr() - 0.5) * 40; x.lineTo(px, py); } x.stroke(); } },
+  paving: (x, relief, rr) => { x.fillStyle = relief ? "#222" : "#a8a8a8"; x.fillRect(0, 0, 256, 256); for (let j = 0; j < 8; j++) for (let i = -1; i < 5; i++) { const v = rr(), bx0 = i * 64 + (j % 2) * 32; x.fillStyle = relief ? `rgb(${200 + v * 50},${200 + v * 50},${200 + v * 50})` : `rgb(${226 + v * 24},${222 + v * 24},${214 + v * 24})`; x.fillRect(bx0 + 2, j * 32 + 2, 60, 28); } speck(x, 600, relief ? 0.25 : 0.1, rr); },
+  grass: (x, relief, rr) => { x.fillStyle = relief ? "#777" : "#d8d8d8"; x.fillRect(0, 0, 256, 256); for (let i = 0; i < 2800; i++) { const v = rr(); x.fillStyle = relief ? `rgba(255,255,255,${v * 0.55})` : `rgba(${150 + v * 105},${170 + v * 85},${130 + v * 80},.85)`; x.fillRect(rr() * 256, rr() * 256, 1.5, 3 + v * 5); } },
+  stone: (x, relief, rr) => { x.fillStyle = relief ? "#111" : "#9a9a9a"; x.fillRect(0, 0, 256, 256); for (let j = 0; j < 6; j++) { let px = -(rr() * 40); while (px < 256) { const w = 34 + rr() * 44, v = rr(); x.fillStyle = relief ? `rgb(${190 + v * 60},${190 + v * 60},${190 + v * 60})` : `rgb(${215 + v * 40},${212 + v * 40},${205 + v * 40})`; x.fillRect(px + 2, j * 42.6 + 2, w - 4, 38.6); px += w; } } speck(x, 900, relief ? 0.3 : 0.12, rr); },
+};
 
 // ---------- helpers ----------
 const m = (c, o = {}) => W.mat(c, { flatShading: false, roughness: 0.8, ...o });
@@ -44,7 +67,7 @@ function lights({ hemiSky = "#cfe8ff", hemiGround = "#8a6d4a", hemi = 1.1, sunCo
   scene.add(new THREE.HemisphereLight(hemiSky, hemiGround, hemi));
   const s = new THREE.DirectionalLight(sunColor, sun);
   s.position.copy(target).add(new THREE.Vector3(...sunOff)); s.target.position.copy(target);
-  s.castShadow = true; s.shadow.mapSize.setScalar(2048);
+  s.castShadow = true; s.shadow.mapSize.setScalar(HQ() ? 4096 : 2048);
   Object.assign(s.shadow.camera, { left: -size, right: size, top: size, bottom: -size, near: 0.5, far: 120 });
   s.shadow.bias = -0.0004; s.shadow.normalBias = 0.03;
   scene.add(s, s.target);
@@ -210,6 +233,7 @@ function buildMapInto() {
   // Low warm sun from the left, cool sky fill: long shadows to the right, sunlit left faces.
   lights({ target, size: 21, sunOff: [-32, 17, 12], sunColor: "#ffb066", sun: 4.0, hemiSky: "#c6ceff", hemiGround: "#e6a878", hemi: 1.2 });
   const water = W.makeWater(cfg); scene.add(water); updaters.push((t) => water.userData.update(t));
+  if (HQ()) water.material = new THREE.MeshStandardMaterial({ color: cfg.world.water.color, roughness: 0.32, metalness: 0.18, flatShading: false });
   // The world out to the horizon (R30): sky, a low sun, open sea, and hills that fade into the haze.
   skyDome("#6f80c8", HAZE, new THREE.Vector3());
   const farSea = cy(460, 460, 0.02, m(cfg.world.water.color, { roughness: 0.3, metalness: 0.15 }), 48); farSea.position.y = -0.14; scene.add(farSea);
@@ -231,9 +255,9 @@ function buildMapInto() {
   for (const [i, j, id] of CELLS) {
     const [cx, cz] = at(i, j);
     put(bx(P, 1.5, P, "#b0926f"), cx, -0.75, cz, ground);
-    put(bx(P, 0.12, P, "#5c5e6e"), cx, 0.06, cz, ground);
+    put(bx(P, 0.12, P, HQ() ? surface("asphalt", "#5c5e6e", [3, 3], { rough: 0.85, bump: 1.2 }) : "#5c5e6e"), cx, 0.06, cz, ground);
     put(bx(SW + 0.12, 0.1, SW + 0.12, "#a9a296"), cx, 0.15, cz, ground);
-    put(bx(SW, 0.12, SW, "#dcc5a6"), cx, 0.17, cz, ground);
+    put(bx(SW, 0.12, SW, HQ() ? surface("paving", "#e6cfae", [4, 4], { bump: 2.4 }) : "#dcc5a6"), cx, 0.17, cz, ground);
     put(bx(B, 0.14, B, "#e4d9c8"), cx, 0.19, cz, ground);
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const ex = cx + (di * P) / 2, ez = cz + (dj * P) / 2;
@@ -246,7 +270,12 @@ function buildMapInto() {
   }
 
   // ----- reusable pieces -----
-  const lawn = (g, c, w = B - 0.3, d = B - 0.3, x = 0, z = 0) => put(bx(w, 0.06, d, c), x, 0.03, z, g);
+  // On grass-coloured lawns the enhanced look draws grass; on light ones (plazas) it draws stone.
+  const lawn = (g, c, w = B - 0.3, d = B - 0.3, x = 0, z = 0) => {
+    if (!HQ()) return put(bx(w, 0.06, d, c), x, 0.03, z, g);
+    const green = new THREE.Color(c).getHSL({}).h > 0.18 && new THREE.Color(c).getHSL({}).h < 0.45;
+    return put(bx(w, 0.06, d, green ? surface("grass", c, [3, 3], { rough: 1, bump: 1.6 }) : surface("stone", c, [3, 3], { bump: 2 })), x, 0.03, z, g);
+  };
   const add = (g, o, x, z, ry = 0, y = 0.06) => { o.position.set(x, y, z); o.rotation.y = ry; g.add(o); return o; };
   const LEAVES = ["#5aa252", "#6fae4e", "#e2a03a", "#d9772b", "#4f9a6a"];
   const pine = (s = 1, c = "#3f7d5a") => { const t = new THREE.Group(); put(cy(0.07 * s, 0.1 * s, 0.4 * s, "#6b4a2e", 6), 0, 0.2 * s, 0, t); for (let k = 0; k < 3; k++) put(new THREE.Mesh(new THREE.ConeGeometry((0.5 - k * 0.12) * s, 0.7 * s, 7), W.mat(tint(c, k * 0.04))), 0, (0.65 + k * 0.42) * s, 0, t); return t; };
@@ -330,6 +359,7 @@ function buildMapInto() {
     const bn2 = bunting(3.7); bn2.position.set(e, 0, 0.25); bn2.rotation.y = Math.PI / 2; cl.add(bn2);
     const bulb = new THREE.MeshStandardMaterial({ color: "#ffe6a8", emissive: new THREE.Color("#ffcf78"), emissiveIntensity: 2.4, roughness: 0.4 });
     add(g, lampPost(bulb), lamp[0], lamp[1], -Math.PI * 0.75, 0);
+    if (HQ()) { const l = new THREE.PointLight("#ffb866", 7, 6.5, 1.8); l.position.set(g.position.x + lamp[0] - 0.22, Y + 1.45, g.position.z + lamp[1] - 0.22); scene.add(l); }
     bake(od); bake(cl); od.visible = cl.visible = false;
     signs[id] = { overdue: od, clear: cl, bulb, state: "open" };
   };
@@ -684,7 +714,7 @@ function wrap(build) {
   scene = null; cam = null;
   return out;
 }
-export const buildMap = () => wrap(buildMapInto);
+export const buildMap = ({ quality = "light" } = {}) => { QUALITY = quality; try { return wrap(buildMapInto); } finally { QUALITY = "light"; } };
 export const buildHome = () => wrap(buildHomeInto);
 // Keep the whole scene in view on narrow (portrait) screens by standing further back.
 export function fitCamera(c) {

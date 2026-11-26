@@ -238,6 +238,21 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   const afterR = await p.evaluate(() => ({ n: window.__life.store.all().length, xp: window.__life.store.xp() }));
   check(before.st.kind === "indexeddb" && afterR.n === before.n && afterR.xp === before.xp, `R19 data is in IndexedDB and survives a reload (${before.st.kind}, ${before.n} → ${afterR.n} items, XP ${before.xp} → ${afterR.xp})`);
 }
+// R39 · a computer opens with enhanced graphics (not blank, state signs still work); a phone stays light.
+{
+  const phoneQ = await p.evaluate(() => window.__life.quality());
+  const dctx = await b.newContext({ viewport: { width: 1280, height: 800 } }); const d = await dctx.newPage();
+  d.on("pageerror", (e) => errs.push("desktop: " + e.message));
+  await d.goto(base); await d.waitForFunction(() => window.__life?.ready, null, { timeout: 180000 }); await d.waitForTimeout(800);
+  const dq = await d.evaluate(() => window.__life.quality());
+  const lid = await d.evaluate(() => window.__life.store.add({ type: "task", title: "Late form", parent: "paperwork", due: "2020-01-01" })); await d.waitForTimeout(500);
+  const signs = await d.evaluate(() => window.__life.moods().paperwork.signs);
+  await d.screenshot({ path: `${out}/v-desktop.png` });
+  const many = await colours(d);
+  const menuItem = await d.evaluate(() => !document.querySelector('#menu [data-act="quality"]').hidden);
+  check(phoneQ === "light" && dq === "enhanced" && signs === "overdue" && many > 40 && menuItem, `R39 a computer gets enhanced graphics with a switch, a phone stays light (phone ${phoneQ}, desktop ${dq}, signs ${signs}, ${many} colours)`);
+  await dctx.close();
+}
 check(errs.length === 0, `no page errors${errs.length ? ": " + errs.join(" | ") : ""}`);
 await b.close(); server.close();
 process.exit(failures.length ? 1 : 0);

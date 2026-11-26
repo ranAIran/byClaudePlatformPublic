@@ -33,8 +33,8 @@ Read this first. It carries the decisions and lessons from earlier sessions so a
 
 ```bash
 cd life && npm install
-npm test                 # Vitest: life/test/*.test.js (R1–R3, R7, R8, R16, sharing, R26 rewards, R27 moods, R29 orbit, R31 walking and routes, R32 physics)
-npm run test:visual      # Playwright: life/test/visual.mjs, about 4 minutes (R4, R5, R16–R18, R26–R32: city, golden hour, state signs, turning, horizon, walking, coins)
+npm test                 # Vitest: life/test/*.test.js, 75 tests (R1–R3, R7, R8, R11, R16, R19–R21, R26, R27, R29, R31–R39)
+npm run test:visual      # Playwright: life/test/visual.mjs, about 6 minutes (city, golden hour, signs, turning, middle-drag, walking, coins, edit, Today, repeats, deep links, shop, keys and swipe, Hebrew, IndexedDB, desktop quality)
 bash life/android/copy-web.sh   # copies life/app + quest engine into the APK assets (CI does this)
 ```
 
@@ -61,6 +61,7 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 - **Do not use `THREE.PostProcessing` for more than one scene** (r170): all instances share one quad/material, so the last one built wins (map showed the house). `app.js` uses `screenPass()`, a private QuadMesh per world, and warms up the other world at frame 10.
 - **An `InstancedMesh` must keep the instance count it had on its first frame** (r170 sizes the instance buffer then): the reward coins were invisible when the pool started at `count = 0`. Keep a fixed pool and scale unused instances to zero.
 - **Greedy "slide along the wall" steering gets trapped in corners** (porch + house wall). Walking uses a grid route (`route()` in `life/app/core/walk.js`), then straightens it.
+- **Life-only Android parts live in the `life` flavor** (`life/android/app/src/life/`): shortcuts, widget, tile, deep-link intent filter. Main code talks to them only by broadcast (`com.lifearchipelago.app.UPDATE_WIDGET`), so the quest APK still compiles.
 - **Measure the 3D picture with the HTML overlays hidden** (labels, HUD, hint): they float over the city at varying moments and made the golden-hour test flaky.
 - **Animations that must finish (camera turns, confetti) use real elapsed time**, not the capped frame delta: the software renderer in tests runs at 2–5 fps, and slow phones exist.
 - The APK is signed with the committed test key `life/android/debug.keystore` so updates install over each other. Not for the Play Store.
@@ -90,5 +91,7 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 - **Done (0.3.2):** a more spacious city (street grid 7.5 instead of 6, wide sandstone sidewalks, street trees along every block; lighthouse, marina, boats, balloon and camera moved out to match) and a new main bag: an illustrated leather satchel with a brass buckle that wiggles while things wait in it.
 - **Preview (awaiting the owner's verdict):** enhanced-graphics study at `life/proto/?shot=dusk` (`shotDusk()` in `life/proto/proto.js`): one block at dusk with drawn textures and relief (`surf()`), fuller trees, lamps as real lights, a lighthouse beam, foam, a boat. Not in the app yet.
 - **Not yet verified on a real phone:** the new camera gestures, walk mode and frame rate with the bigger world; also scanner, camera, voice, share-in, WebGPU performance.
-- **Next (approved plan, do in order):** `life/docs/PLAN-next.md`: R33 edit, R34 Today, R35 repeat + R11 reminders, R19/R20 safe data, R36 coins shop, R37 Hebrew UI, R38 phone shortcuts + R21 deep links, R39 enhanced graphics on computers only.
-- **Later candidates:** walking inside the house; first-person view; collect coins by walking into them; more toys; device check of the latest APK and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.
+- **Done (0.4.0–0.6.0), the whole plan in `life/docs/PLAN-next.md`:** middle mouse button pans; R33 edit an item (`core/edit.js`); R34 Today (`core/today.js`, opens once a day when something is late); R35 repeating tasks (`core/repeat.js`, Hebrew and English phrases); R11 reminders (Android `Reminders.kt`, 09:00 on the due day, Kotlin unit test runs in CI); R21 deep links (`core/links.js`); R19 IndexedDB with tombstones (`app/storage.js`); R20 daily backups to a folder on Android (`Backups.kt`), monthly export reminder on the web; R36 coins buy decorations (`core/shop.js`); R37 Hebrew interface (`core/i18n.js`, RTL); R38 app shortcuts, home-screen widget and quick-settings tile (Android `src/life/` flavor only), swipe gestures, keyboard shortcuts; R39 enhanced graphics on computers only (`core/quality.js`, drawn surfaces, street lights; menu switch; phones stay light).
+- **Not possible from this environment:** ready-made CC0 models (Kenney, Quaternius, Poly Pizza are blocked; npm has no city kit). Enhanced graphics use drawn textures instead.
+- **Must be checked on a real phone (cannot be tested here):** reminders arriving, the widget, the tile, app shortcuts, the backup folder picker, notifications permission.
+- **Later candidates:** sync between devices (R24) and the MCP server (R23/R25) from the data plan; walking inside the house; first-person view; collect coins by walking into them; more toys; device check of the latest APK and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.

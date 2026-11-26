@@ -22,6 +22,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { backupDue, backupName } from "../app/core/backup.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
 import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
+import { pickQuality, canChooseQuality } from "../app/core/quality.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -549,5 +550,20 @@ describe("R37 · the interface in Hebrew", () => {
     expect(placeTitle("paperwork", "Paperwork", "he")).toBe("ניירת");
     expect(placeTitle("paperwork", "Bills and forms", "he")).toBe("Bills and forms");
     expect(placeTitle("paperwork", "Paperwork", "en")).toBe("Paperwork");
+  });
+});
+
+describe("R39 · enhanced graphics on computers only", () => {
+  it("a computer with a wide screen starts enhanced; a narrow window starts light", () => {
+    expect(pickQuality({ coarse: false, width: 1440 })).toBe("enhanced");
+    expect(pickQuality({ coarse: false, width: 700 })).toBe("light");
+  });
+  it("the owner's choice on a computer is kept", () => {
+    expect(pickQuality({ coarse: false, width: 1440, saved: "light" })).toBe("light");
+    expect(pickQuality({ coarse: false, width: 700, saved: "enhanced" })).toBe("enhanced");
+  });
+  it("a phone never changes, whatever was saved, and has no switch", () => {
+    expect(pickQuality({ coarse: true, width: 1440, saved: "enhanced" })).toBe("light");
+    expect(canChooseQuality({ coarse: true })).toBe(false); expect(canChooseQuality({ coarse: false })).toBe(true);
   });
 });
