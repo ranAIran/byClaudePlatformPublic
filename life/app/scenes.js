@@ -547,10 +547,30 @@ function buildMapInto() {
   const markMat = new THREE.MeshStandardMaterial({ color: "#ffd166", emissive: new THREE.Color("#ffc94d"), emissiveIntensity: 2 });
   for (const [x, z] of Object.values(doors)) { const geo = new THREE.RingGeometry(0.3, 0.42, 24); geo.rotateX(-Math.PI / 2); const r = new THREE.Mesh(geo, markMat); r.position.set(x, Y + 0.085, z); doorMarks.add(r); }
   updaters.push((t) => { markMat.emissiveIntensity = 1.4 + Math.sin(t * 3) * 0.8; });
+  // R36 · decorations bought with coins: three spots per district, on the sidewalk corners.
+  const SPOTS = [[-2.6, -2.6], [2.6, -2.6], [-2.6, 2.6]];
+  const decor = new THREE.Group(); scene.add(decor);
+  const makeDecor = (item) => {
+    const g = new THREE.Group();
+    if (item === "bench") g.add(bench());
+    if (item === "tree") g.add(tree(0.62, LEAVES[(Math.random() * 4) | 0]));
+    if (item === "flowers") { const box = put(bx(0.9, 0.22, 0.5, "#9b6b43"), 0, 0.11, 0, g); box.castShadow = true; const cols = ["#ff8fb1", "#ffd166", "#ff9f6b", "#fff3e0", "#c8a2ff"]; for (let k = 0; k < 9; k++) put(sp(0.08, cols[k % 5], 8), -0.34 + (k % 5) * 0.17, 0.27, (k < 5 ? -0.09 : 0.09), g); }
+    if (item === "lamp") { const bulb = glow("#ffd27a", 2.4); g.add(lampPost(bulb)); }
+    if (item === "flag") { put(cy(0.03, 0.035, 2.0, "#e9e4d8", 6), 0, 1.0, 0, g); const f = bx(0.6, 0.36, 0.02, ["#ff6b6b", "#5fb7e6", "#ffd166"][(Math.random() * 3) | 0]); f.castShadow = true; f.position.set(0.31, 1.78, 0); g.add(f); updaters.push((t) => { f.rotation.y = Math.sin(t * 2.6 + g.id) * 0.3; }); }
+    if (item === "fountain") { put(cy(0.5, 0.55, 0.24, "#d9d2c2", 20), 0, 0.12, 0, g); put(cy(0.42, 0.42, 0.03, glow("#aee6ff", 0.7), 20), 0, 0.25, 0, g); put(cy(0.06, 0.09, 0.5, "#d9d2c2", 10), 0, 0.42, 0, g); put(sp(0.1, glow("#d8f4ff", 1), 8), 0, 0.72, 0, g); }
+    return g;
+  };
+  function placeDecor(district, slot, item, pop = false) {
+    const c = G[district]?.position, at2 = SPOTS[slot]; if (!c || !at2) return null;
+    const g = makeDecor(item); g.position.set(c.x + at2[0], 0.23, c.z + at2[1]); g.rotation.y = Math.PI / 4 + slot * 0.7; decor.add(g);
+    solids.push({ x0: g.position.x - 0.3, x1: g.position.x + 0.3, z0: g.position.z - 0.3, z1: g.position.z + 0.3, h: 1.2 });
+    if (pop) { g.scale.setScalar(0.01); const t0 = performance.now(); updaters.push(() => { const k = Math.min(1, (performance.now() - t0) / 600); g.scale.setScalar(k < 1 ? 1 + Math.sin(k * Math.PI) * 0.35 - (1 - k) * 0.99 * (1 - k) : 1); }); }
+    return g;
+  }
   const walk = { cells: CELLS.map(([i, j]) => at(i, j)), pitch: P, block: B, solids, doors, roadY: 0.12, blockY: Y + 0.06 };
   const setMood = (id, state) => { const s = signs[id]; if (!s || s.state === state) return false; s.state = state; s.overdue.visible = state === "overdue"; s.clear.visible = state === "clear"; return true; };
   const moodSigns = (id) => (signs[id]?.overdue.visible ? "overdue" : signs[id]?.clear.visible ? "clear" : null);
-  return { isles, G, target, setMood, moodSigns, walk, player: me, toys, coins, splash, balloon, doorMarks };
+  return { isles, G, target, setMood, moodSigns, placeDecor, decorCount: () => decor.children.length, walk, player: me, toys, coins, splash, balloon, doorMarks };
 }
 
 function buildHomeInto() {

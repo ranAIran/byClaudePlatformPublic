@@ -16,6 +16,7 @@ import { applyEdit, placeChoices } from "./core/edit.js";
 import { todayList } from "./core/today.js";
 import { describeRepeat } from "./core/repeat.js";
 import { reminderList } from "./core/reminders.js";
+import { CATALOG, SLOTS, buy, decorationsFor } from "./core/shop.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
@@ -24,7 +25,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.4.3";
+export const VERSION = "0.4.4";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -136,6 +137,7 @@ function dueText(iso) {
 function renderHud() {
   const L = store.level();
   $("lvl").textContent = L.level; $("lvlName").textContent = `Level ${L.level} · Life explorer`; $("lvl").setAttribute("aria-label", `Level ${L.level}`);
+  $("coinTxt").textContent = store.coins();
   $("xpBar").style.width = `${(100 * L.into) / L.need}%`; $("xpTxt").textContent = `${L.into}/${L.need}`;
   const h = hp(); $("hpBar").style.width = h + "%"; $("hpTxt").textContent = h;
   $("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
@@ -191,6 +193,26 @@ function itemHtml(n, { bag = false, where = "" } = {}) {
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
   return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="Edit ${esc(n.title)}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="Edit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
 }
+// R36 · the shop: coins buy decorations that appear in the district.
+function openShop(district) {
+  sheetFor = "shop:" + district; $("sheet").hidden = false; document.body.classList.add("sheet-open"); $("sheetTabs").hidden = true;
+  $("sheetTitle").textContent = `Decorate ${title(district)}`; $("sheetDot").style.background = ISL_COLOR[district]; $("sheetDot").innerHTML = pIcon(district);
+  const used = decorationsFor(store, district).length, coins = store.coins();
+  $("sheetSub").textContent = `${coins} coin${coins === 1 ? "" : "s"} · ${SLOTS - used} free spot${SLOTS - used === 1 ? "" : "s"}`;
+  $("sheetBody").innerHTML = (used >= SLOTS ? `<div class="empty">This district is fully decorated. Try another one.</div>` : "") + CATALOG.map((c) =>
+    `<div class="item shopitem"><span class="sec-ic">${SHOP_ICON[c.id] || ""}</span><div class="main"><div class="t" style="cursor:default">${esc(c.name)}</div><div class="meta">${c.price} coins</div></div><button class="btn ${coins >= c.price && used < SLOTS ? "primary" : ""}" data-act="buy" data-item="${c.id}" data-district="${district}" ${coins >= c.price && used < SLOTS ? "" : "disabled"} style="padding:8px 14px">Buy</button></div>`).join("")
+    + `<p class="muted" style="font-size:12.5px;margin:4px 2px">Finish tasks to earn coins: 1 for a task or a step, 5 more for a whole quest. In walk mode, step on the coins that burst out of a building.</p>`;
+}
+const SHOP_ICON = {
+  flowers: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M12 11v9M8 16c2 0 4 1 4 4M16 16c-2 0-4 1-4 4"/></svg>',
+  bench: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 11h16M4 15h16M6 15v4M18 15v4M5 7h14v4"/></svg>',
+  tree: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="9" r="5"/><path d="M12 14v7"/></svg>',
+  lamp: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 21V9M9 5h6l-1 4h-4zM9 21h6"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 21V4M6 4h11l-2 4 2 4H6"/></svg>',
+  fountain: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 16h16l-2 4H6zM12 16V8M12 8c-2-3-5-3-6 0M12 8c2-3 5-3 6 0"/></svg>',
+};
+for (const d of store.decorations()) map.placeDecor(d.district, d.slot, d.item);
+
 // R34 · Today: overdue, today and this week in one list.
 function openToday() {
   sheetFor = "today"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
@@ -206,6 +228,7 @@ function openToday() {
 }
 function openSheet(id) {
   if (id === "today") return openToday();
+  if (String(id).startsWith("shop:")) return openShop(id.slice(5));
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
   const isBag = id === "bag";
   $("sheetTitle").textContent = isBag ? "Your bag" : title(id);
@@ -218,8 +241,10 @@ function openSheet(id) {
   const md = districtMood(store, id), things = list.filter((n) => n.type !== "task").length, plural = (k, w) => `${k} ${w}${k === 1 ? "" : "s"}`;
   $("sheetSub").textContent = isBag ? (list.length ? `${plural(list.length, "thing")} waiting. Tap a suggestion to file it.` : "Nothing waiting")
     : [md.open ? `${md.open} open` : "All clear", md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : "", things ? plural(things, "thing") : ""].filter(Boolean).join(" · ");
+  const shopFor = ISL_COLOR[id] ? id : null;
   const empty = isBag ? "Your bag is empty. Type, speak or snap a photo below; it waits here until you place it." : "Nothing here yet. Add a task, item or note below.";
   $("sheetBody").innerHTML = (list.length ? list.map((n) => itemHtml(n, { bag: isBag })).join("") : `<div class="empty">${empty}</div>`) +
+    (shopFor ? `<button class="chip decorate" data-act="shop" data-district="${shopFor}">✦ Decorate ${esc(title(shopFor))} · ${store.coins()} coins</button>` : "") +
     (isBag ? "" : `<form class="addrow" data-to="${id}"><input placeholder="Add to ${esc(title(id))}… (try “change filter by 20/11”)"><button class="btn primary" style="padding:10px 14px">Add</button></form>`);
 }
 const refreshSheet = () => { if (sheetFor && !$("sheet").hidden) openSheet(sheetFor); };
@@ -241,6 +266,14 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "photo") { const src = await media.getImage(n.images[0]); if (src) showPhoto(src); }
   if (b.dataset.act === "edit") openEditor(id);
   if (b.dataset.act === "openbag") openSheet("bag");
+  if (b.dataset.act === "shop") openShop(b.dataset.district);
+  if (b.dataset.act === "buy") {
+    const r = buy(store, b.dataset.district, b.dataset.item);
+    if (!r.ok) { toast(r.reason === "coins" ? "Not enough coins yet" : r.reason === "full" ? "No free spot left here" : "Can't buy that"); return; }
+    const g = map.placeDecor(b.dataset.district, r.slot, b.dataset.item, true); walker.invalidate(); fx.chime([659.25, 987.77]);
+    toast(`${r.item.name} placed in ${title(b.dataset.district)}`); closeSheet();
+    if (view === "map" && g) { map.pan.set(0, 0, 0); map.pan.x = g.position.x - map.cam.userData.target.x; map.pan.z = g.position.z - map.cam.userData.target.z; map.v.zoom = Math.max(map.v.zoom, 1.6); }
+  }
   if (b.dataset.act === "backup") { const d = isoDate(new Date()); bridge.saveFile(`life-backup-${d}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", d); toast("Backup saved"); refreshSheet(); }
 });
 
@@ -414,6 +447,12 @@ function walkTick(real) {
     me.rotation.y += turn(me.rotation.y, Math.atan2(dx, dz)) * Math.min(1, real * 10);
     // Chase camera: drift round behind you as you walk, unless you turned the view yourself a moment ago.
     if (performance.now() - (W.turned || 0) > 2500 && map.v.yawGoal == null) map.v.yaw += turn(map.v.yaw, Math.atan2(-dx, -dz)) * (1 - Math.exp(-1.1 * Math.min(0.12, real)));
+    // Walking over a reward coin picks it up: +1 coin, at most 5 from each burst.
+    for (let i = physics.bodies.length - 1; i >= 0; i--) {
+      const b = physics.bodies[i]; if (b.kind !== "coin" || Math.hypot(b.p[0] - me.position.x, b.p[2] - me.position.z) > 0.5 || b.p[1] > me.position.y + 1.2) continue;
+      physics.bodies.splice(i, 1); const k = b.data.burst; picked[k] = (picked[k] || 0) + 1;
+      if (picked[k] <= 5) { store.earnCoins(1, "picked up"); fx.chime([1046.5]); }
+    }
     // Walking into a ball kicks it.
     for (const t of map.toys) { const b = t.body; if (Math.hypot(b.p[0] - me.position.x, b.p[2] - me.position.z) < b.r + 0.34 && b.p[1] < me.position.y + 0.8) physics.kick(b, dx * 6.5, 3.4, dz * 6.5); }
   }
@@ -438,10 +477,11 @@ function poke(o) {
   physics.kick(t.body, (forward[0] * Math.cos(a) - forward[2] * Math.sin(a)) * sp, 5.5, (forward[0] * Math.sin(a) + forward[2] * Math.cos(a)) * sp);
 }
 // Coins earned while a sheet covered the city burst out of that place's door once you can see it.
-function releaseCoins() {
+let burstN = 0; const picked = {};
+function releaseCoins() { burstN++;
   for (const [id, n] of Object.entries(pendingCoins)) {
     delete pendingCoins[id]; const d = map.walk.doors[id]; if (!d || view !== "map") continue;
-    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 1.2 + Math.random() * 2.6; physics.add({ p: [d[0], 0.9 + Math.random() * 0.5, d[1]], v: [Math.cos(a) * sp, 6 + Math.random() * 4.5, Math.sin(a) * sp], r: 0.16, bounce: 0.5, drag: 1.4, life: 5.5 + Math.random() * 2, kind: "coin", data: Math.random() * 6 }); }
+    for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, sp = 1.2 + Math.random() * 2.6; physics.add({ p: [d[0], 0.9 + Math.random() * 0.5, d[1]], v: [Math.cos(a) * sp, 6 + Math.random() * 4.5, Math.sin(a) * sp], r: 0.16, bounce: 0.5, drag: 1.4, life: 5.5 + Math.random() * 2, kind: "coin", data: { spin: Math.random() * 6, burst: burstN } }); }
   }
 }
 function physicsTick(dt) {
@@ -450,7 +490,7 @@ function physicsTick(dt) {
   let n = 0;
   for (const b of physics.bodies) {
     if (b.kind !== "coin" || n >= 48) continue;
-    const fade = Math.min(1, (b.life - b.age) * 2.5); coinE.set(b.data + b.age * (b.asleep ? 0 : 6), b.age * 3, 0); coinQ.setFromEuler(coinE); coinS.setScalar(Math.max(0.01, fade)); coinP.set(b.p[0], b.p[1], b.p[2]);
+    const fade = Math.min(1, (b.life - b.age) * 2.5); coinE.set(b.data.spin + b.age * (b.asleep ? 0 : 6), b.age * 3, 0); coinQ.setFromEuler(coinE); coinS.setScalar(Math.max(0.01, fade)); coinP.set(b.p[0], b.p[1], b.p[2]);
     map.coins.setMatrixAt(n++, coinM.compose(coinP, coinQ, coinS));
   }
   for (let i = n; i < coinsShown; i++) map.coins.setMatrixAt(i, coinNone);
@@ -651,6 +691,7 @@ renderer.setAnimationLoop(() => {
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
     today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
+    decor: () => map.decorCount(),
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
     goTo: (id) => walkTo(map.walk.doors[id]), screenOf: (x, y, z) => { const [sx, sy] = projectTo(map.cam, new THREE.Vector3(x, y, z)); return { x: sx, y: sy }; },
     walk: () => ({ mode, x: me.position.x, z: me.position.z, k: W.k, left: W.path?.length || 0, arrived: W.arrived }),

@@ -51,5 +51,7 @@ export function makeWalker({ cells, pitch, block, solids = [], edge = 0.42, road
     while (k < pts.length) { let far = k; for (let q = pts.length - 1; q > k; q--) if (clear(px, pz, pts[q][0], pts[q][1])) { far = q; break; } out.push(pts[far]); [px, pz] = pts[far]; k = far + 1; }
     return out;
   }
-  return { inCity, walkable, groundY, step, route, solids };
+  // Call after adding a solid (a new decoration) so routes go round it.
+  const invalidate = () => { free = null; };
+  return { inCity, walkable, groundY, step, route, solids, invalidate };
 }

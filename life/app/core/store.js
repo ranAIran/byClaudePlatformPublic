@@ -38,7 +38,7 @@ const newId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUI
 export function createStore(backend, { now = () => new Date() } = {}) {
   let nodes = new Map();
   let graves = new Map(); // id → when it was deleted (R19 tombstones, kept 30 days for a later sync)
-  let state = { xp: 0, log: [] };
+  let state = { xp: 0, log: [], coins: 0, decor: [] };
   const listeners = new Set();
   const stamp = () => now().toISOString();
 
@@ -63,7 +63,7 @@ export function createStore(backend, { now = () => new Date() } = {}) {
   const loaded = backend.load();
   if (loaded && Array.isArray(loaded.nodes)) {
     for (const n of loaded.nodes) nodes.set(n.id, normalize(n));
-    state = { xp: loaded.state?.xp || 0, log: loaded.state?.log || [] };
+    state = { xp: loaded.state?.xp || 0, log: loaded.state?.log || [], coins: loaded.state?.coins || 0, decor: loaded.state?.decor || [] };
     keepGraves(loaded.deleted);
     for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
   } else { seed(); persist(); }
@@ -99,7 +99,7 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     complete(id) {
       const n = nodes.get(id); if (!n || n.done) return 0;
       let gained = 0;
-      if (!n.awarded) gained = api.award(XP.perTask * (n.effort || 1), n.title);
+      if (!n.awarded) { gained = api.award(XP.perTask * (n.effort || 1), n.title); state.coins += 1; }
       if (n.repeat && n.due) nodes.set(id, again(n)); // a repeating task comes back with its next date
       else nodes.set(id, { ...n, done: true, awarded: true, updated: stamp() });
       emit();
@@ -109,10 +109,10 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     completeStep(id, i) {
       const n = nodes.get(id); if (!n || !n.steps || !n.steps[i] || n.steps[i].done) return 0;
       const steps = n.steps.map((s, k) => (k === i ? { ...s, done: true } : s));
-      let gained = api.award(XP.perStep * (n.effort || 1), `${n.title}: ${n.steps[i].title}`);
+      let gained = api.award(XP.perStep * (n.effort || 1), `${n.title}: ${n.steps[i].title}`); state.coins += 1;
       const finished = steps.every((s) => s.done);
       let boss = n.bossAwarded;
-      if (finished && !boss) { gained += api.award(XP.bossBonus * (n.effort || 1), `${n.title}: quest complete`); boss = true; }
+      if (finished && !boss) { gained += api.award(XP.bossBonus * (n.effort || 1), `${n.title}: quest complete`); state.coins += 5; boss = true; }
       if (finished && n.repeat && n.due) nodes.set(id, again({ ...n, steps }));
       else nodes.set(id, { ...n, steps, done: finished || n.done, awarded: true, bossAwarded: boss, updated: stamp() });
       emit();
@@ -120,16 +120,22 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     },
     openTasks(pid) { return api.descendants(pid).filter((n) => n.type === "task" && !n.done); },
     // Snapshot and restore, used by export/import.
-    snapshot: () => ({ version: 2, nodes: [...nodes.values()].map((n) => ({ ...n })), deleted: graveList(), state: { ...state, log: [...state.log] } }),
+    snapshot: () => ({ version: 2, nodes: [...nodes.values()].map((n) => ({ ...n })), deleted: graveList(), state: { ...state, log: [...state.log], decor: state.decor.map((d) => ({ ...d })) } }),
     restore(data, { merge = false } = {}) {
       if (!merge) { nodes = new Map(); }
       for (const n of data.nodes || []) nodes.set(n.id, normalize(n));
       for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
-      if (data.state && !merge) state = { xp: data.state.xp || 0, log: data.state.log || [] };
+      if (data.state && !merge) state = { xp: data.state.xp || 0, log: data.state.log || [], coins: data.state.coins || 0, decor: data.state.decor || [] };
       if (!merge) keepGraves(data.deleted);
       emit();
     },
-    reset() { seed(); state = { xp: 0, log: [] }; emit(); },
+    // R36 · the wallet and the decorations bought with it.
+    coins: () => state.coins,
+    earnCoins(n, why) { if (n > 0) { state.coins += n; emit(); } return n; },
+    spendCoins(n, why) { if (n > state.coins) return false; state.coins -= n; state.log.push({ at: stamp(), coins: -n, why }); emit(); return true; },
+    decorations: () => state.decor.map((d) => ({ ...d })),
+    decorate(d) { state.decor.push({ district: d.district, slot: d.slot, item: d.item }); emit(); },
+    reset() { seed(); state = { xp: 0, log: [], coins: 0, decor: [] }; emit(); },
   };
   return api;
 }

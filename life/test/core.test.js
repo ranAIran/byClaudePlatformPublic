@@ -20,6 +20,7 @@ import { parseDeepLink } from "../app/core/links.js";
 import { openSavedBackend } from "../app/storage.js";
 import { IDBFactory } from "fake-indexeddb";
 import { backupDue, backupName } from "../app/core/backup.js";
+import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -493,5 +494,40 @@ describe("R20 · automatic backups", () => {
     expect(backupDue("2026-11-06", NOW)).toBe(false);
     expect(backupDue("2026-11-05", NOW)).toBe(true);
     expect(backupName(NOW)).toBe("life-backup-2026-11-06.json");
+  });
+});
+
+describe("R36 · coins buy decorations for the city", () => {
+  it("finishing things fills a wallet: a task 1 coin, a quest step 1, a whole quest 5 more; coins are never taken away", () => {
+    const s = fresh(); const t = s.add({ type: "task", title: "T", parent: "work" });
+    const q = s.add({ type: "task", title: "Q", parent: "paperwork", steps: [{ title: "a" }, { title: "b" }] });
+    s.complete(t); s.reopen(t); s.complete(t);
+    s.completeStep(q, 0); s.completeStep(q, 1);
+    expect(s.coins()).toBe(1 + 1 + 1 + 5);
+  });
+  it("each time a repeating task is done it pays again", () => {
+    const s = fresh(); const r = s.add({ type: "task", title: "Gym", parent: "health", due: "2026-11-06", repeat: { every: 1, unit: "week" } });
+    s.complete(r); s.complete(r); expect(s.coins()).toBe(2);
+  });
+  it("buying places the decoration in the next free spot of that district and takes its price", () => {
+    const s = fresh(); s.earnCoins(20, "test");
+    const bench = CATALOG.find((c) => c.id === "bench");
+    expect(buy(s, "paperwork", "bench")).toMatchObject({ ok: true, slot: 0 });
+    expect(s.coins()).toBe(20 - bench.price);
+    expect(decorationsFor(s, "paperwork")).toEqual([{ district: "paperwork", slot: 0, item: "bench" }]);
+  });
+  it("can't spend coins you don't have, and a district has only so many spots", () => {
+    const s = fresh(); s.earnCoins(2, "test");
+    expect(buy(s, "work", "fountain")).toMatchObject({ ok: false, reason: "coins" }); expect(s.coins()).toBe(2);
+    s.earnCoins(500, "test");
+    for (let i = 0; i < SLOTS; i++) expect(buy(s, "work", "tree").ok).toBe(true);
+    expect(buy(s, "work", "tree")).toMatchObject({ ok: false, reason: "full" });
+    expect(buy(s, "nowhere", "tree")).toMatchObject({ ok: false, reason: "place" });
+    expect(buy(s, "work", "rocket")).toMatchObject({ ok: false, reason: "item" });
+  });
+  it("the wallet and the decorations are saved with everything else", () => {
+    const s = fresh(); s.earnCoins(10, "test"); buy(s, "health", "flowers");
+    const t = fresh(); t.restore(s.snapshot());
+    expect(t.coins()).toBe(s.coins()); expect(decorationsFor(t, "health").length).toBe(1);
   });
 });

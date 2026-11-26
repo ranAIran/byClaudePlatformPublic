@@ -63,6 +63,18 @@ check(meshes < 260, `R18 the city is merged into few draw calls for phones (${me
   check(bag1.length === bag0 + 1 && bag1.includes("Buy light bulbs"), `R21 a deep link adds to the bag (${bag1.join(", ")})`);
   await p.evaluate(() => { const s = window.__life.store; for (const n of s.unplaced()) if (n.title === "Buy light bulbs") s.remove(n.id); });
 }
+// R36 · coins buy a decoration that appears in the district.
+{
+  await p.evaluate(() => window.__life.store.earnCoins(10, "test"));
+  const c0 = await p.evaluate(() => ({ coins: window.__life.store.coins(), decor: window.__life.decor() }));
+  await p.evaluate(() => window.__life.ui.openSheet("paperwork")); await p.waitForTimeout(300);
+  await p.click('#sheetBody [data-act="shop"]'); await p.waitForTimeout(300);
+  await p.click('#sheetBody [data-act="buy"][data-item="bench"]'); await p.waitForTimeout(1200);
+  const c1 = await p.evaluate(() => ({ coins: window.__life.store.coins(), decor: window.__life.decor(), hud: document.getElementById("coinTxt").textContent }));
+  await p.screenshot({ path: `${out}/v-decor.png` });
+  check(c1.decor === c0.decor + 1 && c1.coins === c0.coins - 4 && c1.hud === String(c1.coins), `R36 buying a bench places it in Paperwork and takes 4 coins (${c0.coins} → ${c1.coins}, decorations ${c0.decor} → ${c1.decor})`);
+  await p.evaluate(() => window.__life.setCam({ pan: 0, zoom: 1 })); await p.waitForTimeout(500);
+}
 // R33 · edit an item: tap its name, change the name and the date, save; the row shows the change.
 {
   const hallE = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork");
