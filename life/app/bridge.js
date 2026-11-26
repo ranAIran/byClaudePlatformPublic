@@ -1,7 +1,7 @@
 // The only place that knows about Android. On the web, window.LifeAndroid does not exist and
 // every call falls back to a web equivalent (Web Share, a file download, Web Speech).
 // Native → web: Kotlin calls window.lifeBridge.onShare / onScanResult / onVoice / back.
-export function initBridge({ onShare, onScan, onVoice, onBack, onError }) {
+export function initBridge({ onShare, onScan, onVoice, onBack, onError, onLink }) {
   const parse = (p) => (typeof p === "string" ? JSON.parse(p) : p);
   window.lifeBridge = {
     onShare: (p) => onShare(parse(p)),
@@ -10,6 +10,7 @@ export function initBridge({ onShare, onScan, onVoice, onBack, onError }) {
     back: () => (onBack() ? "true" : "false"),
     onScanError: (msg) => onError?.(msg),
     onError: (msg) => onError?.(msg),
+    onLink: (url) => onLink?.(String(url || "")),
   };
   const native = window.LifeAndroid || null;
   const api = {
@@ -30,6 +31,8 @@ export function initBridge({ onShare, onScan, onVoice, onBack, onError }) {
       const a = document.createElement("a"); a.href = url; a.download = name; document.body.append(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
     },
+    canRemind: !!native?.setReminders,
+    setReminders(list) { native?.setReminders?.(JSON.stringify(list)); },
     openExternal(url) { if (native?.openExternal) native.openExternal(url); else window.open(url, "_blank", "noopener"); },
   };
   native?.ready?.(); // lets Kotlin deliver anything shared before the page finished loading

@@ -49,6 +49,20 @@ check(meshes < 260, `R18 the city is merged into few draw calls for phones (${me
   check(t.title === "Today" && t.secs.includes("Today") && t.rows.includes("Gym · legs day") && t.rows.includes("Call grandma"), `R34 Today lists what is due (${t.secs.join(", ")}: ${t.rows.join(", ")})`);
   await p.tap("#sheetClose"); await p.waitForTimeout(700);
 }
+// R35 · a repeating task comes back with its next date after you tick it; R21 · a deep link adds to the bag.
+{
+  const rid = await p.evaluate(() => window.__life.store.add({ type: "task", title: "Water the plants", parent: "health", due: new Date().toISOString().slice(0, 10), repeat: { every: 1, unit: "week" } }));
+  await p.evaluate(() => window.__life.ui.openSheet("health")); await p.waitForTimeout(400);
+  const row = await p.$(`#sheetBody [data-act="toggle"][data-id="${rid}"]`); await row.tap(); await p.waitForTimeout(500);
+  const after = await p.evaluate((id) => { const n = window.__life.store.get(id); return { done: n.done, due: n.due, row: [...document.querySelectorAll("#sheetBody .item")].map((r) => r.innerText).find((t) => t.includes("Water the plants")) || "" }; }, rid);
+  check(!after.done && after.due > new Date().toISOString().slice(0, 10) && /every week/.test(after.row), `R35 a repeating task comes back open, with its next date (${after.row.replace(/\s+/g, " ")})`);
+  await p.evaluate((id) => window.__life.store.remove(id), rid); await p.evaluate(() => window.__life.ui.closeSheet()); await p.waitForTimeout(600);
+  const bag0 = await p.evaluate(() => window.__life.store.unplaced().length);
+  await p.evaluate(() => window.__life.link("lifearchipelago://add?text=" + encodeURIComponent("buy light bulbs tomorrow"))); await p.waitForTimeout(300);
+  const bag1 = await p.evaluate(() => window.__life.store.unplaced().map((n) => n.title));
+  check(bag1.length === bag0 + 1 && bag1.includes("Buy light bulbs"), `R21 a deep link adds to the bag (${bag1.join(", ")})`);
+  await p.evaluate(() => { const s = window.__life.store; for (const n of s.unplaced()) if (n.title === "Buy light bulbs") s.remove(n.id); });
+}
 // R33 · edit an item: tap its name, change the name and the date, save; the row shows the change.
 {
   const hallE = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork");

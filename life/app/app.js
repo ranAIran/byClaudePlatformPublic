@@ -12,6 +12,9 @@ import { buildFeedback } from "./core/feedback.js";
 import { districtMood } from "./core/mood.js";
 import { applyEdit, placeChoices } from "./core/edit.js";
 import { todayList } from "./core/today.js";
+import { describeRepeat } from "./core/repeat.js";
+import { reminderList } from "./core/reminders.js";
+import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
@@ -19,7 +22,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.4.1";
+export const VERSION = "0.4.2";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -159,6 +162,7 @@ function finish(id, from, act, { isStep = false } = {}) {
   justDone = id; const gained = act(); const after = store.get(id);
   const c = celebrationFor({ gained, isStep, questDone: isStep && !!after?.done, levelBefore, levelAfter: store.level().level });
   fx.play(c, from, { title: n.title });
+  if (c && after?.repeat && after.due) setTimeout(() => toast(`↻ Back ${dueText(after.due)}`), 1300);
   const place = islandOf(id);
   if (c && map.walk.doors[place]) pendingCoins[place] = Math.min(40, (pendingCoins[place] || 0) + (c.levelUp ? 30 : c.kind === "quest" ? 20 : c.kind === "task" ? 9 : 4));
   if (c && !wasClear && place && districtMood(store, place).state === "clear") setTimeout(() => toast(`${title(place)} is all clear. The lights are up!`), c.levelUp ? 3400 : 900);
@@ -178,7 +182,7 @@ let sheetFor = null;
 function itemHtml(n, { bag = false, where = "" } = {}) {
   const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? "Done. Tap to reopen" : "Mark as done"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
-  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="font-weight:700;color:${dueText(n.due).startsWith("overdue") ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.effort > 1 ? `effort ${n.effort}` : "", where ? esc(where) : "", n.tags.includes("example") ? "example" : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
+  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="font-weight:700;color:${dueText(n.due).startsWith("overdue") ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.repeat ? `↻ ${describeRepeat(n.repeat)}` : "", n.effort > 1 ? `effort ${n.effort}` : "", where ? esc(where) : "", n.tags.includes("example") ? "example" : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
   const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">Open ${esc(n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
@@ -244,7 +248,9 @@ function openEditor(id) {
   $("edTitle").value = n.title; $("edDue").value = n.due || ""; $("edNotes").value = n.notes || ""; $("edUrl").value = n.url || ""; $("edPlace").innerHTML = opts;
   $("edType").value = ["task", "note", "item", "link", "person", "pet", "document", "photo"].includes(n.type) ? n.type : "note";
   setEffort(n.effort || 1); renderSteps((n.steps || []).map((st, i) => ({ from: i, title: st.title, done: st.done })));
-  $("edRepeat").value = n.repeat ? `${n.repeat.every}:${n.repeat.unit}` : "";
+  const rv = n.repeat ? `${n.repeat.every}:${n.repeat.unit}` : "";
+  if (rv && ![...$("edRepeat").options].some((o) => o.value === rv)) $("edRepeat").add(new Option(describeRepeat(n.repeat).replace(/^e/, "E"), rv));
+  $("edRepeat").value = rv;
   $("edError").textContent = ""; $("editor").hidden = false; editorTypeChanged();
 }
 function setEffort(v) { $("edEffort").dataset.v = v; for (const b of $("edEffort").children) b.classList.toggle("on", +b.dataset.v === v); }
@@ -496,7 +502,23 @@ function onBack() {
   if (view === "home") { fly("map"); return true; }
   return false;
 }
-const bridge = initBridge({ onShare, onScan, onVoice, onBack, onError: (m) => toast(m) });
+// R21 · deep links from shortcuts, the widget, the tile, reminders, NFC tags and QR codes.
+function onLink(url) {
+  const a = parseDeepLink(url); if (!a) return;
+  closeSheet(); $("searchBox").hidden = true; $("menu").hidden = true;
+  if (a.action === "add") { const id = store.capture(a.text); const n = store.get(id); toast(`In your bag${n.due ? ` · due ${dueText(n.due)}` : ""}`); bounceBag(); }
+  if (a.action === "capture") setTimeout(() => $("capInput").focus(), 300);
+  if (a.action === "open") { if (store.get(a.id)) openFor(a.id); else toast("That item is no longer here"); }
+  if (a.action === "place") { if (store.get(a.id)?.type === "place") openFor(a.id); }
+  if (a.action === "today") openToday();
+  if (a.action === "scan") bridge.scan();
+  if (a.action === "voice") $("micBtn").click();
+}
+const bridge = initBridge({ onShare, onScan, onVoice, onBack, onLink, onError: (m) => toast(m) });
+// R11 · tell the phone what to remind (a moment after each change, so typing doesn't flood it).
+let remindT = 0;
+const syncReminders = () => { if (!bridge.canRemind) return; clearTimeout(remindT); remindT = setTimeout(() => bridge.setReminders(reminderList(store)), 1200); };
+syncReminders();
 $("scanBtn").hidden = !bridge.canScan;
 if (!SR && !bridge.canNativeVoice) $("micBtn").hidden = true;
 
@@ -570,7 +592,7 @@ function toast(text, undo) {
 }
 
 // ---------- loop ----------
-store.on(() => { renderHud(); refreshSheet(); });
+store.on(() => { renderHud(); refreshSheet(); syncReminders(); });
 renderHud();
 $("renderer").textContent = `v${VERSION} · ${backendName}`;
 let T = 0, last = performance.now(), frames = 0;
@@ -614,7 +636,7 @@ renderer.setAnimationLoop(() => {
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
-    today: () => todayList(store),
+    today: () => todayList(store), link: (u) => onLink(u),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
     goTo: (id) => walkTo(map.walk.doors[id]), screenOf: (x, y, z) => { const [sx, sy] = projectTo(map.cam, new THREE.Vector3(x, y, z)); return { x: sx, y: sy }; },

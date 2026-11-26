@@ -4,6 +4,8 @@
 import { parseCapture } from "./capture.js";
 import { suggestPlaces } from "./places.js";
 import { XP, levelFor } from "./xp.js";
+import { validRepeat, nextDue, parseRepeat } from "./repeat.js";
+import { isoDate } from "./capture.js";
 
 export const SEED = [
   { id: "world", type: "place", kind: "world", title: "World", parent: null },
@@ -49,7 +51,7 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       kind: n.kind ?? null, system: !!n.system, tags: n.tags ? [...n.tags] : [], due: n.due ?? null, done: !!n.done,
       effort: n.effort ?? 1, steps: n.steps ? n.steps.map((s) => ({ title: s.title, done: !!s.done })) : null,
       notes: n.notes ?? "", url: n.url ?? null, images: n.images ? [...n.images] : [], thumb: n.thumb ?? null, suggest: n.suggest ? [...n.suggest] : [],
-      awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, created: n.created || stamp(), updated: n.updated || stamp(),
+      awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), created: n.created || stamp(), updated: n.updated || stamp(),
     };
   }
   const persist = () => backend.save({ version: 1, nodes: [...nodes.values()], state });
@@ -62,6 +64,8 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
   } else { seed(); persist(); }
 
+  // The next occurrence of a repeating task: open, unpaid, steps undone, next date.
+  const again = (n) => ({ ...n, done: false, awarded: false, bossAwarded: false, due: nextDue(n.due, n.repeat, isoDate(now())), steps: n.steps ? n.steps.map((st) => ({ ...st, done: false })) : null, updated: stamp() });
   const api = {
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     get: (id) => nodes.get(id) || null,
@@ -73,8 +77,10 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     update(id, patch) { const n = nodes.get(id); if (!n) return; nodes.set(id, normalize({ ...n, ...patch, id, updated: stamp() })); emit(); },
     remove(id) { const n = nodes.get(id); if (!n || n.system) return; for (const c of api.children(id)) api.remove(c.id); nodes.delete(id); emit(); },
     capture(text) {
-      const c = parseCapture(text, now());
-      return api.add({ ...c, parent: "bag", suggest: suggestPlaces(text), notes: "" });
+      const { repeat, text: rest } = parseRepeat(text);
+      const c = parseCapture(rest, now());
+      if (repeat) { c.type = "task"; if (!c.due) c.due = nextDue(isoDate(now()), repeat, isoDate(now())); }
+      return api.add({ ...c, repeat, parent: "bag", suggest: suggestPlaces(text), notes: "" });
     },
     unplaced: () => api.children("bag"),
     place(id, pid) { api.update(id, { parent: pid, suggest: [] }); },
@@ -90,7 +96,9 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       const n = nodes.get(id); if (!n || n.done) return 0;
       let gained = 0;
       if (!n.awarded) gained = api.award(XP.perTask * (n.effort || 1), n.title);
-      nodes.set(id, { ...n, done: true, awarded: true, updated: stamp() }); emit();
+      if (n.repeat && n.due) nodes.set(id, again(n)); // a repeating task comes back with its next date
+      else nodes.set(id, { ...n, done: true, awarded: true, updated: stamp() });
+      emit();
       return gained;
     },
     reopen(id) { const n = nodes.get(id); if (!n) return; nodes.set(id, { ...n, done: false, updated: stamp() }); emit(); },
@@ -101,7 +109,9 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       const finished = steps.every((s) => s.done);
       let boss = n.bossAwarded;
       if (finished && !boss) { gained += api.award(XP.bossBonus * (n.effort || 1), `${n.title}: quest complete`); boss = true; }
-      nodes.set(id, { ...n, steps, done: finished || n.done, awarded: true, bossAwarded: boss, updated: stamp() }); emit();
+      if (finished && n.repeat && n.due) nodes.set(id, again({ ...n, steps }));
+      else nodes.set(id, { ...n, steps, done: finished || n.done, awarded: true, bossAwarded: boss, updated: stamp() });
+      emit();
       return gained;
     },
     openTasks(pid) { return api.descendants(pid).filter((n) => n.type === "task" && !n.done); },

@@ -65,4 +65,5 @@ dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     // On-device document scanner (edge detection, crop, cleanup) delivered through Google Play services.
     implementation("com.google.android.gms:play-services-mlkit-document-scanner:16.0.0-beta1")
+    testImplementation("junit:junit:4.13.2")
 }

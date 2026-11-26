@@ -1,9 +1,11 @@
 package com.lifearchipelago.app
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
@@ -25,6 +27,7 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -85,6 +88,21 @@ class MainActivity : ComponentActivity() {
         if (res.resultCode == Activity.RESULT_OK && text != null) {
             callJs("window.lifeBridge && lifeBridge.onVoice(" + JSONObject.quote(text) + ")")
         }
+    }
+
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) toastJs("Reminders are off. You can allow notifications in the phone's settings.")
+    }
+
+    /** Asks once, the first time there is something to remind (Android 13+ needs the permission). */
+    private fun askNotificationsOnce(json: String) {
+        if (Build.VERSION.SDK_INT < 33 || json.length < 5) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) return
+        val prefs = getSharedPreferences("app", MODE_PRIVATE)
+        if (prefs.getBoolean("askedNotifications", false)) return
+        prefs.edit().putBoolean("askedNotifications", true).apply()
+        toastJs("Allow notifications so tasks can remind you on their day.")
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -165,6 +183,8 @@ class MainActivity : ComponentActivity() {
         })
 
         handleShare(intent)
+        handleLink(intent)
+        Reminders.ensureChannel(this)
         // The start page comes from the product flavor: Life Archipelago or Latent Archipelago.
         web.loadUrl("https://appassets.androidplatform.net/assets/www/" + getString(R.string.start_path))
     }
@@ -173,6 +193,15 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         handleShare(intent)
+        handleLink(intent)
+    }
+
+    // ---------- deep links (R21): lifearchipelago://add, open, today, scan, voice ----------
+    private fun handleLink(intent: Intent?) {
+        val data = intent?.data ?: return
+        if (data.scheme != "lifearchipelago") return
+        callJs("window.lifeBridge && lifeBridge.onLink && lifeBridge.onLink(" + JSONObject.quote(data.toString()) + ")")
+        intent.data = null // handle each link once
     }
 
     // ---------- calls into the page ----------
@@ -317,6 +346,12 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun saveFile(name: String, mime: String, text: String) = runOnUiThread { saveAndShare(name, mime, text) }
+
+        @JavascriptInterface
+        fun setReminders(json: String) {
+            Reminders.apply(this@MainActivity, json)
+            runOnUiThread { askNotificationsOnce(json) }
+        }
 
         @JavascriptInterface
         fun openExternal(url: String) = runOnUiThread { this@MainActivity.openExternal(url) }

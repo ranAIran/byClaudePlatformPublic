@@ -14,6 +14,9 @@ import { makeWalker } from "../app/core/walk.js";
 import { createPhysics } from "../app/core/physics.js";
 import { applyEdit, placeChoices } from "../app/core/edit.js";
 import { todayList } from "../app/core/today.js";
+import { nextDue, parseRepeat, describeRepeat } from "../app/core/repeat.js";
+import { reminderList } from "../app/core/reminders.js";
+import { parseDeepLink } from "../app/core/links.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -372,5 +375,82 @@ describe("R34 · one list that answers what now", () => {
   it("is empty on a clear day", () => {
     const t = todayList(fresh(), NOW);
     expect(t.overdue.length + t.today.length + t.week.length).toBe(0); expect(t.empty).toBe(true);
+  });
+});
+
+describe("R35 · repeating tasks", () => {
+  it("moves the date on by the period, keeping month ends and leap days sensible", () => {
+    expect(nextDue("2026-11-06", { every: 1, unit: "week" }, "2026-11-06")).toBe("2026-11-13");
+    expect(nextDue("2026-11-06", { every: 6, unit: "month" }, "2026-11-06")).toBe("2027-05-06");
+    expect(nextDue("2027-01-31", { every: 1, unit: "month" }, "2027-01-31")).toBe("2027-02-28");
+    expect(nextDue("2028-01-31", { every: 1, unit: "month" }, "2028-01-31")).toBe("2028-02-29");
+    expect(nextDue("2028-02-29", { every: 1, unit: "year" }, "2028-02-29")).toBe("2029-02-28");
+    expect(nextDue("2026-12-30", { every: 3, unit: "day" }, "2026-12-30")).toBe("2027-01-02");
+  });
+  it("when the task was done late, the next date is the first one after today, still on the same rhythm", () => {
+    expect(nextDue("2026-10-01", { every: 1, unit: "week" }, "2026-11-06")).toBe("2026-11-12");   // Thursdays stay Thursdays
+  });
+  it("understands repeats in English and Hebrew, and takes them out of the title", () => {
+    const cases = [["gym every week", 1, "week", "gym"], ["change the filter every 6 months", 6, "month", "change the filter"], ["water the plants daily", 1, "day", "water the plants"],
+      ["להחליף פילטר כל חצי שנה", 6, "month", "להחליף פילטר"], ["לשלם ארנונה כל חודשיים", 2, "month", "לשלם ארנונה"], ["חדר כושר כל שבוע", 1, "week", "חדר כושר"], ["ביקור אצל סבתא כל שבועיים", 2, "week", "ביקור אצל סבתא"], ["לחדש ביטוח כל שנה", 1, "year", "לחדש ביטוח"], ["every 3 days stretch", 3, "day", "stretch"]];
+    for (const [text, every, unit, rest] of cases) { const r = parseRepeat(text); expect(r.repeat, text).toEqual({ every, unit }); expect(r.text.trim(), text).toBe(rest); }
+    expect(parseRepeat("buy milk").repeat).toBeNull();
+    expect(describeRepeat({ every: 6, unit: "month" })).toBe("every 6 months"); expect(describeRepeat({ every: 1, unit: "week" })).toBe("every week");
+  });
+  it("a captured repeating task is a task, due one period from today", () => {
+    const s = fresh(); const n = s.get(s.capture("change the water filter every 6 months"));
+    expect(n).toMatchObject({ type: "task", title: "Change the water filter", repeat: { every: 6, unit: "month" }, due: "2027-05-06" });
+  });
+  it("finishing a repeating task pays XP for this time, then it comes back with the next date, open again", () => {
+    const s = fresh(); const id = s.add({ type: "task", title: "Gym", parent: "health", due: "2026-11-06", repeat: { every: 1, unit: "week" } });
+    expect(s.complete(id)).toBe(10); expect(s.get(id)).toMatchObject({ done: false, due: "2026-11-13", awarded: false });
+    expect(s.complete(id)).toBe(10); expect(s.get(id).due).toBe("2026-11-20"); expect(s.xp()).toBe(20);
+  });
+  it("a repeating quest with steps opens all its steps again for next time", () => {
+    const s = fresh(); const id = s.add({ type: "task", title: "Monthly bills", parent: "paperwork", due: "2026-11-06", repeat: { every: 1, unit: "month" }, steps: [{ title: "Electric" }, { title: "Water" }] });
+    s.completeStep(id, 0); s.completeStep(id, 1);
+    expect(s.get(id)).toMatchObject({ done: false, due: "2026-12-06", bossAwarded: false });
+    expect(s.get(id).steps.every((st) => !st.done)).toBe(true);
+  });
+  it("the repeat survives export and import", () => {
+    const s = fresh(); s.add({ id: "r1", type: "task", title: "Gym", parent: "health", due: "2026-11-06", repeat: { every: 2, unit: "week" } });
+    const t = fresh(); importMarkdown(t, exportMarkdown(s), { merge: false }); expect(t.get("r1").repeat).toEqual({ every: 2, unit: "week" });
+  });
+});
+
+describe("R11 · reminders: what the phone is asked to remind", () => {
+  it("open tasks due from today on, soonest first, never done ones or ones without a date", () => {
+    const s = fresh();
+    s.add({ id: "a", type: "task", title: "Late", parent: "work", due: "2026-11-01" });
+    s.add({ id: "b", type: "task", title: "Today", parent: "work", due: "2026-11-06" });
+    s.add({ id: "c", type: "task", title: "Next week", parent: "work", due: "2026-11-12" });
+    s.add({ id: "d", type: "task", title: "Done", parent: "work", due: "2026-11-08", done: true });
+    s.add({ id: "e", type: "task", title: "No date", parent: "work" });
+    s.add({ id: "f", type: "note", title: "A note", parent: "work", due: "2026-11-09" });
+    s.add({ id: "g", type: "task", title: "Next year", parent: "work", due: "2027-06-01" });
+    expect(reminderList(s, NOW)).toEqual([{ id: "b", title: "Today", due: "2026-11-06" }, { id: "c", title: "Next week", due: "2026-11-12" }]);
+  });
+  it("keeps the list short for the phone", () => {
+    const s = fresh(); for (let i = 0; i < 90; i++) s.add({ type: "task", title: "T" + i, parent: "work", due: "2026-11-20" });
+    expect(reminderList(s, NOW).length).toBe(64);
+  });
+});
+
+describe("R21 · deep links open the app on an action", () => {
+  it("reads add, open, place, today, scan and voice links", () => {
+    expect(parseDeepLink("lifearchipelago://add?text=call%20the%20plumber%20tomorrow")).toEqual({ action: "add", text: "call the plumber tomorrow" });
+    expect(parseDeepLink("lifearchipelago://add?text=%D7%9C%D7%97%D7%93%D7%A9%20%D7%93%D7%A8%D7%9B%D7%95%D7%9F")).toEqual({ action: "add", text: "לחדש דרכון" });
+    expect(parseDeepLink("lifearchipelago://open?id=abc123")).toEqual({ action: "open", id: "abc123" });
+    expect(parseDeepLink("lifearchipelago://open?place=paperwork")).toEqual({ action: "place", id: "paperwork" });
+    expect(parseDeepLink("lifearchipelago://today")).toEqual({ action: "today" });
+    expect(parseDeepLink("lifearchipelago://scan")).toEqual({ action: "scan" });
+    expect(parseDeepLink("lifearchipelago://voice")).toEqual({ action: "voice" });
+    expect(parseDeepLink("lifearchipelago://add")).toEqual({ action: "capture" });
+  });
+  it("ignores anything it doesn't know", () => {
+    for (const u of ["", null, 42, "lifearchipelago://", "lifearchipelago://open"]) expect(parseDeepLink(u)).toBeNull();
+    expect(parseDeepLink("https://evil.example/add?text=x")).toBeNull();
+    expect(parseDeepLink("lifearchipelago://delete?id=1")).toBeNull();
+    expect(parseDeepLink("lifearchipelago://add?text=" + "x".repeat(3000)).text.length).toBe(500);
   });
 });

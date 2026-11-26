@@ -4,7 +4,7 @@
 export const exportJSON = (store) => JSON.stringify(store.snapshot(), null, 2);
 export function importJSON(store, text, opts) { store.restore(typeof text === "string" ? JSON.parse(text) : text, opts); }
 
-const FIELDS = ["id", "type", "title", "parent", "kind", "due", "done", "effort", "tags", "steps", "url", "created", "updated", "awarded", "bossAwarded"];
+const FIELDS = ["id", "type", "title", "parent", "kind", "due", "done", "effort", "tags", "steps", "url", "created", "updated", "awarded", "bossAwarded", "repeat"];
 const safe = (s) => String(s || "untitled").replace(/[\\/:*?"<>|#\n\r]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 60) || "untitled";
 
 export function exportMarkdown(store) {

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only in the Life Archipelago app (not the quest): deep links, app shortcuts, the widget and the tile. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name=".MainActivity" android:exported="true">
+            <!-- R21: lifearchipelago://add?text=…, ://open?id=…, ://today, ://scan, ://voice -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="lifearchipelago" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
