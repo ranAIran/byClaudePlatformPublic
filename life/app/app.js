@@ -3,7 +3,9 @@ import * as THREE from "three";
 import { pass, renderOutput } from "three/tsl";
 import { bloom } from "../../quest/vendor/BloomNode.js";
 import { buildMap, buildHome, fitCamera, projectTo } from "./scenes.js";
-import { createStore, localStorageBackend } from "./core/store.js";
+import { createStore } from "./core/store.js";
+import { openSavedBackend } from "./storage.js";
+import { backupDue, backupName, exportReminderDue } from "./core/backup.js";
 import { exportJSON, importJSON, exportDigest } from "./core/exporter.js";
 import { shareToNode } from "./core/share.js";
 import { isoDate } from "./core/capture.js";
@@ -22,10 +24,11 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.4.2";
+export const VERSION = "0.4.3";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
-const store = createStore(localStorageBackend());
+const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
+const store = createStore(saved);
 const ISL_COLOR = { home: "#ffc94d", work: "#b48cff", health: "#4ee08a", family: "#ff8fb1", paperwork: "#7ad1ff" };
 const ROOMS = ["living", "kitchen", "bedroom", "office"];
 const title = (id) => store.get(id)?.title || id;
@@ -198,6 +201,7 @@ function openToday() {
   $("sheetTabs").hidden = true;
   const sec = (label, list, cls) => list.length ? `<div class="sec ${cls}">${label}</div>` + list.map((x) => { const node = store.get(x.id); return itemHtml(node, { where: x.where }); }).join("") : "";
   $("sheetBody").innerHTML = (t.empty ? `<div class="empty">Nothing due. Enjoy the evening.</div>` : sec("Overdue", t.overdue, "late") + sec("Today", t.today, "") + sec("This week", t.week, ""))
+    + (!bridge.canBackup && store.all().filter((x) => !x.system).length > 3 && exportReminderDue(lsGet("life-backup-last")) ? `<button class="item bagline" data-act="backup"><span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg></span><div class="main"><div class="t">Back up your life</div><div class="meta">${lsGet("life-backup-last") ? `Last backup ${lsGet("life-backup-last")}` : "No backup yet"}. Tap to save a file.</div></div></button>` : "")
     + (t.bag ? `<button class="item bagline" data-act="openbag"><span class="sec-ic">${pIcon("bag")}</span><div class="main"><div class="t">${t.bag} thing${t.bag === 1 ? "" : "s"} waiting in your bag</div><div class="meta">${t.bagDays > 3 ? `<span style="color:var(--bad);font-weight:700">The oldest has waited ${t.bagDays} days.</span> ` : ""}Tap to file ${t.bag === 1 ? "it" : "them"}</div></div></button>` : "");
 }
 function openSheet(id) {
@@ -237,6 +241,7 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "photo") { const src = await media.getImage(n.images[0]); if (src) showPhoto(src); }
   if (b.dataset.act === "edit") openEditor(id);
   if (b.dataset.act === "openbag") openSheet("bag");
+  if (b.dataset.act === "backup") { const d = isoDate(new Date()); bridge.saveFile(`life-backup-${d}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", d); toast("Backup saved"); refreshSheet(); }
 });
 
 // ---------- R33 · edit an item ----------
@@ -514,12 +519,18 @@ function onLink(url) {
   if (a.action === "scan") bridge.scan();
   if (a.action === "voice") $("micBtn").click();
 }
-const bridge = initBridge({ onShare, onScan, onVoice, onBack, onLink, onError: (m) => toast(m) });
+// R20 · backups: daily into a folder on the phone; a monthly reminder to export on the web.
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } };
+function onBackup(ok, name) { if (ok) { lsSet("life-backup-last", isoDate(new Date())); if (backupAsked) toast(`Backed up: ${name}`); } else toast("The backup could not be written. Choose the folder again in the menu."); backupAsked = false; }
+let backupAsked = false;
+const bridge = initBridge({ onShare, onScan, onVoice, onBack, onLink, onBackup, onError: (m) => toast(m) });
+function autoBackup() { if (bridge.canBackup && bridge.hasBackupFolder() && backupDue(lsGet("life-backup-last"))) bridge.backup(backupName(), exportJSON(store)); }
 // R11 · tell the phone what to remind (a moment after each change, so typing doesn't flood it).
 let remindT = 0;
 const syncReminders = () => { if (!bridge.canRemind) return; clearTimeout(remindT); remindT = setTimeout(() => bridge.setReminders(reminderList(store)), 1200); };
 syncReminders();
 $("scanBtn").hidden = !bridge.canScan;
+$("autoBackupItem").hidden = !bridge.canBackup;
 if (!SR && !bridge.canNativeVoice) $("micBtn").hidden = true;
 
 // ---------- search and menu ----------
@@ -536,7 +547,8 @@ $("menu").addEventListener("click", async (e) => {
   const stamp = isoDate(new Date());
   if (act === "feedback") openFeedback();
   if (act === "share") { const r = await bridge.shareText("Life Archipelago", exportDigest(store)); if (r === "copied") toast("Summary copied to the clipboard"); }
-  if (act === "export") { bridge.saveFile(`life-backup-${stamp}.json`, "application/json", exportJSON(store)); toast("Backup exported"); }
+  if (act === "export") { bridge.saveFile(`life-backup-${stamp}.json`, "application/json", exportJSON(store)); lsSet("life-backup-last", stamp); toast("Backup exported"); }
+  if (act === "autobackup") { backupAsked = true; bridge.backup(backupName(), exportJSON(store), true); }
   if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast("Summary exported"); }
   if (act === "import") $("importInput").click();
   if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast("Example items removed"); }
@@ -633,10 +645,11 @@ renderer.setAnimationLoop(() => {
   placeLabels();
   if (frames === 3) {
     $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700);
+    setTimeout(autoBackup, 4000);
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
-    today: () => todayList(store), link: (u) => onLink(u),
+    today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
     goTo: (id) => walkTo(map.walk.doors[id]), screenOf: (x, y, z) => { const [sx, sy] = projectTo(map.cam, new THREE.Vector3(x, y, z)); return { x: sx, y: sy }; },

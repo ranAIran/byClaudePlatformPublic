@@ -37,6 +37,7 @@ const newId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUI
 
 export function createStore(backend, { now = () => new Date() } = {}) {
   let nodes = new Map();
+  let graves = new Map(); // id → when it was deleted (R19 tombstones, kept 30 days for a later sync)
   let state = { xp: 0, log: [] };
   const listeners = new Set();
   const stamp = () => now().toISOString();
@@ -54,13 +55,16 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), created: n.created || stamp(), updated: n.updated || stamp(),
     };
   }
-  const persist = () => backend.save({ version: 1, nodes: [...nodes.values()], state });
+  const graveList = () => [...graves].map(([id, at]) => ({ id, at }));
+  const persist = () => backend.save({ version: 2, nodes: [...nodes.values()], deleted: graveList(), state });
+  const keepGraves = (list) => { graves = new Map(); const cut = now().getTime() - 30 * 864e5; for (const g of list || []) if (Date.parse(g.at) > cut) graves.set(g.id, g.at); };
   const emit = () => { persist(); listeners.forEach((f) => f()); };
 
   const loaded = backend.load();
   if (loaded && Array.isArray(loaded.nodes)) {
     for (const n of loaded.nodes) nodes.set(n.id, normalize(n));
     state = { xp: loaded.state?.xp || 0, log: loaded.state?.log || [] };
+    keepGraves(loaded.deleted);
     for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
   } else { seed(); persist(); }
 
@@ -73,9 +77,9 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     children: (pid) => [...nodes.values()].filter((n) => n.parent === pid),
     descendants(pid) { const out = []; const walk = (p) => { for (const c of api.children(p)) { out.push(c); walk(c.id); } }; walk(pid); return out; },
     path(id) { const out = []; let p = nodes.get(id)?.parent; while (p && p !== "world") { out.unshift(p); p = nodes.get(p)?.parent; } return out; },
-    add(partial) { const n = normalize({ ...partial, id: partial.id || newId(), created: stamp(), updated: stamp() }); nodes.set(n.id, n); emit(); return n.id; },
+    add(partial) { const n = normalize({ ...partial, id: partial.id || newId(), created: partial.created || stamp(), updated: stamp() }); nodes.set(n.id, n); graves.delete(n.id); emit(); return n.id; },
     update(id, patch) { const n = nodes.get(id); if (!n) return; nodes.set(id, normalize({ ...n, ...patch, id, updated: stamp() })); emit(); },
-    remove(id) { const n = nodes.get(id); if (!n || n.system) return; for (const c of api.children(id)) api.remove(c.id); nodes.delete(id); emit(); },
+    remove(id) { const n = nodes.get(id); if (!n || n.system) return; for (const c of api.children(id)) api.remove(c.id); nodes.delete(id); graves.set(id, stamp()); emit(); },
     capture(text) {
       const { repeat, text: rest } = parseRepeat(text);
       const c = parseCapture(rest, now());
@@ -116,12 +120,13 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     },
     openTasks(pid) { return api.descendants(pid).filter((n) => n.type === "task" && !n.done); },
     // Snapshot and restore, used by export/import.
-    snapshot: () => ({ version: 1, nodes: [...nodes.values()].map((n) => ({ ...n })), state: { ...state, log: [...state.log] } }),
+    snapshot: () => ({ version: 2, nodes: [...nodes.values()].map((n) => ({ ...n })), deleted: graveList(), state: { ...state, log: [...state.log] } }),
     restore(data, { merge = false } = {}) {
       if (!merge) { nodes = new Map(); }
       for (const n of data.nodes || []) nodes.set(n.id, normalize(n));
       for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
       if (data.state && !merge) state = { xp: data.state.xp || 0, log: data.state.log || [] };
+      if (!merge) keepGraves(data.deleted);
       emit();
     },
     reset() { seed(); state = { xp: 0, log: [] }; emit(); },

@@ -194,6 +194,13 @@ await p.tap("#fbGitHub"); await p.waitForTimeout(200);
 const opened = await p.evaluate(() => window.__opened || "");
 const q = opened ? new URL(opened).searchParams : new URLSearchParams();
 check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issues/new?") && q.get("title").includes("Bug: The kitchen label overlaps the fridge") && q.get("body").includes("renderer:"), `R16 feedback opens a prefilled GitHub issue (${q.get("title")})`);
+// R19 · the data lives in IndexedDB and survives a reload.
+{
+  const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp() }; });
+  await p.reload(); await p.waitForFunction(() => window.__life?.ready, null, { timeout: 120000 });
+  const afterR = await p.evaluate(() => ({ n: window.__life.store.all().length, xp: window.__life.store.xp() }));
+  check(before.st.kind === "indexeddb" && afterR.n === before.n && afterR.xp === before.xp, `R19 data is in IndexedDB and survives a reload (${before.st.kind}, ${before.n} → ${afterR.n} items, XP ${before.xp} → ${afterR.xp})`);
+}
 check(errs.length === 0, `no page errors${errs.length ? ": " + errs.join(" | ") : ""}`);
 await b.close(); server.close();
 process.exit(failures.length ? 1 : 0);

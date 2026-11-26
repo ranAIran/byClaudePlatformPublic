@@ -17,6 +17,9 @@ import { todayList } from "../app/core/today.js";
 import { nextDue, parseRepeat, describeRepeat } from "../app/core/repeat.js";
 import { reminderList } from "../app/core/reminders.js";
 import { parseDeepLink } from "../app/core/links.js";
+import { openSavedBackend } from "../app/storage.js";
+import { IDBFactory } from "fake-indexeddb";
+import { backupDue, backupName } from "../app/core/backup.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -452,5 +455,43 @@ describe("R21 · deep links open the app on an action", () => {
     expect(parseDeepLink("https://evil.example/add?text=x")).toBeNull();
     expect(parseDeepLink("lifearchipelago://delete?id=1")).toBeNull();
     expect(parseDeepLink("lifearchipelago://add?text=" + "x".repeat(3000)).text.length).toBe(500);
+  });
+});
+
+describe("R19 · data is kept safely in IndexedDB", () => {
+  const fakeLS = (init = {}) => { const m = { ...init }; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; }, m }; };
+  it("moves version-1 data from localStorage on first start without losing an item, then saves version 2", async () => {
+    const old = fresh(); old.add({ id: "x1", type: "task", title: "Renew passport", parent: "paperwork" }); old.award(30, "test");
+    const ls = fakeLS({ "life-archipelago-v1": JSON.stringify(old.snapshot()) }), idb = new IDBFactory();
+    const b1 = await openSavedBackend({ idb, ls });
+    expect(b1.kind).toBe("indexeddb"); expect(b1.migrated).toBe(true);
+    const s = createStore(b1, { now: () => NOW });
+    expect(s.get("x1").title).toBe("Renew passport"); expect(s.xp()).toBe(30);
+    s.add({ id: "x2", type: "note", title: "New", parent: "work" }); await b1.flush();
+    const b2 = await openSavedBackend({ idb, ls }); const data = b2.load();
+    expect(b2.migrated).toBe(false); expect(data.version).toBe(2); expect(data.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(["x1", "x2"]));
+    expect(ls.getItem("life-archipelago-v1")).not.toBeNull();  // the old copy stays as a fallback
+  });
+  it("falls back to localStorage when IndexedDB is missing", async () => {
+    const b = await openSavedBackend({ idb: null, ls: fakeLS() }); expect(b.kind).toBe("localStorage");
+  });
+  it("deleting leaves a tombstone, so a later sync knows; undo brings the item back; old tombstones go after 30 days", () => {
+    const back = memoryBackend(); const s = createStore(back, { now: () => NOW });
+    s.add({ id: "d1", type: "task", title: "Gone", parent: "work" }); s.remove("d1");
+    expect(s.get("d1")).toBeNull(); expect(s.all().some((n) => n.id === "d1")).toBe(false);
+    expect(s.snapshot().deleted).toEqual([{ id: "d1", at: NOW.toISOString() }]);
+    s.add({ id: "d1", type: "task", title: "Gone", parent: "work" }); expect(s.snapshot().deleted).toEqual([]);
+    s.remove("d1");
+    const later = createStore(back, { now: () => new Date("2026-12-10T09:00:00") }); expect(later.snapshot().deleted).toEqual([]);
+    const soon = createStore(back, { now: () => new Date("2026-11-20T09:00:00") }); expect(soon.snapshot().deleted.length).toBe(1);
+  });
+});
+
+describe("R20 · automatic backups", () => {
+  it("backs up once a day, and names files by date", () => {
+    expect(backupDue(null, NOW)).toBe(true);
+    expect(backupDue("2026-11-06", NOW)).toBe(false);
+    expect(backupDue("2026-11-05", NOW)).toBe(true);
+    expect(backupName(NOW)).toBe("life-backup-2026-11-06.json");
   });
 });

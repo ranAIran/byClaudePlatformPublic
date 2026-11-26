@@ -8,6 +8,7 @@
     "test:visual": "node test/visual.mjs"
   },
   "devDependencies": {
+    "fake-indexeddb": "^6.2.8",
     "vitest": "2.1.8"
   }
 }

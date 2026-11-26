@@ -94,6 +94,22 @@ class MainActivity : ComponentActivity() {
         if (!granted) toastJs("Reminders are off. You can allow notifications in the phone's settings.")
     }
 
+    // R20: the folder for daily backups is picked once; the permission is kept across restarts.
+    private var pendingBackup: Pair<String, String>? = null
+    private val pickFolder = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) { pendingBackup = null; return@registerForActivityResult }
+        Backups.setFolder(this, uri)
+        pendingBackup?.let { (name, json) -> backupNow(name, json) }
+        pendingBackup = null
+    }
+
+    private fun backupNow(name: String, json: String) {
+        Thread {
+            val ok = Backups.write(this, name, json)
+            callJs("window.lifeBridge && lifeBridge.onBackup && lifeBridge.onBackup(" + ok + "," + JSONObject.quote(name) + ")")
+        }.start()
+    }
+
     /** Asks once, the first time there is something to remind (Android 13+ needs the permission). */
     private fun askNotificationsOnce(json: String) {
         if (Build.VERSION.SDK_INT < 33 || json.length < 5) return
@@ -346,6 +362,17 @@ class MainActivity : ComponentActivity() {
 
         @JavascriptInterface
         fun saveFile(name: String, mime: String, text: String) = runOnUiThread { saveAndShare(name, mime, text) }
+
+        @JavascriptInterface
+        fun hasBackupFolder(): Boolean = Backups.folder(this@MainActivity) != null
+
+        @JavascriptInterface
+        fun backup(name: String, json: String, choose: Boolean) = runOnUiThread {
+            if (choose || Backups.folder(this@MainActivity) == null) {
+                pendingBackup = name to json
+                try { pickFolder.launch(null) } catch (e: Exception) { toastJs("Couldn't open the folder picker") }
+            } else backupNow(name, json)
+        }
 
         @JavascriptInterface
         fun setReminders(json: String) {
