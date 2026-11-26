@@ -103,6 +103,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 @keyframes bagWiggle{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-7deg)}90%{transform:rotate(6deg)}94%{transform:rotate(-3deg)}}
 #bagBtn.has::after{content:"";position:absolute;inset:-7px;border-radius:50%;border:2px solid rgba(255,214,120,.8);animation:ring 2.6s ease-out infinite}
 @keyframes ring{0%{transform:scale(.9);opacity:.9}70%,100%{transform:scale(1.22);opacity:0}}
+#bagCount.old{box-shadow:0 0 0 3px rgba(255,122,107,.45)}
 #bagCount{position:absolute;top:-4px;right:-6px;background:var(--bad);color:#fff;font-weight:800;font-size:11px;border-radius:99px;padding:2px 7px;border:2px solid #fff}
 #capture{padding:38px 9px 9px;border-radius:24px}
 #capForm{display:flex;align-items:center;gap:4px;background:var(--well);border:1px solid var(--line);border-radius:15px;padding:3px 3px 3px 13px;transition:border-color .15s,background .15s}
@@ -175,6 +176,16 @@ button.item{align-items:center}
 #fbDiag{font-size:10.5px;white-space:pre-wrap;line-height:1.5;max-height:90px;overflow:auto}
 #renderer{position:fixed;right:12px;bottom:3px;font:500 9px var(--mono);color:rgba(255,240,225,.3);pointer-events:none}
 
+/* R34 · today */
+.pill.today{background:linear-gradient(180deg,#ffd76a,#ffb93a);color:var(--gold-ink);border-color:#ffe39a;font-weight:700}
+.pill.today b{background:rgba(42,26,0,.18);border-radius:99px;padding:0 7px}
+.pill.today.late b{background:var(--bad);color:#fff}
+#today{cursor:pointer;background:none;border:0;padding:0}
+.sec{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:6px 2px -2px}
+.sec.late{color:var(--bad)}
+.bagline{width:100%;text-align:start;margin-top:4px}
+.sec-ic{width:27px;height:27px;border-radius:9px;background:var(--gold);color:var(--gold-ink);display:grid;place-items:center;flex:none}
+.sec-ic svg{width:16px;height:16px}
 /* R33 · edit */
 #editor{position:fixed;left:var(--side);right:var(--side);bottom:calc(8px + var(--bot));padding:14px;border-radius:26px;z-index:8;max-height:88%;overflow:auto;animation:sheetIn .3s cubic-bezier(.2,.9,.3,1)}
 #editorForm{display:grid;gap:11px}
@@ -230,7 +241,7 @@ button.item{align-items:center}
   <div id="hudMain" class="panel">
     <div id="lvl" aria-label="Level">1</div>
     <div class="hud-mid">
-      <div class="hud-top"><b id="lvlName">Level 1</b><span id="today"></span></div>
+      <div class="hud-top"><b id="lvlName">Level 1</b><button id="today" aria-label="Open Today"></button></div>
       <div class="hud-bars">
         <div class="stat xp" title="Experience"><svg viewBox="0 0 24 24" fill="#ffc94d" aria-hidden="true"><path d="M12 2l3 7 7 .6-5.3 4.6 1.6 7L12 17.6 5.7 21.2l1.6-7L2 9.6 9 9z"/></svg><div class="bar"><i id="xpBar" style="width:0;background:linear-gradient(90deg,#ffd76a,#ff9f1c)"></i></div><span id="xpTxt">0/100</span></div>
         <div class="stat hp" title="Health"><svg viewBox="0 0 24 24" fill="#5fe09a" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg><div class="bar"><i id="hpBar" style="width:0;background:linear-gradient(90deg,#8ff0b8,#34c476)"></i></div><span id="hpTxt">70</span></div>

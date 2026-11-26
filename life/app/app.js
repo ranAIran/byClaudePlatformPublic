@@ -11,6 +11,7 @@ import { initBridge } from "./bridge.js";
 import { buildFeedback } from "./core/feedback.js";
 import { districtMood } from "./core/mood.js";
 import { applyEdit, placeChoices } from "./core/edit.js";
+import { todayList } from "./core/today.js";
 import { celebrationFor } from "./core/reward.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
@@ -18,7 +19,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.4.0";
+export const VERSION = "0.4.1";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const store = createStore(localStorageBackend());
@@ -133,7 +134,8 @@ function renderHud() {
   const h = hp(); $("hpBar").style.width = h + "%"; $("hpTxt").textContent = h;
   $("today").textContent = new Date().toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
   const open = store.all().filter((n) => n.type === "task" && !n.done && n.parent !== "bag").sort((a, b) => (a.due || "9999").localeCompare(b.due || "9999")).slice(0, 4);
-  $("quests").innerHTML = open.map((n) => `<button class="pill" data-id="${n.id}"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span class="due ${dueText(n.due).startsWith("overdue") ? "late" : ""}">${dueText(n.due)}</span>` : ""}</button>`).join("");
+  const td = todayList(store), late = td.overdue.length, due = late + td.today.length;
+  $("quests").innerHTML = `<button class="pill today ${late ? "late" : ""}" data-today="1"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>Today${due ? ` <b>${due}</b>` : ""}</button>` + open.map((n) => `<button class="pill" data-id="${n.id}"><span class="dot" style="background:${ISL_COLOR[islandOf(n.id)] || "#fff"}"></span>${esc(n.title)}${n.due ? ` <span class="due ${dueText(n.due).startsWith("overdue") ? "late" : ""}">${dueText(n.due)}</span>` : ""}</button>`).join("");
   for (const [id, el] of Object.entries(labelEls)) {
     const md = districtMood(store, id), badge = el.querySelector(".badge");
     badge.textContent = md.overdue ? `${md.overdue} overdue` : md.soon ? `${md.soon} due soon` : md.open ? `${md.open} open` : "all clear";
@@ -142,9 +144,10 @@ function renderHud() {
     map.setMood(id, md.state);
   }
   for (const r of ROOMS) { const n = store.children(r).length; roomEls[r].textContent = `${title(r)} · ${n}`; roomEls[r].classList.toggle("on", r === room); }
-  const bag = store.unplaced().length; $("bagCount").textContent = bag; $("bagCount").hidden = !bag; $("bagBtn").classList.toggle("has", !!bag);
+  const bag = store.unplaced().length; $("bagCount").textContent = bag; $("bagCount").hidden = !bag; $("bagBtn").classList.toggle("has", !!bag); $("bagCount").classList.toggle("old", td.bagDays > 3);
 }
-$("quests").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) openFor(b.dataset.id); });
+$("quests").addEventListener("click", (e) => { if (e.target.closest("[data-today]")) return openToday(); const b = e.target.closest("[data-id]"); if (b) openFor(b.dataset.id); });
+$("today").addEventListener("click", () => openToday());
 
 // ---------- R26 · celebrations ----------
 let sound = true; try { sound = localStorage.getItem("life-sound") !== "off"; } catch (e) { /* storage unavailable */ }
@@ -172,16 +175,29 @@ const TYPE_ICON = {
 };
 const svgIcon = (t) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;color:var(--muted)"><path d="${TYPE_ICON[t] || TYPE_ICON.note}"/></svg>`;
 let sheetFor = null;
-function itemHtml(n, { bag = false } = {}) {
+function itemHtml(n, { bag = false, where = "" } = {}) {
   const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? "Done. Tap to reopen" : "Mark as done"}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
-  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="font-weight:700;color:${dueText(n.due).startsWith("overdue") ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.effort > 1 ? `effort ${n.effort}` : "", n.tags.includes("example") ? "example" : "", n.notes ? esc(n.notes) : ""].filter(Boolean).join(" · ");
+  const meta = [n.type !== "task" ? n.type : "", n.due ? `<span style="font-weight:700;color:${dueText(n.due).startsWith("overdue") ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.effort > 1 ? `effort ${n.effort}` : "", where ? esc(where) : "", n.tags.includes("example") ? "example" : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
   const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">Open ${esc(n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
   return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="Edit ${esc(n.title)}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="Edit"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
 }
+// R34 · Today: overdue, today and this week in one list.
+function openToday() {
+  sheetFor = "today"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
+  const t = todayList(store), n = t.overdue.length + t.today.length + t.week.length;
+  $("sheetTitle").textContent = "Today"; $("sheetDot").style.background = "#ffc94d";
+  $("sheetDot").innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>`;
+  $("sheetSub").textContent = n ? [t.overdue.length ? `${t.overdue.length} overdue` : "", t.today.length ? `${t.today.length} today` : "", t.week.length ? `${t.week.length} this week` : ""].filter(Boolean).join(" · ") : "Nothing due";
+  $("sheetTabs").hidden = true;
+  const sec = (label, list, cls) => list.length ? `<div class="sec ${cls}">${label}</div>` + list.map((x) => { const node = store.get(x.id); return itemHtml(node, { where: x.where }); }).join("") : "";
+  $("sheetBody").innerHTML = (t.empty ? `<div class="empty">Nothing due. Enjoy the evening.</div>` : sec("Overdue", t.overdue, "late") + sec("Today", t.today, "") + sec("This week", t.week, ""))
+    + (t.bag ? `<button class="item bagline" data-act="openbag"><span class="sec-ic">${pIcon("bag")}</span><div class="main"><div class="t">${t.bag} thing${t.bag === 1 ? "" : "s"} waiting in your bag</div><div class="meta">${t.bagDays > 3 ? `<span style="color:var(--bad);font-weight:700">The oldest has waited ${t.bagDays} days.</span> ` : ""}Tap to file ${t.bag === 1 ? "it" : "them"}</div></div></button>` : "");
+}
 function openSheet(id) {
+  if (id === "today") return openToday();
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
   const isBag = id === "bag";
   $("sheetTitle").textContent = isBag ? "Your bag" : title(id);
@@ -216,6 +232,7 @@ $("sheetBody").addEventListener("click", async (e) => {
   if (b.dataset.act === "open") bridge.openExternal(b.dataset.url);
   if (b.dataset.act === "photo") { const src = await media.getImage(n.images[0]); if (src) showPhoto(src); }
   if (b.dataset.act === "edit") openEditor(id);
+  if (b.dataset.act === "openbag") openSheet("bag");
 });
 
 // ---------- R33 · edit an item ----------
@@ -592,8 +609,12 @@ renderer.setAnimationLoop(() => {
   if (frames === 10) (w === map ? home : map).post.render();
   w.post.render();
   placeLabels();
-  if (frames === 3) { $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700); }
+  if (frames === 3) {
+    $("splash").classList.add("out"); setTimeout(() => $("splash")?.remove(), 700);
+    try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
+  }
   if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
+    today: () => todayList(store),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
     lastFx: () => fx.last(), confetti: () => fx.confetti(),
     goTo: (id) => walkTo(map.walk.doors[id]), screenOf: (x, y, z) => { const [sx, sy] = projectTo(map.cam, new THREE.Vector3(x, y, z)); return { x: sx, y: sy }; },

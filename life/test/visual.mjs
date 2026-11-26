@@ -41,6 +41,14 @@ check(!(await p.isHidden("#sheet")) && (await p.textContent("#sheetTitle")).incl
 await p.tap("#sheetClose").catch(() => {}); await p.waitForTimeout(800); // let the scrim behind the sheet fade out
 const meshes = await p.evaluate(() => window.__life.meshes?.() ?? 9999);
 check(meshes < 260, `R18 the city is merged into few draw calls for phones (${meshes} meshes)`);
+// R34 · Today: the pill opens one list with today's tasks; ticking one there works like anywhere else.
+{
+  await p.tap(".pill.today"); await p.waitForTimeout(400);
+  const t = await p.evaluate(() => ({ title: document.getElementById("sheetTitle").textContent, rows: [...document.querySelectorAll("#sheetBody .item .t")].map((x) => x.textContent), secs: [...document.querySelectorAll("#sheetBody .sec")].map((x) => x.textContent) }));
+  await p.screenshot({ path: `${out}/v-today.png` });
+  check(t.title === "Today" && t.secs.includes("Today") && t.rows.includes("Gym · legs day") && t.rows.includes("Call grandma"), `R34 Today lists what is due (${t.secs.join(", ")}: ${t.rows.join(", ")})`);
+  await p.tap("#sheetClose"); await p.waitForTimeout(700);
+}
 // R33 · edit an item: tap its name, change the name and the date, save; the row shows the change.
 {
   const hallE = (await p.evaluate(() => window.__life.districts())).find((d) => d.id === "paperwork");

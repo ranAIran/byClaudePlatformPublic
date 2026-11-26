@@ -13,6 +13,7 @@ import { ISO, orbitOffset, panBasis, turn } from "../app/core/orbit.js";
 import { makeWalker } from "../app/core/walk.js";
 import { createPhysics } from "../app/core/physics.js";
 import { applyEdit, placeChoices } from "../app/core/edit.js";
+import { todayList } from "../app/core/today.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
 const fresh = () => createStore(memoryBackend(), { now: () => NOW });
@@ -338,5 +339,38 @@ describe("R33 · edit an item", () => {
     expect(s.get(id).steps).toEqual([{ title: "Book an appointment", done: true }, { title: "Go to the office", done: false }, { title: "Pick up", done: false }]);
     expect(s.xp()).toBe(xp);
     applyEdit(s, id, { steps: [] }); expect(s.get(id).steps).toBeNull();
+  });
+});
+
+describe("R34 · one list that answers what now", () => {
+  const T = () => { const s = fresh(); // NOW is 2026-11-06
+    s.add({ type: "task", title: "Late form", parent: "paperwork", due: "2026-11-01" });
+    s.add({ type: "task", title: "Gym", parent: "health", due: "2026-11-06" });
+    s.add({ type: "task", title: "Big review", parent: "work", due: "2026-11-06", effort: 3 });
+    s.add({ type: "task", title: "Filter", parent: "kitchen", due: "2026-11-10" });
+    s.add({ type: "task", title: "Far away", parent: "work", due: "2026-12-30" });
+    s.add({ type: "task", title: "No date", parent: "work" });
+    s.add({ type: "task", title: "Done late", parent: "work", due: "2026-11-02", done: true });
+    s.add({ type: "note", title: "A note", parent: "work", due: "2026-11-06" });
+    s.capture("call the plumber"); return s; };
+  it("splits open tasks into overdue, today and this week, and counts the bag", () => {
+    const t = todayList(T(), NOW);
+    expect(t.overdue.map((x) => x.title)).toEqual(["Late form"]);
+    expect(t.today.map((x) => x.title)).toEqual(["Big review", "Gym"]);   // bigger effort first on the same day
+    expect(t.week.map((x) => x.title)).toEqual(["Filter"]);
+    expect(t.bag).toBe(1);
+  });
+  it("shows where each task lives, including rooms in the home", () => {
+    const t = todayList(T(), NOW);
+    expect(t.week[0].where).toBe("Home › Kitchen");
+    expect(t.overdue[0].where).toBe("Paperwork");
+  });
+  it("says how long the oldest thing has waited in the bag", () => {
+    const s = createStore(memoryBackend(), { now: () => new Date("2026-11-01T09:00:00") }); s.capture("old thought");
+    expect(todayList(s, NOW).bagDays).toBe(5);
+  });
+  it("is empty on a clear day", () => {
+    const t = todayList(fresh(), NOW);
+    expect(t.overdue.length + t.today.length + t.week.length).toBe(0); expect(t.empty).toBe(true);
   });
 });
