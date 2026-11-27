@@ -23,6 +23,7 @@ import { backupDue, backupName } from "../app/core/backup.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
 import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
 import { pickQuality, canChooseQuality } from "../app/core/quality.js";
+import { parseGoal, goalDeadline, timeLeft, goalBoard, artFor } from "../app/core/goals.js";
 import { addCategory, renameCategory, removeCategory, categories } from "../app/core/categories.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
@@ -611,5 +612,85 @@ describe("R42 · edit the categories", () => {
     const s = fresh();
     expect(removeCategory(s, "home").ok).toBe(false); expect(removeCategory(s, "bag").ok).toBe(false);
     expect(addCategory(s, "work").ok).toBe(false); expect(addCategory(s, "").ok).toBe(false);
+  });
+});
+
+describe("R43 · a done-state sentence becomes a goal card", () => {
+  const FRI = new Date(2026, 10, 27, 10, 0); // Friday 27 Nov 2026, 10:00 local
+  it("reads the Hebrew examples: day, time of day, object and place", () => {
+    const a = parseGoal("עד יום שבת בערב הארגז יהיה במחסן", FRI);
+    expect(a).toMatchObject({ ok: true, due: "2026-11-28", time: "18:00", title: "הארגז במחסן", object: "box", scene: "storage" });
+    const b = parseGoal("עד מחר בבוקר יש לי שוקולד חדש במקרר", FRI);
+    expect(b).toMatchObject({ ok: true, due: "2026-11-28", time: "08:00", title: "יש לי שוקולד חדש במקרר", object: "chocolate", scene: "fridge" });
+  });
+  it("reads English, with times of day and a clock time", () => {
+    expect(parseGoal("By Saturday evening the box will be in the storage room", FRI)).toMatchObject({ ok: true, due: "2026-11-28", time: "18:00", title: "The box is in the storage room", object: "box", scene: "storage" });
+    expect(parseGoal("by tomorrow morning there is new chocolate in the fridge", FRI)).toMatchObject({ due: "2026-11-28", time: "08:00", object: "chocolate", scene: "fridge" });
+    expect(parseGoal("the form is sent by Monday at 17:30", FRI)).toMatchObject({ due: "2026-11-30", time: "17:30", object: "doc" });
+    expect(parseGoal("עד יום ראשון בשעה 9:15 החשבון משולם", FRI)).toMatchObject({ due: "2026-11-29", time: "09:15", object: "doc" });
+    expect(parseGoal("עד היום בלילה המפתח בתיק", FRI)).toMatchObject({ due: "2026-11-27", time: "21:00", object: "key" });
+  });
+  it("needs a when, and something to be true", () => {
+    expect(parseGoal("the box is in storage", FRI)).toMatchObject({ ok: false, error: "when" });
+    expect(parseGoal("by Saturday", FRI)).toMatchObject({ ok: false, error: "what" });
+    expect(parseGoal("", FRI)).toMatchObject({ ok: false });
+  });
+  it("draws something for any sentence: unknown words fall back to a star in a room", () => {
+    expect(parseGoal("by Friday the guitar is tuned", FRI)).toMatchObject({ ok: true, object: "star", scene: "room" });
+    expect(artFor("ספר חדש על המדף")).toEqual({ object: "star", scene: "room" });
+    expect(artFor("קופסה ברכב")).toEqual({ object: "box", scene: "car" });
+  });
+  it("counts down to the deadline in local time; a day without a time ends at 23:59", () => {
+    const g = { due: "2026-11-28", goal: { time: "08:00" } };
+    expect(goalDeadline(g).getHours()).toBe(8);
+    expect(timeLeft(g, FRI)).toMatchObject({ late: false, days: 0, hours: 22, minutes: 0 });
+    expect(goalDeadline({ due: "2026-11-28", goal: { time: null } }).getHours()).toBe(23);
+    expect(timeLeft(g, new Date(2026, 10, 28, 9, 0))).toMatchObject({ late: true });
+  });
+  it("lives in the store: a card with one first step, Started, Done, kept apart from tasks", () => {
+    const s = createStore(memoryBackend(), { now: () => FRI });
+    const r = s.addGoal("עד מחר בבוקר יש לי שוקולד חדש במקרר");
+    expect(r.ok).toBe(true);
+    const g = s.get(r.id);
+    expect(g).toMatchObject({ type: "goal", parent: null, due: "2026-11-28", goal: { time: "08:00", object: "chocolate", scene: "fridge", step: null, started: null } });
+    s.setGoalStep(r.id, "לקנות בסופר בדרך הביתה", "18:30");
+    expect(s.get(r.id).goal.step).toEqual({ title: "לקנות בסופר בדרך הביתה", at: "18:30" });
+    s.startGoal(r.id);
+    expect(s.get(r.id).goal.started).toBeTruthy();
+    expect(s.unplaced().length).toBe(0); // not in the bag
+    expect(todayList(s, FRI).empty).toBe(true); // not a task
+    expect(s.complete(r.id)).toBeGreaterThan(0);
+    expect(s.addGoal("no date here")).toMatchObject({ ok: false, error: "when" });
+    const again = createStore({ load: () => s.snapshot(), save() {} }, { now: () => FRI });
+    expect(again.get(r.id).goal.step.title).toBe("לקנות בסופר בדרך הביתה");
+  });
+  it("the board: open goals by deadline, and what was achieved in the last 7 days", () => {
+    let t = FRI; const s = createStore(memoryBackend(), { now: () => t });
+    const a = s.addGoal("by Saturday evening the box is in storage").id;
+    const b = s.addGoal("by tomorrow morning there is chocolate in the fridge").id;
+    const c = s.addGoal("by Monday the form is sent").id;
+    s.complete(c);
+    const B = goalBoard(s, FRI);
+    expect(B.open.map((g) => g.id)).toEqual([b, a]);
+    expect(B.done.map((g) => g.id)).toEqual([c]);
+    expect(B.suggestMore).toBe(true); // 2 open: room for one more of the suggested 3
+    s.addGoal("by Sunday the key is in the bag");
+    expect(goalBoard(s, FRI).suggestMore).toBe(false);
+    t = new Date(2026, 11, 8); expect(goalBoard(s, t).done).toEqual([]);
+  });
+});
+
+describe("R49 · simple first: the basic card, nothing locked", () => {
+  it("a new goal has only the basic parts; there are no levels or unlock rules", () => {
+    const s = createStore(memoryBackend(), { now: () => new Date(2026, 10, 27, 10) });
+    const g = s.get(s.addGoal("by Saturday the box is in storage").id);
+    expect(Object.keys(g.goal).sort()).toEqual(["object", "photo", "scene", "started", "step", "time"]);
+    expect(g.steps).toBe(null);
+    expect(goalBoard(s).locked).toBeUndefined();
+  });
+  it("the interface has the goals words in both languages", () => {
+    for (const k of ["goals", "goalsSub", "goalPh", "firstStep", "firstStepPh", "started", "goalDone", "achievedWeek", "goalNeedsWhen", "goalNeedsWhat", "roomForOne", "leftDH", "leftHM", "goalLate", "goalAdded"]) {
+      expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy();
+    }
   });
 });

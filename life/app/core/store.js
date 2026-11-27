@@ -6,6 +6,7 @@ import { suggestPlaces } from "./places.js";
 import { XP, levelFor } from "./xp.js";
 import { validRepeat, nextDue, parseRepeat } from "./repeat.js";
 import { isoDate } from "./capture.js";
+import { parseGoal } from "./goals.js";
 
 export const SEED = [
   { id: "world", type: "place", kind: "world", title: "World", parent: null },
@@ -33,6 +34,9 @@ export function localStorageBackend(key = "life-archipelago-v1") {
   };
 }
 
+// R43 · a goal's own parts. Only the basic card (R49): deeper tools are added per goal later.
+const goalOf = (g) => g ? { time: g.time ?? null, object: g.object || "star", scene: g.scene || "room", step: g.step?.title ? { title: String(g.step.title), at: g.step.at ?? null } : null, started: g.started ?? null, photo: g.photo ?? null } : null;
+
 let counter = 0;
 const newId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().slice(0, 12) : Date.now().toString(36) + (counter++).toString(36));
 
@@ -53,7 +57,7 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       kind: n.kind ?? null, system: !!n.system, custom: !!n.custom, tags: n.tags ? [...n.tags] : [], due: n.due ?? null, done: !!n.done,
       effort: n.effort ?? 1, steps: n.steps ? n.steps.map((s) => ({ title: s.title, done: !!s.done })) : null,
       notes: n.notes ?? "", url: n.url ?? null, images: n.images ? [...n.images] : [], thumb: n.thumb ?? null, suggest: n.suggest ? [...n.suggest] : [],
-      awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), created: n.created || stamp(), updated: n.updated || stamp(),
+      awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), goal: goalOf(n.goal), created: n.created || stamp(), updated: n.updated || stamp(),
     };
   }
   const graveList = () => [...graves].map(([id, at]) => ({ id, at }));
@@ -87,6 +91,14 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       if (repeat) { c.type = "task"; if (!c.due) c.due = nextDue(isoDate(now()), repeat, isoDate(now())); }
       return api.add({ ...c, repeat, parent: "bag", suggest: suggestPlaces(text), notes: "" });
     },
+    // R43 · Goals Board
+    addGoal(text) {
+      const g = parseGoal(text, now()); if (!g.ok) return g;
+      const id = api.add({ type: "goal", title: g.title, due: g.due, parent: null, goal: { time: g.time, object: g.object, scene: g.scene } });
+      return { ok: true, id };
+    },
+    setGoalStep(id, title, at = null) { const n = nodes.get(id); if (!n?.goal) return; const t = String(title || "").trim(); api.update(id, { goal: { ...n.goal, step: t ? { title: t, at: at || null } : null } }); },
+    startGoal(id) { const n = nodes.get(id); if (!n?.goal) return; api.update(id, { goal: { ...n.goal, started: stamp() } }); },
     unplaced: () => api.children("bag"),
     place(id, pid) { api.update(id, { parent: pid, suggest: [] }); },
     search(q) {

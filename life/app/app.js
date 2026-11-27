@@ -22,13 +22,15 @@ import { pickQuality, canChooseQuality } from "./core/quality.js";
 import { categories, addCategory, renameCategory, removeCategory } from "./core/categories.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
+import { goalBoard, timeLeft } from "./core/goals.js";
+import { goalArt } from "./goalart.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
 import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.6.1";
+export const VERSION = "0.7.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -266,8 +268,55 @@ function openToday() {
     + (!bridge.canBackup && store.all().filter((x) => !x.system).length > 3 && exportReminderDue(lsGet("life-backup-last")) ? `<button class="item bagline" data-act="backup"><span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg></span><div class="main"><div class="t">${t("backupLine")}</div><div class="meta">${lsGet("life-backup-last") ? t("lastBackup", { d: lsGet("life-backup-last") }) : t("noBackup")} ${t("tapToSave")}</div></div></button>` : "")
     + (L.bag ? `<button class="item bagline" data-act="openbag"><span class="sec-ic">${pIcon("bag")}</span><div class="main"><div class="t">${t(L.bag === 1 ? "bagWaiting" : "bagWaitingN", { n: L.bag })}</div><div class="meta">${L.bagDays > 3 ? `<span style="color:var(--bad);font-weight:700">${t("bagOldest", { n: L.bagDays })}</span> ` : ""}${t(L.bag === 1 ? "tapToFileIt" : "tapToFileThem")}</div></div></button>` : "");
 }
+// R43 · Goals Board: what will be true, and by when. One card per goal: drawing, countdown, one first step.
+const FLAG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h12l-2.500 4L17 12H5"/></svg>`;
+const leftText = (n) => {
+  const L = timeLeft(n);
+  const when = `${dueText(n.due)}${n.goal?.time ? " " + n.goal.time : ""}`;
+  if (L.late) return { cls: "late", text: `${when} · ${t("goalLate", { t: L.days ? `${L.days}d` : `${L.hours}h` })}` };
+  return { cls: L.days < 1 ? "soon" : "", text: `${when} · ${L.days ? t("leftDH", { d: L.days, h: L.hours }) : t("leftHM", { h: L.hours, m: L.minutes })}` };
+};
+function goalCard(n) {
+  const st = n.goal.step, left = leftText(n);
+  const step = st ? `<div class="gstep"><div class="gmain"><small>${t("firstStep")}</small><span dir="auto">${esc(st.title)}</span>${st.at ? ` <em>· ${esc(st.at)}</em>` : ""}</div>${n.goal.started ? `<span class="gstarted">✓ ${t("startedOn")}</span>` : `<button class="gb1" data-act="gstart" data-id="${n.id}">${t("started")}</button>`}<button class="gb2" data-act="gdone" data-id="${n.id}">${t("goalDone")}</button></div>`
+    : `<form class="gstep gstepform" data-goal="${n.id}"><div class="gmain"><small>${t("firstStep")}</small><input name="t" dir="auto" placeholder="${esc(t("firstStepPh"))}" maxlength="120"></div><input name="at" type="time" aria-label="${esc(t("stepAt"))}"><button class="gb1">${t("setStep")}</button></form>`;
+  return `<div class="gcard" data-goal="${n.id}"><div class="gtop"><div class="gimg">${goalArt(n.goal.object, n.goal.scene)}</div><div><b dir="auto">${esc(n.title)}</b><span class="gdue ${left.cls}">${left.text}</span></div></div>${step}</div>`;
+}
+function openGoals() {
+  sheetFor = "goals"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
+  const B = goalBoard(store);
+  $("sheetTitle").textContent = t("goals"); $("sheetDot").style.background = "#ffc94d"; $("sheetDot").innerHTML = FLAG;
+  $("sheetSub").textContent = B.open.length ? t("goalsOpen", { n: B.open.length }) : t("goalsSub");
+  $("sheetTabs").hidden = true;
+  $("sheetBody").innerHTML = `<form class="addrow" id="goalForm"><input placeholder="${esc(t("goalPh"))}" maxlength="200" aria-label="${esc(t("goalsSub"))}"><button class="btn primary" style="padding:10px 14px">${t("goalAdd")}</button></form>`
+    + (B.open.length ? B.open.map(goalCard).join("") : `<div class="empty">${t("goalEmpty")}</div>`)
+    + (B.open.length && B.suggestMore ? `<div class="gslot">+ ${t("roomForOne")}</div>` : "")
+    + (B.done.length ? `<div class="sec">${t("achievedWeek")}</div><div class="gwon">${B.done.map((n) => `<span class="gth" title="${esc(n.title)}">${goalArt(n.goal?.object, n.goal?.scene)}</span>`).join("")}</div>` : "");
+}
+$("sheetBody").addEventListener("submit", (e) => {
+  const f = e.target;
+  if (f.id === "goalForm") {
+    e.preventDefault(); e.stopImmediatePropagation();
+    const inp = f.querySelector("input"), r = store.addGoal(inp.value);
+    if (!r.ok) { toast(t(r.error === "when" ? "goalNeedsWhen" : "goalNeedsWhat")); return; }
+    toast(t("goalAdded")); setTimeout(() => document.querySelector(`.gstepform[data-goal="${r.id}"] input`)?.focus(), 50);
+  } else if (f.classList.contains("gstepform")) {
+    e.preventDefault(); e.stopImmediatePropagation();
+    const v = f.elements.t.value.trim(); if (!v) { f.elements.t.focus(); return; }
+    store.setGoalStep(f.dataset.goal, v, f.elements.at.value || null);
+  }
+}, true);
+$("sheetBody").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act=gstart],[data-act=gdone]"); if (!b) return;
+  e.stopImmediatePropagation();
+  if (b.dataset.act === "gstart") store.startGoal(b.dataset.id);
+  else { const from = b.closest(".gcard").getBoundingClientRect(); finish(b.dataset.id, from, () => store.complete(b.dataset.id)); toast(t("goalCame")); }
+}, true);
+$("goalsBtn").addEventListener("click", () => openGoals());
+
 function openSheet(id) {
   if (id === "today") return openToday();
+  if (id === "goals") return openGoals();
   if (id === "categories") return openCategories();
   if (String(id).startsWith("shop:")) return openShop(id.slice(5));
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
@@ -788,7 +837,7 @@ renderer.setAnimationLoop(() => {
     setTimeout(autoBackup, 4000);
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
-  if (++frames === 20) { window.__life = { ready: true, store, view: () => view, backendName,
+  if (++frames === 20) { window.__life = { ready: true, store, goals: () => goalBoard(store), openGoals, view: () => view, backendName,
     quality: () => quality,
     today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },

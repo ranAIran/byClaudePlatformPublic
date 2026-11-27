@@ -246,6 +246,31 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   check(has && renamed === "Job" && ds.length === 7 && names.includes("Hobbies") && names.includes("Job"), `R41/R42 Shopping is on the map; renaming and adding a category work (${names.join(", ")})`);
   await p.evaluate(() => window.__life.store.update("work", { title: "Work" }));
 }
+// R43 · the flag opens the Goals Board: a done-state sentence becomes a drawn card with a countdown and one first step.
+{
+  await p.evaluate(() => window.__life.ui.closeSheet()); await p.waitForTimeout(200);
+  const flag = await p.isVisible("#goalsBtn");
+  await p.click("#goalsBtn"); await p.waitForTimeout(300);
+  const opened = (await p.textContent("#sheetTitle")).includes("Goals");
+  await p.fill("#goalForm input", "the box is in storage"); await p.press("#goalForm input", "Enter"); await p.waitForTimeout(250);
+  const refused = await p.evaluate(() => window.__life.goals().open.length === 0);
+  await p.fill("#goalForm input", "עד יום שבת בערב הארגז יהיה במחסן"); await p.press("#goalForm input", "Enter"); await p.waitForTimeout(300);
+  await p.fill("#goalForm input", "עד מחר בבוקר יש לי שוקולד חדש במקרר"); await p.press("#goalForm input", "Enter"); await p.waitForTimeout(300);
+  const cards = await p.evaluate(() => [...document.querySelectorAll(".gcard .goalart")].map((x) => x.dataset.object + "/" + x.dataset.scene));
+  const stepInput = p.locator(".gstepform input[name=t]").first();
+  await stepInput.fill("לקנות בסופר בדרך הביתה"); await p.locator(".gstepform input[name=at]").first().fill("18:30"); await stepInput.press("Enter"); await p.waitForTimeout(300);
+  const stepShown = await p.evaluate(() => [...document.querySelectorAll(".gcard .gmain span")].some((x) => x.textContent.includes("לקנות בסופר")));
+  await p.locator("[data-act=gstart]").first().click(); await p.waitForTimeout(250);
+  const started = await p.isVisible(".gstarted");
+  await p.screenshot({ path: `${out}/v-goals.png` });
+  await p.locator("[data-act=gdone]").first().click(); await p.waitForTimeout(600);
+  const B = await p.evaluate(() => { const b = window.__life.goals(); return { open: b.open.length, done: b.done.length }; });
+  const strip = await p.isVisible(".gwon .gth");
+  await p.screenshot({ path: `${out}/v-goals-done.png` });
+  check(flag && opened && refused && cards.includes("box/storage") && cards.includes("chocolate/fridge") && stepShown && started && B.open === 1 && B.done === 1 && strip,
+    `R43 Goals Board: flag opens it, sentences become drawn cards, first step, Started and Done (${cards.join(", ")}; open ${B.open}, done ${B.done})`);
+  await p.evaluate(() => window.__life.ui.closeSheet());
+}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
   const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp() }; });

@@ -48,6 +48,12 @@ const en = {
   catRename: "Rename", catRemove: "Remove", catRooms: "Rooms in the home", catTaken: "That name is already used", catNeedsName: "Give it a name",
   catBuiltin: "Built-in categories stay; you can rename them", catAdded: "{name} added", catRemoved: "{name} removed; its things are back in the bag", catRenamed: "Renamed",
   catOnMap: "on the map", catListOnly: "in lists",
+  // R43 · Goals Board
+  goals: "Goals", s_goals: "Open the goals board", goalsSub: "Write what will be true, and by when.", goalsOpen: "{n} open", goalPh: "By tomorrow morning there is new chocolate in the fridge", goalAdd: "Add",
+  firstStep: "First step", firstStepPh: "The first small step…", stepAt: "at", setStep: "Set", started: "Started", startedOn: "Started", goalDone: "Done",
+  achievedWeek: "Achieved this week", goalNeedsWhen: "When? Add a day, like “by Saturday evening”.", goalNeedsWhat: "What will be true? Like “the box is in the storage room”.",
+  roomForOne: "Room for one more goal · about 3 at a time works best", leftDH: "{d}d {h}h left", leftHM: "{h}h {m}m left", goalLate: "{t} late", goalAdded: "Goal added. What's the first step?",
+  goalEmpty: "No goals yet. Write one sentence above: what will be true, and when.", goalCame: "It came true!", goalPhotoAfter: "After photo",
 };
 
 const he = {
@@ -94,6 +100,11 @@ const he = {
   catRename: "שינוי שם", catRemove: "הסרה", catRooms: "חדרים בבית", catTaken: "השם הזה כבר בשימוש", catNeedsName: "צריך שם",
   catBuiltin: "קטגוריות מובנות נשארות; אפשר לשנות להן שם", catAdded: "{name} נוספה", catRemoved: "{name} הוסרה; הפריטים שלה חזרו לתיק", catRenamed: "השם שונה",
   catOnMap: "על המפה", catListOnly: "ברשימות",
+  goals: "מטרות", s_goals: "פתח את לוח המטרות", goalsSub: "כתוב מה יהיה נכון, ועד מתי.", goalsOpen: "{n} פתוחות", goalPh: "עד מחר בבוקר יש לי שוקולד חדש במקרר", goalAdd: "הוסף",
+  firstStep: "צעד ראשון", firstStepPh: "הצעד הקטן הראשון…", stepAt: "בשעה", setStep: "שמור", started: "התחלתי", startedOn: "התחלת", goalDone: "בוצע",
+  achievedWeek: "הושג השבוע", goalNeedsWhen: "מתי? הוסף יום, למשל ״עד שבת בערב״.", goalNeedsWhat: "מה יהיה נכון? למשל ״הארגז במחסן״.",
+  roomForOne: "מקום ליעד אחד נוסף · כ-3 בבת אחת עובד הכי טוב", leftDH: "עוד {d} ימים ו-{h} שעות", leftHM: "עוד {h} שעות ו-{m} דק׳", goalLate: "באיחור של {t}", goalAdded: "המטרה נוספה. מה הצעד הראשון?",
+  goalEmpty: "עוד אין מטרות. כתוב משפט אחד למעלה: מה יהיה נכון, ועד מתי.", goalCame: "זה קרה!", goalPhotoAfter: "תמונת אחרי",
 };
 
 // Built-in places, translated while the owner hasn't renamed them.

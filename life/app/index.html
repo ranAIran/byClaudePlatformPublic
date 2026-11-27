@@ -180,6 +180,27 @@ button.item{align-items:center}
 #fbDiag{font-size:10.5px;white-space:pre-wrap;line-height:1.5;max-height:90px;overflow:auto}
 #renderer{position:fixed;right:12px;bottom:3px;font:500 9px var(--mono);color:rgba(255,240,225,.3);pointer-events:none}
 
+/* R43 · goals board */
+.gcard{margin-top:10px;border-radius:18px;background:linear-gradient(180deg,rgba(255,236,214,.10),rgba(255,236,214,.05));border:1px solid var(--line);padding:10px;box-shadow:0 8px 20px rgba(0,0,0,.25)}
+.gtop{display:flex;gap:12px;align-items:center}
+.gimg{width:120px;height:96px;border-radius:14px;overflow:hidden;flex:none;border:2px solid rgba(255,240,225,.22)}
+.gimg svg,.gth svg{width:100%;height:100%;display:block}
+.gtop b{display:block;font-size:17px;line-height:1.3;overflow-wrap:anywhere}
+.gdue{display:inline-block;margin-top:7px;font-size:12.5px;font-weight:700;color:var(--gold);background:rgba(255,201,77,.13);border:1px solid rgba(255,201,77,.3);padding:3px 8px;border-radius:8px}
+.gdue.soon,.gdue.late{color:#ffb3a8;background:rgba(255,122,107,.14);border-color:rgba(255,122,107,.35)}
+.gstep{margin-top:10px;display:flex;align-items:center;gap:7px;border-radius:13px;background:rgba(95,212,196,.10);border:1px solid rgba(95,212,196,.3);padding:8px 9px}
+.gmain{flex:1;min-width:0;font-size:13.5px;line-height:1.3}
+.gmain small{display:block;color:#5fd4c4;font-size:11px;font-weight:800;margin-bottom:2px}
+.gmain em{font-style:normal;color:var(--muted);font-size:12px}
+.gmain input{width:100%;background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--ink);font:inherit;padding:3px 0;outline:none}
+.gstep input[type=time]{width:92px;flex:none;background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:inherit;font-size:13px;padding:6px;color-scheme:dark}
+.gb1,.gb2{height:36px;padding:0 12px;border-radius:11px;font:inherit;font-size:13.5px;font-weight:800;white-space:nowrap;cursor:pointer;flex:none}
+.gb1{background:transparent;border:1.5px solid #5fd4c4;color:#5fd4c4}
+.gb2{background:linear-gradient(180deg,#ffc94d,#ff9f1c);border:0;color:var(--gold-ink)}
+.gstarted{font-size:12px;font-weight:800;color:#5fd4c4;white-space:nowrap}
+.gslot{margin-top:10px;padding:14px;border-radius:16px;border:2px dashed var(--line);color:var(--faint);font-size:13px;text-align:center}
+.gwon{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.gth{width:52px;height:42px;border-radius:10px;overflow:hidden;border:1.5px solid rgba(95,224,154,.55)}
 /* R34 · today */
 .pill.today{background:linear-gradient(180deg,#ffd76a,#ffb93a);color:var(--gold-ink);border-color:#ffe39a;font-weight:700}
 .pill.today b{background:rgba(42,26,0,.18);border-radius:99px;padding:0 7px}
@@ -261,6 +282,7 @@ button.item{align-items:center}
         <div class="stat hp" title="Health"><svg viewBox="0 0 24 24" fill="#5fe09a" aria-hidden="true"><path d="M12 21s-8-5.2-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 5.8-8 11-8 11z"/></svg><div class="bar"><i id="hpBar" style="width:0;background:linear-gradient(90deg,#8ff0b8,#34c476)"></i></div><span id="hpTxt">70</span></div>
       </div>
     </div>
+    <button class="hudbtn" id="goalsBtn" aria-label="Open the goals board" data-i18n-aria="s_goals"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4M5 4h12l-2.500 4L17 12H5"/></svg></button>
     <button class="hudbtn" id="searchBtn" aria-label="Search" data-i18n-aria="s_search"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4-4"/></svg></button>
     <button class="hudbtn" id="menuBtn" aria-label="Menu" data-i18n-aria="s_menu"><svg class="icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
   </div>

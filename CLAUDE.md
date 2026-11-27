@@ -33,7 +33,7 @@ Read this first. It carries the decisions and lessons from earlier sessions so a
 
 ```bash
 cd life && npm install
-npm test                 # Vitest: life/test/*.test.js, 75 tests (R1–R3, R7, R8, R11, R16, R19–R21, R26, R27, R29, R31–R39)
+npm test                 # Vitest: life/test/*.test.js, 90 tests (R1–R3, R7, R8, R11, R16, R19–R21, R26, R27, R29, R31–R43, R49)
 npm run test:visual      # Playwright: life/test/visual.mjs, about 6 minutes (city, golden hour, signs, turning, middle-drag, walking, coins, edit, Today, repeats, deep links, shop, keys and swipe, Hebrew, IndexedDB, desktop quality)
 bash life/android/copy-web.sh   # copies life/app + quest engine into the APK assets (CI does this)
 ```
@@ -96,4 +96,5 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 - **Done (0.6.1):** R40 date fix above; R41 Shopping category (the shops block is now a district, with shopping words in English and Hebrew); R42 Categories in the menu: rename any category or room, add new ones (the first new one gets the park block on the map, the rest appear in lists), remove new ones (their things go back to the bag).
 - **Not possible from this environment:** ready-made CC0 models (Kenney, Quaternius, Poly Pizza are blocked; npm has no city kit). Enhanced graphics use drawn textures instead.
 - **Must be checked on a real phone (cannot be tested here):** reminders arriving, the widget, the tile, app shortcuts, the backup folder picker, notifications permission.
+- **Done (0.7.0):** Goals Board, R43 + R49 (manual and plan: `life/docs/goals-manual.html`). Flag button → sheet "goals": write a done-state sentence (Hebrew/English, "עד שבת בערב…", morning 08:00 / evening 18:00 / clock times) → card with a drawing (object + scene, `life/app/goalart.js`), countdown, one first step with a time, Started / Done, "achieved this week". Logic in `core/goals.js` (`parseGoal`, `goalBoard`, `timeLeft`); goals are nodes `type: "goal"`, `parent: null`, extra fields in `node.goal`. Owner's decisions: no levels or unlock conditions (the owner adds sub-steps as they like); about 3 open goals is only a suggestion. Next per the manual: R44 plan backward, R45 stuck questions, R46 windows, R47 important/urgent, R48 wish shelf.
 - **Later candidates:** sync between devices (R24) and the MCP server (R23/R25) from the data plan; walking inside the house; first-person view; collect coins by walking into them; more toys; device check of the latest APK and fixes; R9 read bill fields from scans (ML Kit text recognition); R11 reminders (notifications); R10 item recognition; Hebrew UI toggle; better 3D assets (CC0 packs); merge to `main`; GitHub Issues per requirement.
