@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Goals Board Manual</title>
+<style>
+:root{--ink:#141414;--mute:#555;--line:#cfcfcf;--soft:#f4f4f4;--bg:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Georgia,"Times New Roman",serif}
+main{max-width:860px;margin:0 auto;padding:40px 16px 80px}
+h1,h2,h3{font-family:"Helvetica Neue",Arial,sans-serif;line-height:1.25}
+h1{font-size:32px;margin:0 0 4px}
+h2{font-size:22px;margin:44px 0 10px;padding-top:14px;border-top:2px solid var(--ink)}
+h3{font-size:17px;margin:24px 0 6px}
+.sub{color:var(--mute);margin:0 0 18px}
+.status{border:1.5px solid var(--ink);padding:10px 14px;margin:18px 0;font-family:Arial,sans-serif;font-size:14px}
+code,kbd{font-family:ui-monospace,Menlo,monospace;font-size:14px;background:var(--soft);padding:1px 5px;border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;margin:10px 0 16px;font-size:15px}
+th,td{border:1px solid var(--line);padding:7px 9px;text-align:left;vertical-align:top}
+th{background:var(--soft);font-family:Arial,sans-serif;font-size:13.5px}
+figure{margin:16px 0 22px;text-align:center}
+figure svg{max-width:100%;height:auto}
+figcaption{font-family:Arial,sans-serif;font-size:13px;color:var(--mute);margin-top:6px}
+.he{direction:rtl;unicode-bidi:isolate;font-family:Arial,sans-serif}
+.rule{border-left:4px solid var(--ink);padding:4px 12px;margin:12px 0;background:var(--soft)}
+ol.refs li{margin-bottom:8px;font-size:14.5px}
+ol.refs .why{display:block;color:var(--mute);font-size:13.5px}
+nav ol{columns:2;font-family:Arial,sans-serif;font-size:14px}
+svg text{font-family:Arial,sans-serif}
+@media print{h2{break-before:auto}figure{break-inside:avoid}a{color:var(--ink)}}
+</style>
+</head>
+<body>
+<main>
+<h1>Goals Board: User Manual</h1>
+<p class="sub">Life Archipelago · write what will be true, not what to do · version 1 of the manual, November 2026</p>
+
+<div class="status"><b>Status:</b> planned and agreed, not built yet. Requirements R43–R50 below. The flag button in the top bar will open the board.</div>
+
+<nav><ol>
+<li><a href="#idea">The idea in one minute</a></li>
+<li><a href="#start">Start: your first goal</a></li>
+<li><a href="#write">Writing a good done-state</a></li>
+<li><a href="#deeper">Going deeper, when you want</a></li>
+<li><a href="#stuck">When a step doesn't move</a></li>
+<li><a href="#time">Time, place and windows</a></li>
+<li><a href="#prio">Important vs. urgent</a></li>
+<li><a href="#wish">Wishes: not for now</a></li>
+<li><a href="#rhythm">Daily, weekly, monthly rhythm</a></li>
+<li><a href="#dont">What the board will not do</a></li>
+<li><a href="#req">Requirements R43–R50</a></li>
+<li><a href="#refs">References and the decisions they support</a></li>
+</ol></nav>
+
+<h2 id="idea">1. The idea in one minute</h2>
+<p>A to-do list says what to do. The Goals Board says <b>what will be true, and by when</b>:</p>
+<p class="he">עד יום שבת בערב הארגז יהיה במחסן · עד מחר בבוקר יש לי שוקולד חדש במקרר</p>
+<p>Each goal gets a picture of the finished state, a countdown, and the next small step. Picturing the result alone can lower your energy, so the board always pairs it with the way there: the steps, the likely obstacle, and a plan for it [2, 3, 4, 5].</p>
+
+<h2 id="start">2. Start: your first goal</h2>
+<ol>
+<li>Tap the <b>flag</b> in the top bar.</li>
+<li>Type or say one sentence: <i>"By tomorrow morning there is new chocolate in the fridge."</i></li>
+<li>The board makes a card: a drawing, the deadline (<i>tomorrow 08:00</i>), and asks for one <b>first step</b> with a time: <i>"Buy it at the supermarket on the way home · today 18:30."</i></li>
+<li>When you begin, tap <b>Started</b>. When it is true, tap <b>Done</b> and, if you like, take an "after" photo.</li>
+</ol>
+<figure>
+<svg viewBox="0 0 520 190" width="520" role="img" aria-label="A goal card: drawing of an open fridge, the sentence, a countdown and the first step with Started and Done buttons">
+ <g fill="none" stroke="#111" stroke-width="2" stroke-linejoin="round">
+  <rect x="6" y="6" width="508" height="178" rx="14"/>
+  <rect x="20" y="20" width="130" height="104" rx="10"/>
+  <rect x="48" y="30" width="52" height="86" rx="4"/>
+  <path d="M100,30 L126,40 L126,108 L100,116"/>
+  <path d="M48,60 H100 M48,88 H100"/>
+  <rect x="56" y="70" width="34" height="12" rx="2" fill="#ddd"/>
+  <path d="M74,70 V82"/>
+  <path d="M56,112 V98 L61,93 L66,98 V112"/>
+  <rect x="20" y="136" width="480" height="38" rx="9"/>
+  <rect x="330" y="143" width="76" height="24" rx="7"/>
+  <rect x="414" y="143" width="76" height="24" rx="7" fill="#111"/>
+ </g>
+ <path d="M134,24 l3,8 8,3 -8,3 -3,8 -3,-8 -8,-3 8,-3z" fill="#111"/>
+ <text x="168" y="50" font-size="19" font-weight="700" fill="#111">New chocolate in the fridge</text>
+ <rect x="168" y="66" width="190" height="26" rx="6" fill="none" stroke="#111" stroke-width="1.5"/>
+ <text x="180" y="84" font-size="14" fill="#111">tomorrow 08:00 · 18 h left</text>
+ <text x="34" y="153" font-size="11" font-weight="700" fill="#555">FIRST STEP</text>
+ <text x="34" y="168" font-size="14" fill="#111">Buy it on the way home · today 18:30</text>
+ <text x="368" y="160" font-size="13" text-anchor="middle" fill="#111">Started</text>
+ <text x="452" y="160" font-size="13" text-anchor="middle" fill="#fff">Done</text>
+</svg>
+<figcaption>Figure 1. A goal card: picture, done-state, countdown, one first step.</figcaption>
+</figure>
+<p><b>Pictures.</b> The drawing is built from an <i>object</i> and a <i>place</i> found in your sentence (box + storage room, chocolate + fridge). You can replace any drawing with your own photo. AI-generated images may come later; they would send your sentence to an outside service and cost money per image.</p>
+<p><b>How many at once.</b> We suggest about three active goals while you are learning the board. It is a suggestion, not a lock.</p>
+
+<h2 id="write">3. Writing a good done-state</h2>
+<div class="rule">A done-state is something you could <b>photograph or check</b>. "The box is in the storage room" passes. "Be more organised" does not.</div>
+<table>
+<tr><th>Part</th><th>Examples (English / Hebrew)</th><th>What the board does with it</th></tr>
+<tr><td>When</td><td>by Saturday evening · tomorrow morning · <span class="he">עד שבת בערב · עד מחר בבוקר</span></td><td>Deadline. <i>morning</i> = 08:00, <i>noon</i> = 12:00, <i>evening</i> = 18:00, <i>night</i> = 21:00. The reminder uses that time.</td></tr>
+<tr><td>The thing</td><td>the box · chocolate · <span class="he">הארגז · שוקולד</span></td><td>Chooses the object in the drawing.</td></tr>
+<tr><td>The state</td><td>is in the storage room · there is new… · <span class="he">יהיה במחסן · יש לי</span></td><td>Chooses the place and suggests the district on the city map.</td></tr>
+</table>
+<p>Future tense in Hebrew (<span class="he">יהיה, יש לי, יהיו</span>) and English ("will be", "there is") both work.</p>
+
+<h2 id="deeper">4. Going deeper, when you want</h2>
+<p>The board works like an automatic gearbox, except <b>you</b> choose the gear for each goal. A simple goal stays one card and one step. A bigger one can be taken apart backward from the finish, which helps most with complex goals [6]. There are no unlock conditions: add as much structure as the goal needs.</p>
+<h3>Plan backward</h3>
+<p>Tap <b>Plan backward</b> and answer one question again and again: <i>"What must be true just before this?"</i> Stop when the answer is something you can do now. The dates spread back from the deadline; you can move them.</p>
+<figure>
+<svg viewBox="0 0 640 170" width="640" role="img" aria-label="A path of five drawn stations from the open box now to the box in the storage room">
+ <g fill="none" stroke="#111" stroke-width="2" stroke-linejoin="round">
+  <path d="M70,70 C130,20 170,120 230,70 S330,20 390,70 S490,120 560,70" stroke-dasharray="3 7" stroke-width="2.5"/>
+  <rect x="20" y="30" width="100" height="80" rx="10" fill="#fff"/>
+  <rect x="180" y="30" width="100" height="80" rx="10" fill="#fff"/>
+  <rect x="340" y="30" width="100" height="80" rx="10" fill="#fff"/>
+  <rect x="500" y="30" width="110" height="80" rx="10" fill="#fff" stroke-width="3.5"/>
+  <path d="M40,95 V70 H90 V95 Z M40,70 L32,58 M90,70 L100,58 M52,70 V54 M62,70 V50 M74,70 V56"/>
+  <path d="M200,95 V68 H246 V95 Z M200,68 L212,60 H258 L246,68 M258,60 V87 L246,95 M220,68 V80 M228,68 V80"/>
+  <rect x="198" y="83" width="0" height="0"/>
+  <path d="M360,95 L364,66 H404 L408,95 Z M374,66 C374,50 394,50 394,66"/>
+  <circle cx="418" cy="62" r="6"/><path d="M422,66 L430,78"/>
+  <path d="M516,40 H594 M516,46 H594 M520,52 V100 M590,52 V100 M540,100 V76 H574 V100"/>
+  <path d="M540,76 L548,70 H580 L574,76"/>
+  <path d="M598,36 V20 M598,20 H616 L612,25 L616,30 H598" stroke-width="2"/>
+ </g>
+ <g font-size="13" fill="#111" text-anchor="middle">
+  <text x="70" y="132">Now: box open</text><text x="70" y="148" fill="#555">living room</text>
+  <text x="230" y="132">Box taped, labelled</text><text x="230" y="148" fill="#555">today 20:00</text>
+  <text x="390" y="132">Key in the bag</text><text x="390" y="148" fill="#555">Fri 09:00 · brother</text>
+  <text x="555" y="132" font-weight="700">Box in storage</text><text x="555" y="148" fill="#555">Sat 18:00 · goal</text>
+ </g>
+</svg>
+<figcaption>Figure 2. Planned from the finish backward, walked from "now" forward. (The car station is left out to keep the drawing small.)</figcaption>
+</figure>
+<h3>One obstacle, one plan</h3>
+<p>For each goal, name the most likely obstacle and write an <b>if–then</b> plan: <i>"If I'm tired on Saturday, then I only load the car and drive."</i> This pairing (wish, outcome, obstacle, plan) is the part of the research with the steadiest effect [1, 4]. Some obstacles turn into steps ("the key is at my brother's" becomes "key in my bag, Friday").</p>
+<h3>The one-minute rehearsal (optional)</h3>
+<p>Open a card full-screen: look at the finished picture for a moment, then walk the path from <i>now</i> forward, read your if–then plan, and tap <b>Started</b>. Rehearsing the process works better than only imagining the result [5].</p>
+<h3>How progress is shown</h3>
+<p>Early on the card shows what is done ("1 of 4 done"); near the end it shows what is left ("one step left"). People push harder near a goal, and which part you look at changes how motivating it feels [11, 12].</p>
+
+<h2 id="stuck">5. When a step doesn't move</h2>
+<p>If a step's chosen time passes without <b>Started</b>, or a third of the time to the deadline goes by with no progress, the board asks short questions instead of nagging. At most once a day per goal; <b>Not now</b> is always there.</p>
+<table>
+<tr><th>What's in the way?</th><th>What the board does</th></tr>
+<tr><td>Something is missing</td><td>Adds a step before this one, with a time and place (tape → buy it Thursday on the way home).</td></tr>
+<tr><td>Not clear where to start</td><td>Offers a two-minute version of the step.</td></tr>
+<tr><td>No energy</td><td>A smaller version, or a time when you usually have energy.</td></tr>
+<tr><td>No time</td><td>Shows the next possible window and what missing this one costs.</td></tr>
+<tr><td>Depends on someone</td><td>Creates "Ask …" with a reminder.</td></tr>
+<tr><td>Not important any more</td><td>Lets it go. Released goals are not failures.</td></tr>
+</table>
+<p>Then: <b>"What happens if this isn't done in time?"</b> <i>Nothing</i> → consider letting it go. <i>It moves a week, fine</i> → soft deadline. <i>It has a price</i> → hard deadline, earlier warnings.</p>
+
+<h2 id="time">6. Time, place and windows</h2>
+<p>A step can only happen when you are free, the place is open (or the time is sensible), what you need is available (car, a person), and the step before it is done. The board intersects these and shows <b>windows</b>; you pick one. Picking a window is a "when and where" plan, the strongest single tool in the research [1], and a specific plan also quiets the mental noise of unfinished goals [7]. Windows are offered, not forced, because rigid plans cost flexibility [7] and auto-schedulers that keep reshuffling lose people's trust [15, 16].</p>
+<figure>
+<svg viewBox="0 0 600 200" width="600" role="img" aria-label="A week grid with free, busy and closed slots, the steps placed in windows, and an arrow showing a missed window moves the goal a week">
+ <defs><pattern id="h" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0,0 V8" stroke="#999" stroke-width="2"/></pattern></defs>
+ <g font-size="12" fill="#111" text-anchor="middle">
+  <text x="110" y="18">Wed (today)</text><text x="190" y="18">Thu</text><text x="270" y="18">Fri</text><text x="350" y="18">Sat</text><text x="470" y="18" fill="#555">next Fri</text><text x="550" y="18" fill="#555">next Sat</text>
+ </g>
+ <g font-size="12" fill="#555"><text x="6" y="48">morning</text><text x="6" y="98">noon</text><text x="6" y="148">evening</text></g>
+ <g stroke="#111" stroke-width="1.5">
+  <rect x="75" y="28" width="70" height="40" fill="url(#h)"/><rect x="155" y="28" width="70" height="40" fill="url(#h)"/>
+  <rect x="235" y="28" width="70" height="40" fill="#fff" stroke-width="3"/><rect x="315" y="28" width="70" height="40" fill="#fff"/>
+  <rect x="75" y="78" width="70" height="40" fill="url(#h)"/><rect x="155" y="78" width="70" height="40" fill="url(#h)"/>
+  <rect x="235" y="78" width="70" height="40" fill="#fff"/><rect x="315" y="78" width="70" height="40" fill="#fff"/>
+  <rect x="75" y="128" width="70" height="40" fill="#fff" stroke-width="3"/><rect x="155" y="128" width="70" height="40" fill="#fff"/>
+  <rect x="235" y="128" width="70" height="40" fill="url(#h)"/><rect x="315" y="128" width="70" height="40" fill="#fff" stroke-width="3"/>
+  <rect x="435" y="28" width="70" height="40" fill="#fff" stroke-dasharray="4 3"/><rect x="515" y="128" width="70" height="40" fill="#fff" stroke-dasharray="4 3"/>
+ </g>
+ <g font-size="11" fill="#111" text-anchor="middle">
+  <text x="110" y="152">tape box</text><text x="270" y="46">get key</text><text x="270" y="60" font-weight="700">last chance</text>
+  <text x="350" y="146">load car</text><text x="350" y="160">→ storage ⚑</text>
+  <text x="470" y="52" fill="#555">get key</text><text x="550" y="152" fill="#555">+7 days ⚑</text>
+ </g>
+ <path d="M305,40 C370,0 420,0 432,36" fill="none" stroke="#111" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#a)"/>
+ <defs><marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10z" fill="#111"/></marker></defs>
+ <g font-size="12" fill="#111"><rect x="75" y="180" width="14" height="10" fill="#fff" stroke="#111"/><text x="94" y="189">possible</text>
+ <rect x="170" y="180" width="14" height="10" fill="url(#h)" stroke="#111"/><text x="189" y="189">work / busy / closed</text>
+ <text x="330" y="189">arrow: miss Friday → goal moves a week</text></g>
+</svg>
+<figcaption>Figure 3. Windows for each step, the last chance, and the price of missing it.</figcaption>
+</figure>
+<p><b>What the board knows</b> (only what you tell it; no GPS, no calendar import at first):</p>
+<ul>
+<li><b>My week:</b> a simple template (work days and hours, regular evenings, Friday and Saturday habits).</li>
+<li><b>Places:</b> opening hours with Israeli defaults (short Friday, closed Saturday), editable: supermarket, post office, bank, offices, storage.</li>
+<li><b>People and things:</b> "my brother is home only Friday mornings", "the car is free at weekends".</li>
+<li><b>The step:</b> how long it takes and what it needs, guessed from words: <i>call</i> → business hours, anywhere; <i>carry</i> → car, daytime; <i>buy</i> → shop open.</li>
+</ul>
+<p><b>What it shows:</b> the next window and the last chance before the deadline; what missing costs ("next window: Friday next week, +7 days"); an early warning when no window is left, with three choices (change a step, move the goal, let it go); and steps that fit together by place ("you're at the supermarket Thursday; two more things can be done there"). People underestimate how long things take [8], so the board adds a buffer and learns from the times you actually mark.</p>
+
+<h2 id="prio">7. Important vs. urgent</h2>
+<p>Urgent but unimportant things crowd out important ones, even when the important ones pay more [9]. The 2×2 matrix itself has no controlled trials and is a rule of thumb [10], so the board uses it as a lens and does the sorting for you:</p>
+<ul>
+<li><b>Urgency is computed</b> from the windows (last chance tomorrow = urgent). No manual sorting.</li>
+<li><b>Importance is one tap</b> (<i>important to me</i> / <i>nice to have</i>) plus your answer to "what happens if not?".</li>
+<li>When you choose what to do next, the board shows <b>why it matters</b>; reminding people of the payoff weakened the urgency bias [9].</li>
+</ul>
+<figure>
+<svg viewBox="-40 0 560 250" width="560" role="img" aria-label="Two by two matrix: important and urgent do; important not urgent protect; urgent not important shorten; neither let go">
+ <g fill="none" stroke="#111" stroke-width="2">
+  <rect x="60" y="30" width="220" height="100" stroke-width="2"/><rect x="290" y="30" width="220" height="100" stroke-width="3.5"/>
+  <rect x="60" y="140" width="220" height="100"/><rect x="290" y="140" width="220" height="100" stroke-dasharray="5 4"/>
+ </g>
+ <g font-size="13" fill="#111">
+  <text x="170" y="20" text-anchor="middle" font-weight="700">URGENT</text><text x="400" y="20" text-anchor="middle" font-weight="700">CAN WAIT</text>
+  <text x="50" y="84" text-anchor="end" font-weight="700">IMPORTANT</text><text x="50" y="194" text-anchor="end" font-weight="700">NOT</text>
+  <text x="74" y="56" font-weight="700">DO</text><text x="74" y="78">path, reminders,</text><text x="74" y="96">stuck questions</text>
+  <text x="304" y="56" font-weight="700">PROTECT</text><text x="304" y="78">one reserved window a week,</text><text x="304" y="96">its own interim deadline</text>
+  <text x="74" y="166" font-weight="700">SHORTEN</text><text x="74" y="188">quick version, ask someone,</text><text x="74" y="206">combine by place</text>
+  <text x="304" y="166" font-weight="700">LET GO</text><text x="304" y="188">no reminders; release it</text><text x="304" y="206">or move it to the shelf</text>
+ </g>
+</svg>
+<figcaption>Figure 4. Each quadrant gets a different amount of help. The thick box is the one the board guards.</figcaption>
+</figure>
+<p>Important but not urgent goals get one reserved window each week and an interim deadline of their own, turning urgency into an ally, as the urgency study itself suggests [9]. We suggest keeping about three of them active; the rest wait on the shelf.</p>
+
+<h2 id="wish">8. Wishes: not for now</h2>
+<p>Some things you want, but not now. Put them on the <b>wish shelf</b>. A wish has no date: it is never late, sends no reminders and does not darken your city. Each wish has a <b>wake-up</b>:</p>
+<ul>
+<li>a fresh-start date (the 1st of the month, a birthday, after the holidays), when people are most ready to begin [13]; or</li>
+<li>a condition ("after the storage room is sorted").</li>
+</ul>
+<figure>
+<svg viewBox="0 0 520 150" width="520" role="img" aria-label="A shelf with three wishes and their wake-up dates">
+ <g fill="none" stroke="#111" stroke-width="2" stroke-linejoin="round">
+  <path d="M20,96 H500 M30,96 V140 M490,96 V140"/>
+  <path d="M60,92 L95,40 L115,66 L128,52 L150,92 Z"/><circle cx="140" cy="36" r="8"/>
+  <path d="M235,90 V44 L285,36 V82"/><ellipse cx="226" cy="90" rx="10" ry="7"/><ellipse cx="276" cy="83" rx="10" ry="7"/>
+  <rect x="380" y="46" width="70" height="46" rx="4"/><path d="M396,92 C396,72 408,66 414,60 M414,92 C418,76 428,70 436,66"/>
+ </g>
+ <g font-size="12.5" fill="#111" text-anchor="middle">
+  <text x="105" y="114">Sunrise hike</text><text x="105" y="130" fill="#555">wakes: 1st of month</text>
+  <text x="255" y="114">Learn guitar</text><text x="255" y="130" fill="#555">wakes: after "storage sorted"</text>
+  <text x="415" y="114">Third terrarium</text><text x="415" y="130" fill="#555">wakes: monthly review</text>
+ </g>
+</svg>
+<figcaption>Figure 5. The wish shelf. In the city, wishes could be boats moored in the marina that sail out when they become goals.</figcaption>
+</figure>
+<p>At the <b>monthly review</b> (the 1st) each waking wish gets one choice: <b>make it a goal</b>, <b>keep it on the shelf</b>, or <b>let it go</b>. A wish skipped three reviews in a row is offered for release.</p>
+
+<h2 id="rhythm">9. Daily, weekly, monthly rhythm</h2>
+<table>
+<tr><th>When</th><th>What</th><th>Time it takes</th></tr>
+<tr><td>Every morning, 08:00</td><td>One look at the board. Optional one-minute rehearsal of one card.</td><td>under 1 min</td></tr>
+<tr><td>When a step stalls</td><td>The stuck questions (at most once a day per goal).</td><td>30 s</td></tr>
+<tr><td>Sunday morning</td><td>Pick this week's window for each important-not-urgent goal.</td><td>2 min</td></tr>
+<tr><td>1st of the month</td><td>Wish review: goal / keep / let go.</td><td>2 min</td></tr>
+<tr><td>After 3–4 weeks</td><td>Honest check: done-on-time rate of goal cards vs. plain tasks. Keep what works for you.</td><td>1 min</td></tr>
+</table>
+<p>New routines take weeks to become automatic, often around two months, and a single missed day does little harm [14]. Missing a day is not a reason to stop.</p>
+
+<h2 id="dont">10. What the board will not do</h2>
+<ul>
+<li>No affirmations, no "law of attraction", no vague goals. Picturing only the dream can sap energy [2, 3].</li>
+<li>No forced schedule: windows are offered, you choose [7, 15].</li>
+<li>No guilt: released goals and wishes are normal outcomes.</li>
+<li>No GPS tracking or calendar access unless you add it later.</li>
+<li>No locked levels: you decide how much structure each goal gets. Beginners get the simplest screen first, because guidance that helps a beginner can get in an expert's way [17, 18].</li>
+</ul>
+
+<h2 id="req">11. Requirements R43–R50</h2>
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Manual section</th><th>Status</th></tr>
+<tr><td>R43</td><td>A done-state sentence (Hebrew or English) becomes a goal card: date and time of day, object, place, drawing, countdown, one first step with a time, Started / Done, optional "after" photo. Flag button in the top bar opens the board.</td><td>2, 3</td><td>planned · first</td></tr>
+<tr><td>R44</td><td>Plan backward: repeated "what must be true just before?", dates spread back from the deadline, drawn stations on a path, one obstacle with an if–then plan, progress shown as done-so-far early and left-to-go late.</td><td>4</td><td>planned</td></tr>
+<tr><td>R45</td><td>Stuck questions: trigger rules, six answers, each mapped to an action; "what if not?" sets a soft or hard deadline; at most once a day per goal.</td><td>5</td><td>planned</td></tr>
+<tr><td>R46</td><td>Windows: my week, place hours (Israeli defaults), people and resources, step needs; next window, last chance, price of missing, combining by place.</td><td>6</td><td>planned</td></tr>
+<tr><td>R47</td><td>Important vs. urgent: computed urgency, one-tap importance, behaviour per quadrant, reserved weekly window with an interim deadline.</td><td>7</td><td>planned</td></tr>
+<tr><td>R48</td><td>Wish shelf: no date, wake-up by fresh-start date or condition, monthly review, release after three skipped reviews.</td><td>8</td><td>planned</td></tr>
+<tr><td>R49</td><td>Simple first: a new user sees only the basic card; deeper tools (plan backward, windows, priorities) are opened per goal by the user, with no unlock conditions.</td><td>4, 10</td><td>planned · with R43</td></tr>
+<tr><td>R50</td><td>Later: early warning when no window is left, learning real durations, optional calendar import, place reminders, optional AI images.</td><td>6</td><td>later</td></tr>
+</table>
+
+<h2 id="refs">12. References and the decisions they support</h2>
+<h3>Research</h3>
+<ol class="refs">
+<li>Gollwitzer, P. M., &amp; Sheeran, P. (2006). Implementation intentions and goal achievement: a meta-analysis (94 tests, d≈0.65). <a href="https://www.socmot.uni-konstanz.de/publications/implementation-intentions-and-goal-achievement-meta-analysis-effects-and-processes">Konstanz</a> · <a href="https://cancercontrol.cancer.gov/brp/research/constructs/implementation-intentions">NCI summary</a><span class="why">Deadline plus "when and where" in every goal; choosing a window; if–then plans.</span></li>
+<li>Kappes, H. B., &amp; Oettingen, G. (2011). Positive fantasies about idealized futures sap energy. <a href="https://www.psy.uni-hamburg.de/arbeitsbereiche/paedagogische-psychologie-und-motivation/personen/oettingen-gabriele/dokumente/kappes-oettingen-2011.pdf">PDF</a> · <a href="https://researchonline.lse.ac.uk/id/eprint/46284">LSE</a><span class="why">No dream-only vision board; the picture always comes with the way there.</span></li>
+<li>BPS Research Digest: why positive fantasies make dreams less likely. <a href="https://www.bps.org.uk/research-digest/why-positive-fantasies-make-your-dreams-less-likely-come-true">Link</a><span class="why">Same decision, plain-language summary.</span></li>
+<li>Wang, G., et al. (2021). Mental contrasting with implementation intentions (WOOP/MCII): meta-analysis, 21 studies, g≈0.34, with a publication-bias caution. <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8149892/">PMC</a><span class="why">One obstacle plus an if–then plan per goal; modest claims.</span></li>
+<li>Pham, L. B., &amp; Taylor, S. E. (1999). From thought to action: process- vs. outcome-based mental simulations. <a href="https://journals.sagepub.com/doi/10.1177/0146167299025002010">PSPB</a> · weaker online replication: <a href="https://link.springer.com/article/10.3758/s13423-021-01880-6">Springer</a><span class="why">The one-minute rehearsal walks the steps, not just the result.</span></li>
+<li>Park, J., Lu, F.-C., &amp; Hedgcock, W. M. (2017). Relative effects of forward and backward planning on goal pursuit. Psychological Science 28(11). <a href="https://www.psychologicalscience.org/journals/psychological-science/0956797617715510/">APS</a> · <a href="https://psychologicalscience.org/news/minds-business/trying-to-get-ahead-plan-in-reverse-study-suggests.html">summary</a><span class="why">Plan backward from the finish; offer it for complex goals, not simple ones.</span></li>
+<li>Masicampo, E. J., &amp; Baumeister, R. F. (2011). Consider it done! Plan making can eliminate the cognitive effects of unfulfilled goals. <a href="https://pubmed.ncbi.nlm.nih.gov/21688924/">PubMed</a> · caveat on flexibility: <a href="https://www.scientificamerican.com/article/focused-to-a-fault/">Scientific American</a><span class="why">Windows quiet the mind; offered rather than forced.</span></li>
+<li>Buehler, R., Griffin, D., &amp; Ross, M. (1994). Exploring the "planning fallacy". Journal of Personality and Social Psychology 67(3), 366–381.<span class="why">Buffers and learning real durations.</span></li>
+<li>Zhu, M., Yang, Y., &amp; Hsee, C. K. (2018). The mere urgency effect. Journal of Consumer Research 45(3). <a href="https://academic.oup.com/jcr/advance-article/doi/10.1093/jcr/ucy030/4962206">JCR</a> · <a href="https://hub.jhu.edu/2018/05/31/meeting-deadlines-time-management-behaviors">JHU summary</a><span class="why">Protect important-not-urgent goals; show why it matters at the moment of choice; interim deadlines.</span></li>
+<li>Eisenhower matrix: no controlled trials; mostly anecdote and vendor claims. <a href="https://clickup.com/blog/?p=517369">ClickUp</a> · <a href="https://learn.saylor.org/mod/page/view.php?id=87360">Saylor</a> · <a href="https://apartmenttherapy.com/eisenhower-matrix-to-do-list-37532650">a one-week trial</a><span class="why">Use the matrix as a lens with computed urgency, not a manual sorting ritual.</span></li>
+<li>Kivetz, R., Urminsky, O., &amp; Zheng, Y. (2006). The goal-gradient hypothesis resurrected. <a href="https://business.columbia.edu/sites/default/files-efs/pubfiles/1200/goalgradient.pdf">PDF</a><span class="why">A visible path showing how close you are.</span></li>
+<li>Koo, M., &amp; Fishbach, A. (2012). The small-area hypothesis. <a href="https://ideas.repec.org/a/oup/jconrs/doi10.1086-663827.html">IDEAS</a><span class="why">Show done-so-far early, left-to-go near the end.</span></li>
+<li>Dai, H., Milkman, K. L., &amp; Riis, J. (2014). The fresh start effect. <a href="https://faculty.wharton.upenn.edu/wp-content/uploads/2014/06/Dai_Fresh_Start_2014_Mgmt_Sci.pdf">PDF</a> · <a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC4839284">follow-up experiments</a><span class="why">Wishes wake on fresh-start dates; monthly review on the 1st.</span></li>
+<li>Lally, P., et al. (2010). How are habits formed. <a href="https://www.ucl.ac.uk/news/2009/aug/how-long-does-it-take-form-habit">UCL</a> · <a href="https://bps.org.uk/research-digest/how-form-habit">BPS</a><span class="why">Patience with the routine; one missed day is not failure.</span></li>
+</ol>
+<h3>Products reviewed</h3>
+<ol class="refs" start="15">
+<li>SkedPal time maps (closest to windows; setup takes weeks). <a href="https://www.capterra.com/p/172391/SkedPal/">Capterra</a> · <a href="https://medium.com/@rhedia/skedpal-forget-about-todos-calendar-apps-meet-your-personal-assistant-2f719e79624f">review</a><span class="why">Windows per kind of step, with light setup and defaults.</span></li>
+<li>Motion and Reclaim auto-scheduling (rigidity and reshuffling complaints). <a href="https://www.capterra.com/p/214264/Motion/reviews/?rating=2">Motion reviews</a> · <a href="https://clickup.com/blog/motion-review/">ClickUp review</a> · <a href="https://morgen.so/blog-posts/motion-vs-reclaim">Morgen comparison</a><span class="why">Offer windows; don't silently reshuffle.</span></li>
+<li>Kalyuga, S., Ayres, P., Chandler, P., &amp; Sweller, J. (2003). The expertise reversal effect. <a href="https://ro.uow.edu.au/edupapers/136">Wollongong</a> · <a href="https://link.springer.com/article/10.1007%2Fs10648-007-9054-3">Kalyuga 2007 review</a><span class="why">Simplest screen first; more tools as you choose.</span></li>
+<li>Nielsen Norman Group: progressive disclosure. <a href="https://nngroup.com/articles/progressive-disclosure/">Link</a><span class="why">Basic card up front; deeper tools one tap away.</span></li>
+<li>TickTick Eisenhower Matrix (manual sorting). <a href="https://ticktick.com/resources/article/7310113943366664192/eisenhower-matrix">TickTick</a> · <a href="https://appleinsider.com/articles/23/01/10/ticktick-6420-review-prioritized-to-do-list-with-focus-timer">AppleInsider</a><span class="why">What we do differently: urgency from real windows.</span></li>
+<li>Vision board apps: <a href="https://www.organize.io/best-vision-board-apps-2/">organize.io</a> · <a href="https://storyflow.so/blog/best-vision-board-apps-2026">Storyflow</a> · <a href="https://www.visionboardsai.com/blog/best-digital-vision-board-apps-2026">VisionBoardsAI</a> · <a href="https://www.tehnico.com/2026/11/already-becoming-closer-look-at-this-ai.html">Already Becoming</a> · <a href="https://i10x.ai/news/google-gemini-vision-board-2026-trend">Gemini trend</a><span class="why">They serve big dreams; the gap is small daily done-states tied to dates, places and steps.</span></li>
+</ol>
+</main>
+</body>
+</html>
