@@ -22,7 +22,7 @@ import { pickQuality, canChooseQuality } from "./core/quality.js";
 import { categories, addCategory, renameCategory, removeCategory } from "./core/categories.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
-import { goalBoard, timeLeft } from "./core/goals.js";
+import { goalBoard, timeLeft, progressView, stuckReason, STUCK_ANSWERS, STUCK_ACTION, STAKES } from "./core/goals.js";
 import { goalArt } from "./goalart.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
@@ -30,7 +30,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.7.0";
+export const VERSION = "0.8.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -280,7 +280,41 @@ function goalCard(n) {
   const st = n.goal.step, left = leftText(n);
   const step = st ? `<div class="gstep"><div class="gmain"><small>${t("firstStep")}</small><span dir="auto">${esc(st.title)}</span>${st.at ? ` <em>· ${esc(st.at)}</em>` : ""}</div>${n.goal.started ? `<span class="gstarted">✓ ${t("startedOn")}</span>` : `<button class="gb1" data-act="gstart" data-id="${n.id}">${t("started")}</button>`}<button class="gb2" data-act="gdone" data-id="${n.id}">${t("goalDone")}</button></div>`
     : `<form class="gstep gstepform" data-goal="${n.id}"><div class="gmain"><small>${t("firstStep")}</small><input name="t" dir="auto" placeholder="${esc(t("firstStepPh"))}" maxlength="120"></div><input name="at" type="time" aria-label="${esc(t("stepAt"))}"><button class="gb1">${t("setStep")}</button></form>`;
-  return `<div class="gcard" data-goal="${n.id}"><div class="gtop"><div class="gimg">${goalArt(n.goal.object, n.goal.scene)}</div><div><b dir="auto">${esc(n.title)}</b><span class="gdue ${left.cls}">${left.text}</span></div></div>${step}</div>`;
+  const stuck = stuckReason(n), pv = progressView(n);
+  const banner = stuck ? `<button class="gstuck" data-act="gstuck" data-id="${n.id}">${esc(st ? t("stuckBanner", { s: st.title }) : t("stuckBannerNoStep"))}</button>` : "";
+  const more = `<div class="gmore"><button class="chip" data-act="gopen" data-id="${n.id}">${t("planBack")}${n.goal.path.length ? ` · ${n.goal.path.length}` : ""}</button>${pv ? `<span class="gprog">${progText(pv)}</span>` : ""}</div>`;
+  return `<div class="gcard" data-goal="${n.id}"><div class="gtop"><div class="gimg">${goalArt(n.goal.object, n.goal.scene)}</div><div><b dir="auto">${esc(n.title)}</b><span class="gdue ${left.cls}">${left.text}</span></div></div>${banner}${step}${more}</div>`;
+}
+const progText = (pv) => pv.kind === "done" ? t("progDone", { n: pv.done, t: pv.total }) : t("progLeft", { n: pv.left });
+// R44 · one goal: the path drawn from the finish (top) back to "you are here" (bottom), the backward
+// question, one obstacle with an if–then plan. R45 · the stuck questions open here too.
+let stuckFor = null, stuckPick = null;
+function openGoal(id, { stuck = false } = {}) {
+  const n = store.get(id); if (!n?.goal || n.goal.released) return openGoals();
+  if (stuck && stuckFor !== id) { stuckFor = id; stuckPick = null; }
+  sheetFor = "goal:" + id; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
+  const g = n.goal, left = leftText(n), pv = progressView(n);
+  $("sheetTitle").textContent = n.title; $("sheetTitle").dir = "auto"; $("sheetDot").style.background = "#ffc94d"; $("sheetDot").innerHTML = FLAG;
+  $("sheetSub").textContent = left.text + (pv ? " · " + progText(pv) : ""); $("sheetTabs").hidden = true;
+  const st = g.step, earliest = g.path[0]?.title || n.title;
+  const station = (x, i) => `<div class="gst ${x.done ? "done" : ""}"><div class="gsimg">${goalArt(x.object, x.scene)}</div><div class="gstx"><b dir="auto">${esc(x.title)}</b><input type="date" data-sdate="${i}" value="${esc(x.due || "")}" max="${esc(n.due)}" aria-label="${esc(t("stationDate"))}"></div>`
+    + (x.done ? `<span class="gstarted">✓</span>` : `<button class="gtick" data-act="gst" data-i="${i}" aria-label="${esc(t("markDone"))}">✓</button>`) + `<button class="grm" data-act="grm" data-i="${i}" aria-label="${esc(t("removeStep"))}">×</button></div>`;
+  const now = `<div class="gst now"><span class="gpin">${t("youAreHere")}</span><div class="gstx">${st ? `<small>${t("firstStep")}</small><b dir="auto">${esc(st.title)}</b>${st.at ? `<em> · ${esc(st.at)}</em>` : ""}` : `<small>${t("firstStep")}</small><em>—</em>`}</div>`
+    + (st && !g.started ? `<button class="gb1" data-act="gstart" data-id="${id}">${t("started")}</button>` : st ? `<span class="gstarted">✓ ${t("startedOn")}</span>` : "") + `</div>`;
+  let stuckHtml = "";
+  if (stuckFor === id) {
+    const need = stuckPick && ["missing", "time", "someone"].includes(stuckPick);
+    stuckHtml = `<div class="gstuckbox"><div class="q">${t("stuckQ")}</div><div class="gchips">${STUCK_ANSWERS.map((a) => `<button class="chip ${stuckPick === a ? "on" : ""}" data-act="gans" data-a="${a}">${t("ans_" + a)}</button>`).join("")}</div>`
+      + (need ? `<form class="addrow" id="gansForm" data-a="${stuckPick}"><input name="v" dir="auto" ${stuckPick === "time" ? 'type="time"' : ""} placeholder="${esc(t(stuckPick === "missing" ? "needWhat" : "whoAsk"))}" aria-label="${esc(t(stuckPick === "time" ? "newTime" : stuckPick === "missing" ? "needWhat" : "whoAsk"))}"><button class="btn primary" style="padding:10px 14px">${t("setStep")}</button></form>` : "")
+      + `<div class="q">${t("stakesQ")}</div><div class="gchips">${STAKES.map((k) => `<button class="chip ${g.stakes === k ? "on" : ""}" data-act="gstake" data-k="${k}">${t("stakes_" + k)}</button>`).join("")}</div>`
+      + `<button class="chip ghost" data-act="gnotnow">${t("notNow")}</button></div>`;
+  }
+  $("sheetBody").innerHTML = `<div class="gnav"><button class="chip" data-act="gback">‹ ${t("backToBoard")}</button>${stuckFor === id ? "" : `<button class="chip" data-act="gstuck" data-id="${id}">${t("imStuck")}</button>`}</div>` + stuckHtml
+    + `<div class="gpath"><div class="gst goal"><div class="gsimg big">${goalArt(g.object, g.scene)}</div><div class="gstx"><b dir="auto">${esc(n.title)}</b><span class="gdue ${left.cls}">${left.text}</span></div><span class="gflag">${FLAG}</span></div>`
+    + g.path.map((x, i) => ({ x, i })).reverse().map(({ x, i }) => station(x, i)).join("") + now + `</div>`
+    + `<form class="gplan" id="gPlanForm"><label dir="auto">${esc(t("justBefore", { x: earliest }))}</label><div class="addrow"><input name="v" dir="auto" maxlength="120" placeholder="${esc(t("justBeforePh"))}"><button class="btn primary" style="padding:10px 14px" name="add">${t("addBefore")}</button></div><button class="chip" name="now" value="1">${t("canDoNow")}</button></form>`
+    + `<form class="gplan" id="gObstForm"><label>${t("obstacleT")}</label><input name="a" dir="auto" maxlength="120" placeholder="${esc(t("obstacleIf"))}" value="${esc(g.obstacle?.if || "")}"><input name="b" dir="auto" maxlength="120" placeholder="${esc(t("obstacleThen"))}" value="${esc(g.obstacle?.then || "")}"><button class="chip">${t("saveIfThen")}</button></form>`;
+  if (stuckFor === id && g.asked !== isoDate(new Date())) store.markAsked(id);
 }
 function openGoals() {
   sheetFor = "goals"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
@@ -300,6 +334,19 @@ $("sheetBody").addEventListener("submit", (e) => {
     const inp = f.querySelector("input"), r = store.addGoal(inp.value);
     if (!r.ok) { toast(t(r.error === "when" ? "goalNeedsWhen" : "goalNeedsWhat")); return; }
     toast(t("goalAdded")); setTimeout(() => document.querySelector(`.gstepform[data-goal="${r.id}"] input`)?.focus(), 50);
+  } else if (f.id === "gPlanForm") {
+    e.preventDefault(); e.stopImmediatePropagation();
+    const v = f.elements.v.value.trim(), id = sheetFor.slice(5); if (!v) { f.elements.v.focus(); return; }
+    if (e.submitter?.name === "now") { store.nowStep(id, v); toast(t("stepAdded")); } else store.planBefore(id, v);
+    setTimeout(() => $("gPlanForm")?.elements.v.focus(), 30);
+  } else if (f.id === "gObstForm") {
+    e.preventDefault(); e.stopImmediatePropagation();
+    store.setObstacle(sheetFor.slice(5), f.elements.a.value, f.elements.b.value); toast(t("ifThenSaved"));
+  } else if (f.id === "gansForm") {
+    e.preventDefault(); e.stopImmediatePropagation();
+    const id = sheetFor.slice(5), a = f.dataset.a, raw = f.elements.v.value.trim(); if (!raw) return;
+    const r = store.answerStuck(id, a, a === "someone" ? t("askWho", { who: raw }) : raw);
+    stuckFor = null; stuckPick = null; toast(r.action === "reschedule" ? t("rescheduled", { t: raw }) : t("stepAdded")); openGoal(id);
   } else if (f.classList.contains("gstepform")) {
     e.preventDefault(); e.stopImmediatePropagation();
     const v = f.elements.t.value.trim(); if (!v) { f.elements.t.focus(); return; }
@@ -307,16 +354,33 @@ $("sheetBody").addEventListener("submit", (e) => {
   }
 }, true);
 $("sheetBody").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-act=gstart],[data-act=gdone]"); if (!b) return;
+  const b = e.target.closest("[data-act=gstart],[data-act=gdone],[data-act=gopen],[data-act=gstuck],[data-act=gback],[data-act=gans],[data-act=gstake],[data-act=gnotnow],[data-act=gst],[data-act=grm]"); if (!b) return;
   e.stopImmediatePropagation();
-  if (b.dataset.act === "gstart") store.startGoal(b.dataset.id);
+  const gid = b.dataset.id || String(sheetFor).slice(5), act = b.dataset.act;
+  if (act === "gopen") return openGoal(gid);
+  if (act === "gstuck") return openGoal(gid, { stuck: true });
+  if (act === "gback") { stuckFor = null; return openGoals(); }
+  if (act === "gnotnow") { store.markAsked(gid); stuckFor = null; return openGoal(gid); }
+  if (act === "gstake") { store.setStakes(gid, b.dataset.k); return; }
+  if (act === "gst") return finish(gid, b.getBoundingClientRect(), () => store.completeStation(gid, +b.dataset.i), { isStep: true });
+  if (act === "grm") return store.removeStation(gid, +b.dataset.i);
+  if (act === "gans") {
+    const a = b.dataset.a;
+    if (["missing", "time", "someone"].includes(a)) { stuckPick = a; openGoal(gid); setTimeout(() => $("gansForm")?.elements.v.focus(), 30); return; }
+    const r = store.answerStuck(gid, a); stuckFor = null; stuckPick = null;
+    if (r.action === "release") { toast(t("released")); return openGoals(); }
+    toast(t("madeSmaller")); return openGoal(gid);
+  }
+  if (act === "gstart") store.startGoal(b.dataset.id);
   else { const from = b.closest(".gcard").getBoundingClientRect(); finish(b.dataset.id, from, () => store.complete(b.dataset.id)); toast(t("goalCame")); }
 }, true);
 $("goalsBtn").addEventListener("click", () => openGoals());
+$("sheetBody").addEventListener("change", (e) => { const i = e.target.dataset?.sdate; if (i === undefined || !String(sheetFor).startsWith("goal:")) return; e.stopImmediatePropagation(); store.setStationDue(sheetFor.slice(5), +i, e.target.value || null); }, true);
 
 function openSheet(id) {
   if (id === "today") return openToday();
   if (id === "goals") return openGoals();
+  if (String(id).startsWith("goal:")) return openGoal(id.slice(5));
   if (id === "categories") return openCategories();
   if (String(id).startsWith("shop:")) return openShop(id.slice(5));
   sheetFor = id; $("sheet").hidden = false; $("menu").hidden = true;
@@ -727,6 +791,7 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "import") $("importInput").click();
   if (act === "categories") openCategories();
   if (act === "quality") { lsSet("life-quality", quality === "enhanced" ? "light" : "enhanced"); location.reload(); }
+  if (act === "theme") { const next = document.documentElement.dataset.theme === "faded" ? "contrast" : "faded"; document.documentElement.dataset.theme = next; lsSet("life-theme", next); applyLang(); }
   if (act === "lang") { lang = lang === "he" ? "en" : "he"; lsSet("life-lang", lang); t = makeT(lang); applyLang(); }
   if (act === "examples") { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); toast(t("examplesRemoved")); }
   if (act === "sound") { sound = !sound; try { localStorage.setItem("life-sound", sound ? "on" : "off"); } catch (e) { /* ignore */ } renderSound(); if (sound) fx.chime([523.25, 783.99]); toast(t(sound ? "soundOn" : "soundOff")); }
@@ -741,6 +806,7 @@ function applyLang() {
   for (const el of document.querySelectorAll("[data-i18n-ph]")) el.placeholder = t(el.dataset.i18nPh);
   for (const el of document.querySelectorAll("[data-i18n-aria]")) el.setAttribute("aria-label", t(el.dataset.i18nAria));
   const lb = $("menu").querySelector('[data-act="lang"] span'); if (lb) lb.textContent = t("language", { l: LANGS[lang] });
+  const tb = $("menu").querySelector('[data-act="theme"] span'); if (tb) tb.textContent = t("m_theme", { c: t(document.documentElement.dataset.theme === "faded" ? "th_faded" : "th_contrast") });
   const qb = $("menu").querySelector('[data-act="quality"]'); if (qb) { qb.hidden = !canChooseQuality({ coarse }); qb.querySelector("span").textContent = t("m_quality", { q: t(quality === "enhanced" ? "q_enhanced" : "q_light") }); }
   $("back").querySelector("b").textContent = title("home");
   renderSound(); renderHud(); placeLabels(); refreshSheet();
@@ -837,7 +903,7 @@ renderer.setAnimationLoop(() => {
     setTimeout(autoBackup, 4000);
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
-  if (++frames === 20) { window.__life = { ready: true, store, goals: () => goalBoard(store), openGoals, view: () => view, backendName,
+  if (++frames === 20) { window.__life = { ready: true, store, goals: () => goalBoard(store), openGoals, openGoal, theme: () => document.documentElement.dataset.theme, view: () => view, backendName,
     quality: () => quality,
     today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },

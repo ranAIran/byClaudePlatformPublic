@@ -6,7 +6,7 @@ import { suggestPlaces } from "./places.js";
 import { XP, levelFor } from "./xp.js";
 import { validRepeat, nextDue, parseRepeat } from "./repeat.js";
 import { isoDate } from "./capture.js";
-import { parseGoal } from "./goals.js";
+import { parseGoal, artFor, spreadDates, STUCK_ACTION, STAKES } from "./goals.js";
 
 export const SEED = [
   { id: "world", type: "place", kind: "world", title: "World", parent: null },
@@ -35,7 +35,13 @@ export function localStorageBackend(key = "life-archipelago-v1") {
 }
 
 // R43 · a goal's own parts. Only the basic card (R49): deeper tools are added per goal later.
-const goalOf = (g) => g ? { time: g.time ?? null, object: g.object || "star", scene: g.scene || "room", step: g.step?.title ? { title: String(g.step.title), at: g.step.at ?? null } : null, started: g.started ?? null, photo: g.photo ?? null } : null;
+const goalOf = (g) => g ? {
+  time: g.time ?? null, object: g.object || "star", scene: g.scene || "room",
+  step: g.step?.title ? { title: String(g.step.title), at: g.step.at ?? null, day: g.step.day ?? null } : null, started: g.started ?? null, photo: g.photo ?? null,
+  path: (g.path || []).map((x) => ({ title: String(x.title), due: x.due ?? null, done: !!x.done, fixed: !!x.fixed, object: x.object || "star", scene: x.scene || "room" })), // R44, earliest first
+  obstacle: g.obstacle?.if ? { if: String(g.obstacle.if), then: String(g.obstacle.then || "") } : null,
+  asked: g.asked ?? null, stakes: STAKES.includes(g.stakes) ? g.stakes : null, released: g.released ?? null, // R45
+} : null;
 
 let counter = 0;
 const newId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().slice(0, 12) : Date.now().toString(36) + (counter++).toString(36));
@@ -75,6 +81,13 @@ export function createStore(backend, { now = () => new Date() } = {}) {
 
   // The next occurrence of a repeating task: open, unpaid, steps undone, next date.
   const again = (n) => ({ ...n, done: false, awarded: false, bossAwarded: false, due: nextDue(n.due, n.repeat, isoDate(now())), steps: n.steps ? n.steps.map((st) => ({ ...st, done: false })) : null, updated: stamp() });
+  // R44 · stations keep the dates the owner set; the rest spread back from the deadline.
+  function respread(id) {
+    const n = nodes.get(id); if (!n?.goal) return;
+    const dates = spreadDates(n.goal.path.length, isoDate(now()), n.due);
+    nodes.set(id, normalize({ ...n, goal: { ...n.goal, path: n.goal.path.map((x, k) => (x.fixed ? x : { ...x, due: dates[k] })) } }));
+  }
+  function setPath(id, path) { const n = nodes.get(id); nodes.set(id, normalize({ ...n, goal: { ...n.goal, path }, updated: stamp() })); respread(id); emit(); }
   const api = {
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     get: (id) => nodes.get(id) || null,
@@ -97,7 +110,40 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       const id = api.add({ type: "goal", title: g.title, due: g.due, parent: null, goal: { time: g.time, object: g.object, scene: g.scene } });
       return { ok: true, id };
     },
-    setGoalStep(id, title, at = null) { const n = nodes.get(id); if (!n?.goal) return; const t = String(title || "").trim(); api.update(id, { goal: { ...n.goal, step: t ? { title: t, at: at || null } : null } }); },
+    setGoalStep(id, title, at = null) { const n = nodes.get(id); if (!n?.goal) return; const t = String(title || "").trim(); api.update(id, { goal: { ...n.goal, step: t ? { title: t, at: at || null, day: isoDate(now()) } : null, started: null } }); },
+    // R44 · plan backward: each answer to "what must be true just before?" goes in front.
+    planBefore(id, text) {
+      const n = nodes.get(id), t = String(text || "").trim(); if (!n?.goal || !t) return;
+      setPath(id, [{ title: t, done: false, ...artFor(t) }, ...n.goal.path]);
+    },
+    setStationDue(id, i, due) { const n = nodes.get(id); if (!n?.goal?.path[i]) return; setPath(id, n.goal.path.map((x, k) => (k === i ? { ...x, due, fixed: !!due } : x))); },
+    removeStation(id, i) { const n = nodes.get(id); if (!n?.goal?.path[i]) return; setPath(id, n.goal.path.filter((_, k) => k !== i)); },
+    completeStation(id, i) {
+      const n = nodes.get(id), st = n?.goal?.path[i]; if (!st || st.done) return 0;
+      const gained = api.award(XP.perStep, `${n.title}: ${st.title}`); state.coins += 1;
+      api.update(id, { goal: { ...n.goal, path: n.goal.path.map((x, k) => (k === i ? { ...x, done: true } : x)) } });
+      return gained;
+    },
+    nowStep(id, text) { api.setGoalStep(id, text, null); },
+    setObstacle(id, ifText, thenText) { const n = nodes.get(id); if (!n?.goal) return; const a = String(ifText || "").trim(); api.update(id, { goal: { ...n.goal, obstacle: a ? { if: a, then: String(thenText || "").trim() } : null } }); },
+    // R45 · stuck questions: each answer is an action; asked at most once a day.
+    markAsked(id) { const n = nodes.get(id); if (n?.goal) api.update(id, { goal: { ...n.goal, asked: isoDate(now()) } }); },
+    answerStuck(id, answer, value = "") {
+      const n = nodes.get(id), action = STUCK_ACTION[answer]; if (!n?.goal || !action) return { ok: false };
+      let g = { ...n.goal, asked: isoDate(now()) };
+      const v = String(value || "").trim(), step = g.step;
+      if (action === "addBefore" && v) { if (step) g.path = [{ title: step.title, done: false, ...artFor(step.title) }, ...g.path]; g.step = { title: v, at: null, day: isoDate(now()) }; g.started = null; }
+      if (action === "smaller" && step && !step.title.startsWith("2′ · ")) g.step = { ...step, title: "2′ · " + step.title };
+      if (action === "reschedule" && /^\d{2}:\d{2}$/.test(v) && step) {
+        const [hh, mm] = v.split(":").map(Number), d = now(), later = hh * 60 + mm > d.getHours() * 60 + d.getMinutes();
+        g.step = { ...step, at: v, day: isoDate(later ? d : new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) };
+      }
+      if (action === "ask" && v) { g.step = { title: v, at: null, day: isoDate(now()) }; g.started = null; }
+      if (action === "release") g.released = stamp();
+      nodes.set(id, normalize({ ...n, goal: g, updated: stamp() })); if (action === "addBefore") respread(id); emit();
+      return { ok: true, action };
+    },
+    setStakes(id, v) { const n = nodes.get(id); if (n?.goal) api.update(id, { goal: { ...n.goal, stakes: v } }); },
     startGoal(id) { const n = nodes.get(id); if (!n?.goal) return; api.update(id, { goal: { ...n.goal, started: stamp() } }); },
     unplaced: () => api.children("bag"),
     place(id, pid) { api.update(id, { parent: pid, suggest: [] }); },

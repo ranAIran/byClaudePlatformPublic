@@ -17,6 +17,7 @@
   "three/tsl": "../../quest/vendor/three.webgpu.min.js"
 } }
 </script>
+<script>try { document.documentElement.dataset.theme = localStorage.getItem("life-theme") === "faded" ? "faded" : "contrast"; } catch (e) { document.documentElement.dataset.theme = "contrast"; }</script>
 <style>
 /* Warm dusk glass over a golden-hour world. One accent (gold) for progress and primary actions;
    state colours are separate: red = overdue, amber = due soon, green = all clear. */
@@ -31,9 +32,28 @@
   --maxw:560px; --side:max(10px,calc((100% - var(--maxw)) / 2));
   color-scheme:dark;
 }
+/* Default colours: dark and high contrast. Near-opaque panels, white text, stronger lines and
+   brighter state colours, so text stays readable over the bright city. "Faded" (menu) keeps the
+   original warm glass above. */
+html:not([data-theme="faded"]){
+  --ink:#ffffff; --muted:#ddd6ea; --faint:rgba(255,255,255,.66);
+  --panel:linear-gradient(180deg,rgba(24,20,38,.95),rgba(13,11,24,.97)); --panel-solid:#120f1f;
+  --well:rgba(255,255,255,.08); --well-2:rgba(255,255,255,.16); --line:rgba(255,255,255,.26);
+  --gold:#ffcc3d; --gold-2:#ff9a10; --gold-edge:#b86e00;
+  --hp:#3ee88a; --bad:#ff5c4d; --soon:#ffcc3d; --ok:#3ee88a;
+}
+html:not([data-theme="faded"]) body{background:#120f1f}
+html:not([data-theme="faded"]) .panel{box-shadow:0 12px 32px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08)}
+html:not([data-theme="faded"]) .lbl b{text-shadow:0 1px 0 #000,0 2px 10px rgba(0,0,0,.85),0 0 3px #000}
+html:not([data-theme="faded"]) .lbl .badge{box-shadow:0 0 0 1.5px rgba(0,0,0,.55),0 2px 8px rgba(0,0,0,.4)}
+html:not([data-theme="faded"]) #scrim{background:linear-gradient(180deg,rgba(0,0,0,0) 25%,rgba(0,0,0,.6))}
+html:not([data-theme="faded"]) .gcard,html:not([data-theme="faded"]) .gplan,html:not([data-theme="faded"]) .gst{background:rgba(255,255,255,.07)}
+html:not([data-theme="faded"]) .gimg,html:not([data-theme="faded"]) .gsimg{border-color:rgba(255,255,255,.35)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 [hidden]{display:none!important}
-html,body{margin:0;height:100%;overflow:hidden;background:#2c1f3a;font-family:var(--font);color:var(--ink);font-variant-numeric:tabular-nums}
+html,body{margin:0;height:100%;overflow:hidden;background:#2c1f3a;font-family:var(--font);color:var(--ink)}
+/* Tabular digits only where numbers change in place: on the whole page it reversed Hebrew words in some fonts. */
+#lvl,#xpTxt,#coinTxt,.stat span,.gdue{font-variant-numeric:tabular-nums}
 #stage canvas{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #fade{position:fixed;inset:0;background:#241733;opacity:0;pointer-events:none;transition:opacity .18s}
 #scrim{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .3s;background:linear-gradient(180deg,rgba(30,16,40,0) 30%,rgba(30,16,40,.5))}
@@ -201,6 +221,42 @@ button.item{align-items:center}
 .gslot{margin-top:10px;padding:14px;border-radius:16px;border:2px dashed var(--line);color:var(--faint);font-size:13px;text-align:center}
 .gwon{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .gth{width:52px;height:42px;border-radius:10px;overflow:hidden;border:1.5px solid rgba(95,224,154,.55)}
+/* R44 · the path, R45 · stuck questions */
+.gstuck{display:block;width:100%;text-align:start;margin-top:10px;padding:9px 11px;border-radius:12px;background:rgba(170,150,255,.16);border:1px solid rgba(170,150,255,.45);color:#efe8ff;font-size:13px;font-weight:700}
+.gmore{display:flex;align-items:center;gap:10px;margin-top:9px}
+.gprog{font-size:12px;color:var(--muted);font-weight:700}
+.gnav{display:flex;justify-content:space-between;gap:8px;margin-bottom:4px}
+.chip.ghost{background:transparent}
+.gstuckbox{border-radius:16px;padding:10px 12px 12px;background:rgba(170,150,255,.12);border:1px solid rgba(170,150,255,.4);display:flex;flex-direction:column;gap:8px}
+.gstuckbox .q{font-weight:800;font-size:14px;margin-top:4px}
+.gchips{display:flex;flex-wrap:wrap;gap:6px}
+.gchips .chip{white-space:normal;font-size:13px;padding:7px 11px}
+.gstuckbox>.chip.ghost{align-self:flex-start}
+.gpath{position:relative;display:flex;flex-direction:column;gap:12px;padding-inline-start:16px;margin-top:6px}
+.gpath:before{content:"";position:absolute;inset-inline-start:4px;top:30px;bottom:24px;border-inline-start:3px dashed rgba(255,201,77,.55)}
+.gst{position:relative;display:flex;align-items:center;gap:10px;padding:8px;border-radius:15px;background:var(--well);border:1px solid var(--line)}
+.gst:before{content:"";position:absolute;inset-inline-start:-17px;top:50%;width:11px;height:11px;margin-top:-5px;border-radius:50%;background:var(--gold);box-shadow:0 0 0 3px rgba(255,201,77,.25)}
+.gst.goal{border:2px solid var(--gold);box-shadow:0 0 18px rgba(255,201,77,.25)}
+.gst.now{border-style:dashed}
+.gst.now:before{background:var(--ink)}
+.gst.done{opacity:.62}
+.gsimg{width:72px;height:58px;border-radius:11px;overflow:hidden;flex:none;border:1.5px solid rgba(255,240,225,.22)}
+.gsimg.big{width:96px;height:77px}
+.gsimg svg{width:100%;height:100%;display:block}
+.gstx{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;font-size:13.5px}
+.gstx b{font-size:14.5px;line-height:1.3;overflow-wrap:anywhere}
+.gstx small{color:#5fd4c4;font-size:11px;font-weight:800}
+.gstx em{font-style:normal;color:var(--muted);font-size:12px}
+.gstx input[type=date]{align-self:flex-start;background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:8px;color:var(--ink);font:inherit;font-size:12px;padding:3px 6px;color-scheme:dark}
+.gtick{width:36px;height:36px;border-radius:50%;border:2px solid var(--ok);background:transparent;color:var(--ok);font-weight:900;flex:none}
+.grm{width:28px;height:28px;border-radius:50%;border:0;background:transparent;color:var(--faint);font-size:18px;flex:none}
+.gpin{position:absolute;top:-10px;inset-inline-end:10px;background:var(--ink);color:#1a1424;font-size:11px;font-weight:800;padding:2px 8px;border-radius:99px}
+.gflag{width:30px;height:30px;border-radius:50%;background:var(--gold);color:var(--gold-ink);display:grid;place-items:center;flex:none}
+.gflag svg{width:17px;height:17px}
+.gplan{display:flex;flex-direction:column;gap:7px;margin-top:12px;padding:10px 12px 12px;border-radius:16px;background:var(--well);border:1px solid var(--line)}
+.gplan label{font-weight:800;font-size:13.5px}
+.gplan>input{background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:11px;color:var(--ink);font:inherit;padding:9px 11px;outline:none}
+.gplan>.chip{align-self:flex-start}
 /* R34 · today */
 .pill.today{background:linear-gradient(180deg,#ffd76a,#ffb93a);color:var(--gold-ink);border-color:#ffe39a;font-weight:700}
 .pill.today b{background:rgba(42,26,0,.18);border-radius:99px;padding:0 7px}
@@ -346,6 +402,7 @@ button.item{align-items:center}
   <button data-act="examples"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg><span data-i18n="m_examples">Remove example items</span></button>
   <button data-act="categories"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z"/></svg><span data-i18n="m_categories">Categories…</span></button>
   <button data-act="quality" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 3-3 6 5M3 5h18v14H3z"/></svg><span>Graphics</span></button>
+  <button data-act="theme"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg><span>Colours</span></button>
   <button data-act="lang"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18zM3.600 9h16.800M3.600 15h16.800M12 3c2.500 2.500 3.600 5.500 3.600 9s-1.100 6.500-3.600 9c-2.500-2.500-3.600-5.500-3.600-9S9.500 5.500 12 3z"/></svg><span>Language: English</span></button>
   <button data-act="about"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 11v6M12 7.500v.01M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18z"/></svg><span data-i18n="m_about">About this version</span></button>
 </div>

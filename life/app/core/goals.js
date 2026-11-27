@@ -83,8 +83,39 @@ export function timeLeft(g, now = new Date()) {
 export const SUGGESTED_OPEN = 3;
 export function goalBoard(store, now = new Date()) {
   const all = store.all().filter((n) => n.type === "goal");
-  const open = all.filter((n) => !n.done).sort((a, b) => goalDeadline(a) - goalDeadline(b));
+  const open = all.filter((n) => !n.done && !n.goal?.released).sort((a, b) => goalDeadline(a) - goalDeadline(b));
   const since = now.getTime() - 7 * 864e5;
-  const done = all.filter((n) => n.done && Date.parse(n.updated) > since).sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated));
-  return { open, done, suggestMore: open.length < SUGGESTED_OPEN };
+  const released = all.filter((n) => n.goal?.released);
+  const done = all.filter((n) => n.done && !n.goal?.released && Date.parse(n.updated) > since).sort((a, b) => Date.parse(b.updated) - Date.parse(a.updated));
+  return { open, done, released, suggestMore: open.length < SUGGESTED_OPEN };
+}
+
+// ---------- R44 · plan backward ----------
+const dayNum = (iso) => { const [y, m, d] = iso.split("-").map(Number); return new Date(y, m - 1, d); };
+const isoOf = (dt) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
+// Station dates from today up to (not after) the deadline, earliest first.
+export function spreadDates(count, todayIso, dueIso) {
+  const a = dayNum(todayIso), span = Math.max(0, Math.round((dayNum(dueIso) - a) / 864e5));
+  return Array.from({ length: count }, (_, i) => { const d = new Date(a); d.setDate(d.getDate() + Math.floor((i * span) / count)); return isoOf(d); });
+}
+// Early on show what is done; near the end show what is left (Koo & Fishbach 2012).
+export function progressView(g) {
+  const path = g.goal?.path || []; if (!path.length) return null;
+  const total = path.length + 1, done = path.filter((s) => s.done).length;
+  return done / total < 0.5 ? { kind: "done", done, total } : { kind: "left", left: total - done, total };
+}
+
+// ---------- R45 · when a step doesn't move ----------
+export const STUCK_ANSWERS = ["missing", "unclear", "energy", "time", "someone", "unimportant"];
+export const STUCK_ACTION = { missing: "addBefore", unclear: "smaller", energy: "smaller", time: "reschedule", someone: "ask", unimportant: "release" };
+export const STAKES = ["none", "soft", "hard"];
+// "step-time": the step's chosen time passed without Started. "no-progress": a third of the time to the
+// deadline went by with nothing started or done. At most once a day per goal (goal.asked).
+export function stuckReason(n, now = new Date()) {
+  const g = n?.goal; if (!g || n.done || g.released || g.started) return null;
+  if (g.asked === isoOf(now)) return null;
+  if (g.step?.at && g.step.day) { const [hh, mm] = g.step.at.split(":").map(Number), d = dayNum(g.step.day); d.setHours(hh, mm); if (now > d) return "step-time"; }
+  const start = Date.parse(n.created), end = goalDeadline(n).getTime();
+  if (end > start && (now.getTime() - start) / (end - start) >= 1 / 3 && !(g.path || []).some((s) => s.done)) return "no-progress";
+  return null;
 }

@@ -19,7 +19,9 @@ const failures = [];
 const check = (ok, msg) => { console.log((ok ? "PASS " : "FAIL ") + msg); if (!ok) failures.push(msg); };
 const colours = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 120; c.height = 120; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.3, im.width, im.height * 0.35, 0, 0, 120, 120); const d = x.getImageData(0, 0, 120, 120).data; const s = new Set(); for (let i = 0; i < d.length; i += 4) s.add((d[i] >> 4) + "," + (d[i + 1] >> 4) + "," + (d[i + 2] >> 4)); return s.size; }, (await p.screenshot()).toString("base64"));
 // A 24×24 grey thumbnail of the 3D area (middle of the screen) to compare frames.
-const thumb = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 24; c.height = 24; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.25, im.width, im.height * 0.5, 0, 0, 24, 24); const d = x.getImageData(0, 0, 24, 24).data; const g = []; for (let i = 0; i < d.length; i += 4) g.push((d[i] + d[i + 1] + d[i + 2]) / 3); return g; }, (await p.screenshot()).toString("base64"));
+// The 3D picture alone: overlays (labels, HUD, sheet fade, toasts) hidden while the screenshot is taken.
+const bare = async (p) => { await p.addStyleTag({ content: "#labels,#hud,#hint,#scrim,#dock,#viewCtl,#sheet,#toast,#menu{visibility:hidden!important}" }).then((h) => h.evaluate((e) => e.id = "bareStyle")); const b64 = (await p.screenshot()).toString("base64"); await p.evaluate(() => document.getElementById("bareStyle")?.remove()); return b64; };
+const thumb = async (p) => p.evaluate(async (b64) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 24; c.height = 24; const x = c.getContext("2d"); x.drawImage(im, 0, im.height * 0.25, im.width, im.height * 0.5, 0, 0, 24, 24); const d = x.getImageData(0, 0, 24, 24).data; const g = []; for (let i = 0; i < d.length; i += 4) g.push((d[i] + d[i + 1] + d[i + 2]) / 3); return g; }, await bare(p));
 const dist = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.length;
 // Average colour of the city centre (the plaza and its buildings), to check the golden-hour light.
 const warmth = async (p, cx = 0.5, cy = 0.52) => p.evaluate(async ([b64, cx, cy]) => { const im = new Image(); im.src = "data:image/png;base64," + b64; await im.decode(); const c = document.createElement("canvas"); c.width = 48; c.height = 48; const x = c.getContext("2d"); x.drawImage(im, im.width * (cx - 0.15), im.height * (cy - 0.07), im.width * 0.3, im.height * 0.14, 0, 0, 48, 48); const d = x.getImageData(0, 0, 48, 48).data; let r = 0, g = 0, bl = 0; for (let i = 0; i < d.length; i += 4) { r += d[i]; g += d[i + 1]; bl += d[i + 2]; } const n = d.length / 4; return { r: r / n, g: g / n, b: bl / n }; }, [(await p.screenshot()).toString("base64"), cx, cy]);
@@ -270,6 +272,35 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   check(flag && opened && refused && cards.includes("box/storage") && cards.includes("chocolate/fridge") && stepShown && started && B.open === 1 && B.done === 1 && strip,
     `R43 Goals Board: flag opens it, sentences become drawn cards, first step, Started and Done (${cards.join(", ")}; open ${B.open}, done ${B.done})`);
   await p.evaluate(() => window.__life.ui.closeSheet());
+}
+// R44 · plan backward on a goal; R45 · the stuck questions; dark high-contrast colours by default, "faded" in the menu.
+{
+  const theme0 = await p.evaluate(() => window.__life.theme());
+  const id = await p.evaluate(() => { const s = window.__life.store; const r = s.addGoal("by Tuesday evening the box is in storage"); s.setGoalStep(r.id, "Tape the box", "00:01"); return r.id; });
+  await p.click("#goalsBtn"); await p.waitForTimeout(300);
+  const banner = await p.isVisible(`.gcard[data-goal="${id}"] .gstuck`);
+  await p.click(`[data-act=gopen][data-id="${id}"]`); await p.waitForTimeout(300);
+  for (const v of ["The box is in the car", "The key is in my bag"]) { await p.fill("#gPlanForm input[name=v]", v); await p.click("#gPlanForm button[name=add]"); await p.waitForTimeout(250); }
+  const stations = await p.evaluate(() => [...document.querySelectorAll(".gpath .gst:not(.goal):not(.now) b")].map((x) => x.textContent));
+  await p.locator("[data-act=gst]").last().click(); await p.waitForTimeout(400);
+  await p.fill("#gObstForm input[name=a]", "I'm tired on Saturday"); await p.fill("#gObstForm input[name=b]", "I only load the car"); await p.click("#gObstForm .chip"); await p.waitForTimeout(250);
+  await p.screenshot({ path: `${out}/v-goal-path.png` });
+  await p.click("[data-act=gstuck]"); await p.waitForTimeout(250);
+  await p.click("[data-act=gans][data-a=missing]"); await p.waitForTimeout(250);
+  await p.fill("#gansForm input", "Buy tape"); await p.press("#gansForm input", "Enter"); await p.waitForTimeout(300);
+  const g = await p.evaluate((id) => window.__life.store.get(id).goal, id);
+  await p.click("[data-act=gstuck]"); await p.waitForTimeout(250);
+  await p.click("[data-act=gstake][data-k=hard]"); await p.waitForTimeout(200);
+  await p.screenshot({ path: `${out}/v-goal-stuck.png` });
+  const stakes = await p.evaluate((id) => window.__life.store.get(id).goal.stakes, id);
+  check(banner && stations.join("|") === "The box is in the car|The key is in my bag" && g.path.length === 3 && g.path[0].title === "Tape the box" && g.step.title === "Buy tape" && g.obstacle?.then === "I only load the car" && g.path.some((x) => x.done) && stakes === "hard",
+    `R44/R45 plan backward, tick a station, if–then plan, stuck answer adds a step before, stakes (${stations.join(" → ")}; step "${g.step.title}")`);
+  await p.evaluate(() => window.__life.ui.closeSheet());
+  await p.click("#menuBtn"); await p.click('#menu [data-act="theme"]'); await p.waitForTimeout(200);
+  const theme1 = await p.evaluate(() => [window.__life.theme(), localStorage.getItem("life-theme"), getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()]);
+  await p.click("#menuBtn"); await p.click('#menu [data-act="theme"]'); await p.waitForTimeout(200);
+  const theme2 = await p.evaluate(() => window.__life.theme()); await p.keyboard.press("Escape");
+  check(theme0 === "contrast" && theme1[0] === "faded" && theme1[1] === "faded" && theme1[2] === "#fff7ec" && theme2 === "contrast", `colours: dark high contrast by default, "faded" from the menu and back (${theme0} → ${theme1[0]} → ${theme2})`);
 }
 // R19 · the data lives in IndexedDB and survives a reload.
 {

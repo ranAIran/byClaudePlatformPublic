@@ -54,6 +54,16 @@ const en = {
   achievedWeek: "Achieved this week", goalNeedsWhen: "When? Add a day, like “by Saturday evening”.", goalNeedsWhat: "What will be true? Like “the box is in the storage room”.",
   roomForOne: "Room for one more goal · about 3 at a time works best", leftDH: "{d}d {h}h left", leftHM: "{h}h {m}m left", goalLate: "{t} late", goalAdded: "Goal added. What's the first step?",
   goalEmpty: "No goals yet. Write one sentence above: what will be true, and when.", goalCame: "It came true!", goalPhotoAfter: "After photo",
+  // R44 · plan backward, R45 · stuck questions
+  planBack: "Plan backward", justBefore: "What must be true just before “{x}”?", justBeforePh: "e.g. the box is in the car", addBefore: "Add",
+  canDoNow: "I can do this now", obstacleIf: "If…", obstacleThen: "then I…", obstacleT: "One obstacle, one plan", saveIfThen: "Save", ifThenSaved: "Plan saved",
+  progDone: "{n} of {t} done", progLeft: "{n} left", youAreHere: "You are here", backToBoard: "All goals", stationDate: "Date",
+  stuckBanner: "“{s}” is waiting. What's in the way?", stuckBannerNoStep: "Nothing has moved yet. What's in the way?", stuckQ: "What's in the way?", imStuck: "I'm stuck",
+  ans_missing: "Something is missing", ans_unclear: "Not clear where to start", ans_energy: "No energy", ans_time: "No time", ans_someone: "Depends on someone", ans_unimportant: "Not important any more",
+  needWhat: "What's needed? (it becomes the first step)", whoAsk: "Who? (it becomes “Ask …”)", askWho: "Ask {who}", newTime: "When instead?", madeSmaller: "Made it a two-minute version",
+  stakesQ: "What happens if this isn't done in time?", stakes_none: "Nothing, I can let it go", stakes_soft: "It moves a week, fine", stakes_hard: "It has a price",
+  notNow: "Not now", released: "Let go. That's a fine outcome too.", stepAdded: "New first step added", rescheduled: "Moved to {t}",
+  m_theme: "Colours: {c}", th_contrast: "dark, high contrast", th_faded: "faded",
 };
 
 const he = {
@@ -105,6 +115,15 @@ const he = {
   achievedWeek: "הושג השבוע", goalNeedsWhen: "מתי? הוסף יום, למשל ״עד שבת בערב״.", goalNeedsWhat: "מה יהיה נכון? למשל ״הארגז במחסן״.",
   roomForOne: "מקום ליעד אחד נוסף · כ-3 בבת אחת עובד הכי טוב", leftDH: "עוד {d} ימים ו-{h} שעות", leftHM: "עוד {h} שעות ו-{m} דק׳", goalLate: "באיחור של {t}", goalAdded: "המטרה נוספה. מה הצעד הראשון?",
   goalEmpty: "עוד אין מטרות. כתוב משפט אחד למעלה: מה יהיה נכון, ועד מתי.", goalCame: "זה קרה!", goalPhotoAfter: "תמונת אחרי",
+  planBack: "תכנון לאחור", justBefore: "מה צריך להיות נכון רגע לפני ״{x}״?", justBeforePh: "למשל: הארגז ברכב", addBefore: "הוסף",
+  canDoNow: "את זה אפשר לעשות עכשיו", obstacleIf: "אם…", obstacleThen: "אז אני…", obstacleT: "מכשול אחד, תוכנית אחת", saveIfThen: "שמור", ifThenSaved: "התוכנית נשמרה",
+  progDone: "{n} מתוך {t} בוצעו", progLeft: "נשארו {n}", youAreHere: "אתה כאן", backToBoard: "כל המטרות", stationDate: "תאריך",
+  stuckBanner: "״{s}״ מחכה. מה מפריע?", stuckBannerNoStep: "עוד לא זז כלום. מה מפריע?", stuckQ: "מה מפריע?", imStuck: "נתקעתי",
+  ans_missing: "חסר לי משהו", ans_unclear: "לא ברור מאיפה להתחיל", ans_energy: "אין כוח", ans_time: "אין זמן", ans_someone: "תלוי במישהו", ans_unimportant: "כבר לא חשוב",
+  needWhat: "מה נדרש? (זה יהיה הצעד הראשון)", whoAsk: "במי? (זה יהיה ״לבקש מ…״)", askWho: "לבקש מ{who}", newTime: "מתי במקום?", madeSmaller: "הפכנו את זה לגרסה של שתי דקות",
+  stakesQ: "מה קורה אם זה לא נעשה בזמן?", stakes_none: "כלום, אפשר לשחרר", stakes_soft: "יידחה בשבוע, זה בסדר", stakes_hard: "יש מחיר",
+  notNow: "לא עכשיו", released: "שוחרר. גם זו תוצאה טובה.", stepAdded: "נוסף צעד ראשון חדש", rescheduled: "הועבר ל-{t}",
+  m_theme: "צבעים: {c}", th_contrast: "כהה, ניגודיות גבוהה", th_faded: "צבע דהוי",
 };
 
 // Built-in places, translated while the owner hasn't renamed them.

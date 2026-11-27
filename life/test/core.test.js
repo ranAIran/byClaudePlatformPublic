@@ -23,7 +23,7 @@ import { backupDue, backupName } from "../app/core/backup.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
 import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
 import { pickQuality, canChooseQuality } from "../app/core/quality.js";
-import { parseGoal, goalDeadline, timeLeft, goalBoard, artFor } from "../app/core/goals.js";
+import { parseGoal, goalDeadline, timeLeft, goalBoard, artFor, spreadDates, progressView, stuckReason, STUCK_ANSWERS } from "../app/core/goals.js";
 import { addCategory, renameCategory, removeCategory, categories } from "../app/core/categories.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
@@ -654,7 +654,7 @@ describe("R43 · a done-state sentence becomes a goal card", () => {
     const g = s.get(r.id);
     expect(g).toMatchObject({ type: "goal", parent: null, due: "2026-11-28", goal: { time: "08:00", object: "chocolate", scene: "fridge", step: null, started: null } });
     s.setGoalStep(r.id, "לקנות בסופר בדרך הביתה", "18:30");
-    expect(s.get(r.id).goal.step).toEqual({ title: "לקנות בסופר בדרך הביתה", at: "18:30" });
+    expect(s.get(r.id).goal.step).toMatchObject({ title: "לקנות בסופר בדרך הביתה", at: "18:30", day: "2026-11-27" });
     s.startGoal(r.id);
     expect(s.get(r.id).goal.started).toBeTruthy();
     expect(s.unplaced().length).toBe(0); // not in the bag
@@ -684,7 +684,7 @@ describe("R49 · simple first: the basic card, nothing locked", () => {
   it("a new goal has only the basic parts; there are no levels or unlock rules", () => {
     const s = createStore(memoryBackend(), { now: () => new Date(2026, 10, 27, 10) });
     const g = s.get(s.addGoal("by Saturday the box is in storage").id);
-    expect(Object.keys(g.goal).sort()).toEqual(["object", "photo", "scene", "started", "step", "time"]);
+    expect(g.goal).toMatchObject({ step: null, path: [], obstacle: null, stakes: null, released: null });
     expect(g.steps).toBe(null);
     expect(goalBoard(s).locked).toBeUndefined();
   });
@@ -692,5 +692,96 @@ describe("R49 · simple first: the basic card, nothing locked", () => {
     for (const k of ["goals", "goalsSub", "goalPh", "firstStep", "firstStepPh", "started", "goalDone", "achievedWeek", "goalNeedsWhen", "goalNeedsWhat", "roomForOne", "leftDH", "leftHM", "goalLate", "goalAdded"]) {
       expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy();
     }
+  });
+});
+
+describe("R44 · plan backward from the finish", () => {
+  const FRI = new Date(2026, 10, 27, 10, 0);
+  it("spreads station dates back from the deadline, earliest today, never after it", () => {
+    expect(spreadDates(3, "2026-11-27", "2026-11-30")).toEqual(["2026-11-27", "2026-11-28", "2026-11-29"]);
+    expect(spreadDates(2, "2026-11-27", "2026-11-28")).toEqual(["2026-11-27", "2026-11-27"]);
+    expect(spreadDates(1, "2026-12-30", "2026-12-31")).toEqual(["2026-12-30"]);
+    expect(spreadDates(0, "2026-11-27", "2026-11-30")).toEqual([]);
+  });
+  it("each answer to 'what must be true just before?' goes in front; 'I can do this now' becomes the first step", () => {
+    const s = createStore(memoryBackend(), { now: () => FRI });
+    const id = s.addGoal("עד יום שלישי בערב הארגז יהיה במחסן").id; // Tue 1 Dec
+    s.planBefore(id, "הארגז ברכב");
+    s.planBefore(id, "המפתח בתיק");
+    s.planBefore(id, "הארגז סגור ומסומן");
+    const g = s.get(id).goal;
+    expect(g.path.map((x) => x.title)).toEqual(["הארגז סגור ומסומן", "המפתח בתיק", "הארגז ברכב"]);
+    expect(g.path.map((x) => x.due)).toEqual(["2026-11-27", "2026-11-28", "2026-11-29"]);
+    expect(g.path[0]).toMatchObject({ done: false, object: "box" });
+    s.setStationDue(id, 1, "2026-11-30");
+    s.planBefore(id, "יש סלוטייפ"); // a moved date stays where the owner put it
+    expect(s.get(id).goal.path[2].due).toBe("2026-11-30");
+    s.nowStep(id, "לסגור את הארגז");
+    expect(s.get(id).goal.step).toMatchObject({ title: "לסגור את הארגז" });
+    expect(s.completeStation(id, 0)).toBeGreaterThan(0);
+    expect(s.get(id).goal.path[0].done).toBe(true);
+    s.removeStation(id, 0);
+    expect(s.get(id).goal.path.length).toBe(3);
+  });
+  it("one obstacle with an if–then plan", () => {
+    const s = createStore(memoryBackend(), { now: () => FRI });
+    const id = s.addGoal("by Saturday evening the box is in storage").id;
+    s.setObstacle(id, "I'm tired on Saturday", "I only load the car and drive");
+    expect(s.get(id).goal.obstacle).toEqual({ if: "I'm tired on Saturday", then: "I only load the car and drive" });
+    s.setObstacle(id, "", "");
+    expect(s.get(id).goal.obstacle).toBe(null);
+  });
+  it("progress shows what is done early on, and what is left near the end (small-area)", () => {
+    const g = (done, n) => ({ goal: { path: Array.from({ length: n }, (_, i) => ({ done: i < done })) } });
+    expect(progressView(g(0, 0))).toBe(null);
+    expect(progressView(g(1, 4))).toEqual({ kind: "done", done: 1, total: 5 });
+    expect(progressView(g(3, 4))).toEqual({ kind: "left", left: 2, total: 5 });
+  });
+});
+
+describe("R45 · when a step doesn't move: questions, not nagging", () => {
+  const MON = new Date(2026, 10, 23, 9, 0);
+  it("asks when the step's time passed without Started, or a third of the time went by with nothing done", () => {
+    let t = MON; const s = createStore(memoryBackend(), { now: () => t });
+    const id = s.addGoal("by Sunday evening the box is in storage").id; // Sun 29 Nov 18:00
+    expect(stuckReason(s.get(id), t)).toBe(null);
+    s.setGoalStep(id, "Tape the box", "20:00");
+    t = new Date(2026, 10, 23, 21, 0); expect(stuckReason(s.get(id), t)).toBe("step-time");
+    s.startGoal(id); expect(stuckReason(s.get(id), t)).toBe(null);
+    const id2 = s.addGoal("by Sunday evening the form is sent").id; // created Mon 21:00
+    t = new Date(2026, 10, 25, 22, 0); expect(stuckReason(s.get(id2), t)).toBe("no-progress");
+    s.markAsked(id2); expect(stuckReason(s.get(id2), t)).toBe(null); // at most once a day
+    t = new Date(2026, 10, 26, 9, 0); expect(stuckReason(s.get(id2), t)).toBe("no-progress");
+  });
+  it("each answer leads to an action", () => {
+    let t = MON; const s = createStore(memoryBackend(), { now: () => t });
+    expect(STUCK_ANSWERS).toEqual(["missing", "unclear", "energy", "time", "someone", "unimportant"]);
+    const id = s.addGoal("by Sunday evening the box is in storage").id;
+    s.setGoalStep(id, "Tape the box", "20:00");
+    expect(s.answerStuck(id, "missing", "Buy tape on the way home")).toMatchObject({ action: "addBefore" });
+    expect(s.get(id).goal.step.title).toBe("Buy tape on the way home");
+    expect(s.get(id).goal.path[0].title).toBe("Tape the box");
+    expect(s.answerStuck(id, "unclear")).toMatchObject({ action: "smaller" });
+    expect(s.get(id).goal.step.title).toBe("2′ · Buy tape on the way home");
+    s.answerStuck(id, "energy"); expect(s.get(id).goal.step.title).toBe("2′ · Buy tape on the way home"); // not twice
+    t = new Date(2026, 10, 23, 22, 0);
+    expect(s.answerStuck(id, "time", "08:30")).toMatchObject({ action: "reschedule" });
+    expect(s.get(id).goal.step).toMatchObject({ at: "08:30", day: "2026-11-24" });
+    expect(s.answerStuck(id, "someone", "Ask Dan for the key")).toMatchObject({ action: "ask" });
+    expect(s.get(id).goal.step.title).toBe("Ask Dan for the key");
+    expect(s.get(id).goal.asked).toBe("2026-11-23");
+    expect(s.answerStuck(id, "unimportant")).toMatchObject({ action: "release" });
+    const B = goalBoard(s, t);
+    expect(B.open.length).toBe(0); expect(B.done.length).toBe(0); expect(B.released.length).toBe(1);
+  });
+  it("'what happens if not?' sets a soft or hard deadline", () => {
+    const s = createStore(memoryBackend(), { now: () => MON });
+    const id = s.addGoal("by Sunday the box is in storage").id;
+    s.setStakes(id, "hard"); expect(s.get(id).goal.stakes).toBe("hard");
+    s.setStakes(id, "nonsense"); expect(s.get(id).goal.stakes).toBe(null);
+  });
+  it("the interface words exist in both languages", () => {
+    for (const k of ["planBack", "justBefore", "canDoNow", "obstacleIf", "obstacleThen", "progDone", "progLeft", "stuckBanner", "stuckQ", "ans_missing", "ans_unclear", "ans_energy", "ans_time", "ans_someone", "ans_unimportant", "stakesQ", "stakes_none", "stakes_soft", "stakes_hard", "notNow", "youAreHere", "released", "m_theme", "th_contrast", "th_faded"])
+      { expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy(); }
   });
 });
