@@ -224,12 +224,12 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
 }
 // R37 · the interface in Hebrew, right to left; and back to English.
 {
-  await p.tap("#menuBtn"); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(500);
+  await p.tap("#menuBtn"); await p.waitForTimeout(300); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(500);
   const he = await p.evaluate(() => ({ dir: document.documentElement.dir, pill: document.querySelector(".pill.today")?.innerText || "", ph: document.getElementById("capInput").placeholder, label: [...document.querySelectorAll(".lbl .nm")].map((x) => x.textContent) }));
   await p.evaluate(() => window.__life.ui.openSheet("today")); await p.waitForTimeout(400);
   await p.screenshot({ path: `${out}/v-hebrew.png` });
   await p.evaluate(() => window.__life.ui.closeSheet()); await p.waitForTimeout(400);
-  await p.tap("#menuBtn"); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(400);
+  await p.tap("#menuBtn"); await p.waitForTimeout(300); await p.tap('#menu [data-act="lang"]'); await p.waitForTimeout(400);
   const en = await p.evaluate(() => document.documentElement.dir);
   check(he.dir === "rtl" && /היום/.test(he.pill) && /תיק/.test(he.ph) && he.label.includes("ניירת") && en === "ltr", `R37 the menu switches to Hebrew (right to left) and back (${he.pill.replace(/\s+/g, " ")}, ${he.label.join(", ")})`);
 }
@@ -369,6 +369,46 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   await p.mouse.click(200, 300); // stops the chimes
   check(form.time === hm && form.kind === "alarm" && form.help && saved[0] === hm && saved[1] === "alarm" && /בדיקת שעון/.test(rang),
     `R59 a task at ${hm} with an alarm: the form shows the time, and the page rings at that minute ("${rang}")`);
+}
+// R60 · connect goals and tasks: the picker suggests by words and day, a line drawn on the map links,
+// a tap on a line unlinks, and Today marks a task that affects a goal with a price.
+{
+  const lc = await b.newContext({ ...devices["Pixel 7"], deviceScaleFactor: 1, timezoneId: "Asia/Jerusalem" });
+  await lc.addInitScript(() => { try { localStorage.setItem("life-lang", "he"); } catch (e) {} });
+  const q = await lc.newPage(); q.on("pageerror", (e) => errs.push("link: " + e.message));
+  await q.goto(base + "?notoday"); await q.waitForFunction(() => window.__life?.ready, null, { timeout: 180000 }); await q.waitForTimeout(500);
+  const ids = await q.evaluate(() => {
+    const s = window.__life.store, day = new Date(Date.now() + 864e5), iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+    const g = s.addGoal("עד מחר בערב בחרתי פריט מהרשימה של הכיתה").id; s.setStakes(g, "hard");
+    const a = s.add({ type: "task", title: "לבדוק בקבוצת הכיתה בוואטסאפ מה נשאר", parent: "family", due: iso });
+    const b2 = s.add({ type: "task", title: "לכתוב בקבוצה איזה פריט בחרנו", parent: "family", due: iso });
+    const c = s.add({ type: "task", title: "להחליף נורה בסלון", parent: "home" });
+    return { g, a, b: b2, c };
+  });
+  await q.evaluate(() => window.__life.openGoals()); await q.waitForTimeout(300);
+  await q.click(`[data-act=glink][data-id="${ids.g}"]`); await q.waitForTimeout(300);
+  const pre = await q.evaluate(() => [...document.querySelectorAll(".lrow.on")].map((x) => x.dataset.id));
+  await q.screenshot({ path: `${out}/v-link-picker.png` });
+  await q.click(`.lrow[data-id="${ids.b}"]`); await q.waitForTimeout(150); // keep only the first suggestion
+  await q.click("[data-act=ldo]"); await q.waitForTimeout(300);
+  const afterPick = await q.evaluate((g) => window.__life.store.get(g).goal.links, ids.g);
+  await q.click("[data-act=gmap]"); await q.waitForTimeout(500);
+  const dot = async (sel) => { const r = await q.locator(sel).boundingBox(); return [r.x + r.width / 2, r.y + r.height / 2]; };
+  await q.locator(`[data-task="${ids.c}"]`).scrollIntoViewIfNeeded(); await q.waitForTimeout(300);
+  const [gx, gy] = await dot(`[data-dot=g][data-id="${ids.g}"]`), [tx, ty] = await dot(`[data-dot=t][data-id="${ids.c}"]`);
+  await q.mouse.move(gx, gy); await q.mouse.down(); await q.mouse.move((gx + tx) / 2, (gy + ty) / 2, { steps: 6 }); await q.mouse.move(tx, ty, { steps: 6 }); await q.mouse.up();
+  await q.waitForTimeout(500);
+  const afterDrag = await q.evaluate((g) => window.__life.store.get(g).goal.links, ids.g);
+  const lines = await q.evaluate(() => document.querySelectorAll("#gmlines .gmhit[data-sug='0']").length);
+  await q.screenshot({ path: `${out}/v-link-map.png` });
+  await q.evaluate((c) => { const h = [...document.querySelectorAll("#gmlines .gmhit")].find((x) => x.dataset.t === c && x.dataset.sug === "0"); h.dispatchEvent(new MouseEvent("click", { bubbles: true })); }, ids.c); await q.waitForTimeout(400);
+  const afterTap = await q.evaluate((g) => window.__life.store.get(g).goal.links, ids.g);
+  await q.evaluate(() => window.__life.ui.closeSheet()); await q.evaluate(() => window.__life.ui.openSheet("today")); await q.waitForTimeout(400);
+  const badge = await q.evaluate(() => [...document.querySelectorAll(".gaff.hard")].map((x) => x.textContent).join(" | "));
+  await q.screenshot({ path: `${out}/v-link-today.png` });
+  check(pre.includes(ids.a) && pre.includes(ids.b) && !pre.includes(ids.c) && afterPick.includes(ids.a) && !afterPick.includes(ids.b) && afterDrag.includes(ids.c) && lines >= 2 && !afterTap.includes(ids.c) && /הרשימה של הכיתה/.test(badge),
+    `R60 link by picker (${afterPick.length}), by drawing a line (${afterDrag.length} links, ${lines} lines), unlink by tapping it (${afterTap.length}); Today: "${badge}"`);
+  await lc.close();
 }
 // R19 · the data lives in IndexedDB and survives a reload.
 {

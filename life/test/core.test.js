@@ -25,7 +25,7 @@ import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
 import { pickQuality, canChooseQuality } from "../app/core/quality.js";
 import { PROFILE_KEYS, DEFAULT_PROFILE, validProfile } from "../app/core/profile.js";
 import { splitForSync } from "../app/core/sealable.js";
-import { parseGoal, goalDeadline, timeLeft, goalBoard, artFor, spreadDates, progressView, stuckReason, STUCK_ANSWERS } from "../app/core/goals.js";
+import { parseGoal, goalDeadline, timeLeft, goalBoard, artFor, spreadDates, progressView, stuckReason, STUCK_ANSWERS, linkedTasks, linkSuggestions, goalsOfTask, allLinked } from "../app/core/goals.js";
 import { addCategory, renameCategory, removeCategory, categories } from "../app/core/categories.js";
 
 const NOW = new Date("2026-11-06T09:00:00");
@@ -947,5 +947,65 @@ describe("R59 · a reminder or an alarm at an exact time", () => {
   });
   it("the interface words exist in both languages", () => {
     for (const k of ["e_time", "e_remind", "rm_none", "rm_notify", "rm_alarm", "rm_alarmHelp", "remindAt", "alarmAt"]) { expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy(); }
+  });
+});
+
+describe("R60 · connect goals and tasks (what serves what)", () => {
+  const SAT = new Date(2026, 10, 28, 15, 0);
+  const setup = () => {
+    const s = createStore(memoryBackend(), { now: () => SAT });
+    const g = s.addGoal("עד הערב בחרתי פריט מהרשימה של הכיתה").id;
+    s.setStakes(g, "hard");
+    const a = s.add({ type: "task", title: "לבדוק בקבוצת הכיתה בוואטסאפ מה נשאר", parent: "family", due: "2026-11-28" });
+    const b = s.add({ type: "task", title: "לכתוב בקבוצה איזה פריט בחרנו", parent: "family", due: "2026-11-28" });
+    const c = s.add({ type: "task", title: "להתקשר לרופא", parent: "health", due: "2026-11-29" });
+    return { s, g, a, b, c };
+  };
+  it("links and unlinks tasks; a deleted task disappears from its goal", () => {
+    const { s, g, a, b } = setup();
+    s.linkTask(g, a); s.linkTask(g, b); s.linkTask(g, a);
+    expect(linkedTasks(s, g).map((n) => n.id)).toEqual([a, b]);
+    expect(goalsOfTask(s, a).map((n) => n.id)).toEqual([g]);
+    s.unlinkTask(g, b); expect(linkedTasks(s, g).map((n) => n.id)).toEqual([a]);
+    s.remove(a); expect(linkedTasks(s, g)).toEqual([]);
+    expect(s.journal().some((e) => e.id === g && e.fields?.includes("goal"))).toBe(true);
+  });
+  it("suggests tasks that share words with the goal or its day, with the reason", () => {
+    const { s, g, a, b, c } = setup();
+    const sug = linkSuggestions(s, g, SAT);
+    expect(sug.map((x) => x.id).slice(0, 2).sort()).toEqual([a, b].sort());
+    expect(sug.find((x) => x.id === a).why.words).toContain("כיתה");
+    expect(sug.find((x) => x.id === a).why.sameDay).toBe(true);
+    expect(sug.find((x) => x.id === c)).toBeUndefined();
+    s.linkTask(g, a); expect(linkSuggestions(s, g, SAT).find((x) => x.id === a)).toBeUndefined();
+  });
+  it("finishing linked tasks moves the goal on; when all are done the goal is ready to mark achieved", () => {
+    const { s, g, a, b } = setup();
+    s.linkTask(g, a); s.linkTask(g, b);
+    expect(progressView(s.get(g), linkedTasks(s, g))).toEqual({ kind: "done", done: 0, total: 3 });
+    s.complete(a);
+    expect(progressView(s.get(g), linkedTasks(s, g))).toEqual({ kind: "done", done: 1, total: 3 });
+    expect(allLinked(s, g)).toBe(false); s.complete(b); expect(allLinked(s, g)).toBe(true);
+    expect(progressView(s.get(g), linkedTasks(s, g))).toEqual({ kind: "left", left: 1, total: 3 });
+  });
+  it("Today marks a task that affects a goal, and how much is at stake", () => {
+    const { s, g, a } = setup(); s.linkTask(g, a);
+    const T = todayList(s, SAT), row = [...T.today].find((x) => x.id === a);
+    expect(row.goals).toEqual([{ id: g, title: "בחרתי פריט מהרשימה של הכיתה", stakes: "hard", due: "2026-11-28", time: "18:00" }]);
+  });
+  it("a linked task gets an early reminder before its goal's deadline; the lead time is per goal", () => {
+    const { s, g, a } = setup(); s.linkTask(g, a);
+    let L = reminderList(s, SAT);
+    expect(L.find((x) => x.id === a + ":before")).toMatchObject({ due: "2026-11-28", time: "16:00", open: a });
+    s.setGoalLead(g, 30); L = reminderList(s, SAT);
+    expect(L.find((x) => x.id === a + ":before")).toMatchObject({ time: "17:30" });
+    s.setStakes(g, "soft"); s.setGoalLead(g, 120);
+    expect(reminderList(s, SAT).find((x) => x.id === a + ":before")).toMatchObject({ time: "16:00" }); // every goal with a deadline time
+    s.complete(a); expect(reminderList(s, SAT).find((x) => x.id === a + ":before")).toBeUndefined();
+    expect(() => s.setGoalLead(g, -5)).not.toThrow(); expect(s.get(g).goal.lead).toBe(120);
+  });
+  it("the interface words exist in both languages", () => {
+    for (const k of ["linkTask", "linkTitle", "linkSuggested", "linkAll", "linkN", "linked", "noLinked", "why_words", "why_day", "mapTitle", "mapSub", "mapOpen", "affects", "affectsHard", "leadQ", "lead_30", "lead_60", "lead_120", "lead_1440", "allDoneQ", "mapNoGoals"])
+      { expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy(); }
   });
 });

@@ -101,9 +101,9 @@ export function spreadDates(count, todayIso, dueIso) {
   return Array.from({ length: count }, (_, i) => { const d = new Date(a); d.setDate(d.getDate() + Math.floor((i * span) / count)); return isoOf(d); });
 }
 // Early on show what is done; near the end show what is left (Koo & Fishbach 2012).
-export function progressView(g) {
-  const path = g.goal?.path || []; if (!path.length) return null;
-  const total = path.length + 1, done = path.filter((s) => s.done).length;
+export function progressView(g, linked = []) {
+  const path = g.goal?.path || []; if (!path.length && !linked.length) return null;
+  const total = path.length + linked.length + 1, done = path.filter((s) => s.done).length + linked.filter((t) => t.done).length;
   return done / total < 0.5 ? { kind: "done", done, total } : { kind: "left", left: total - done, total };
 }
 
@@ -120,4 +120,34 @@ export function stuckReason(n, now = new Date()) {
   const start = Date.parse(n.created), end = goalDeadline(n).getTime();
   if (end > start && (now.getTime() - start) / (end - start) >= 1 / 3 && !(g.path || []).some((s) => s.done)) return "no-progress";
   return null;
+}
+
+// ---------- R60 · what serves what: tasks connected to goals ----------
+export const linkedTasks = (store, gid) => (store.get(gid)?.goal?.links || []).map((id) => store.get(id)).filter((n) => n && n.type !== "goal");
+export const goalsOfTask = (store, tid) => store.all().filter((n) => n.type === "goal" && !n.done && !n.goal?.released && (n.goal?.links || []).includes(tid));
+export const allLinked = (store, gid) => { const L = linkedTasks(store, gid); return L.length > 0 && L.every((t) => t.done); };
+const STOP = new Set(["של", "את", "עם", "על", "מה", "זה", "יש", "לי", "גם", "או", "כל", "עד", "היום", "מחר", "the", "a", "an", "to", "and", "is", "in", "of", "for", "my", "on", "at", "by", "with", "be"]);
+const PRE = "ובלמהשכ";
+function wordForms(text) {
+  const forms = new Map(); // form → shortest original-looking form, to explain the match
+  for (const w of words(text)) {
+    if (w.length < 3 || STOP.has(w) || /^\d+$/.test(w)) continue;
+    const base = w.length > 3 && PRE.includes(w[0]) ? w.slice(1) : w;
+    for (const f of new Set([w, base])) if (f.length >= 3 && !STOP.has(f)) forms.set(f, base);
+  }
+  return forms;
+}
+// Open tasks that look related to a goal: shared words (Hebrew prefixes ignored) or the same day.
+export function linkSuggestions(store, gid, now = new Date()) {
+  const g = store.get(gid); if (!g) return [];
+  const linked = new Set(g.goal?.links || []), gw = wordForms(g.title + " " + (g.goal?.step?.title || ""));
+  const out = [];
+  for (const n of store.all()) {
+    if (n.type !== "task" || n.done || linked.has(n.id) || n.parent === "bag" && !n.due) continue;
+    const tw = wordForms(n.title), shared = [...new Set([...tw.keys()].filter((f) => gw.has(f)).map((f) => gw.get(f)))];
+    const sameDay = !!(n.due && g.due && n.due === g.due);
+    const score = shared.length * 2 + (sameDay ? 1 : 0);
+    if (score > 0) out.push({ id: n.id, title: n.title, due: n.due, parent: n.parent, score, why: { words: shared, sameDay } });
+  }
+  return out.sort((a, b) => b.score - a.score || (a.due || "9").localeCompare(b.due || "9"));
 }

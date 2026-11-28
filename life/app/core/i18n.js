@@ -91,6 +91,10 @@ const en = {
   // R59 · exact-time reminders and alarms
   e_time: "Time", e_remind: "Remind me", rm_none: "No reminder", rm_notify: "Notification with sound", rm_alarm: "Alarm (rings until stopped)",
   rm_alarmHelp: "On the phone the alarm rings like an alarm clock. On a computer it sounds only while this page is open.", remindAt: "Reminder · {t}", alarmAt: "⏰ Alarm · {t}",
+  // R60 · connect goals and tasks
+  linkTask: "+ Link tasks", linkTitle: "Link tasks to this goal", linkSuggested: "Suggested", linkAll: "All open tasks", linkN: "Link {n}", linked: "Linked tasks", noLinked: "No linked tasks yet",
+  why_words: "“{w}”", why_day: "same day", mapTitle: "What serves what", mapSub: "Drag from a dot to a dot · tap a line to remove it", mapOpen: "Map", affects: "Affects: {g}", affectsHard: "⚑ Affects: {g} · by {t}",
+  leadQ: "Remind linked tasks before the deadline", lead_30: "30 min", lead_60: "1 hour", lead_120: "2 hours", lead_1440: "1 day", allDoneQ: "All linked tasks are done. Mark the goal as achieved?", mapNoGoals: "No open goals yet. Add one on the goals board.",
 };
 
 const he = {
@@ -175,6 +179,9 @@ const he = {
   dv_approved: "{name} אושר", dv_rejected: "הבקשה נדחתה", dv_revokedOk: "{name} בוטל", dv_onOk: "הסנכרון פועל",
   e_time: "שעה", e_remind: "תזכורת", rm_none: "בלי תזכורת", rm_notify: "התראה עם צליל", rm_alarm: "שעון מעורר (מצלצל עד שעוצרים)",
   rm_alarmHelp: "בטלפון השעון המעורר מצלצל כמו שעון מעורר. במחשב הוא נשמע רק כשהדף פתוח.", remindAt: "תזכורת · {t}", alarmAt: "⏰ שעון מעורר · {t}",
+  linkTask: "+ חבר משימות", linkTitle: "חבר משימות למטרה", linkSuggested: "מוצעות", linkAll: "כל המשימות הפתוחות", linkN: "חבר {n}", linked: "משימות מחוברות", noLinked: "עוד אין משימות מחוברות",
+  why_words: "״{w}״", why_day: "אותו יום", mapTitle: "מה משרת מה", mapSub: "גרור מנקודה לנקודה · לחיצה על קו מסירה אותו", mapOpen: "מפה", affects: "משפיע על: {g}", affectsHard: "⚑ משפיע על: {g} · עד {t}",
+  leadQ: "תזכורת למשימות המחוברות לפני המועד", lead_30: "חצי שעה", lead_60: "שעה", lead_120: "שעתיים", lead_1440: "יום", allDoneQ: "כל המשימות המחוברות בוצעו. לסמן את המטרה כהושגה?", mapNoGoals: "עוד אין מטרות פתוחות. הוסף אחת בלוח המטרות.",
 };
 
 // Built-in places, translated while the owner hasn't renamed them.

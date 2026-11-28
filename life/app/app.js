@@ -24,7 +24,7 @@ import { pickQuality, canChooseQuality } from "./core/quality.js";
 import { categories, addCategory, renameCategory, removeCategory } from "./core/categories.js";
 import { parseDeepLink } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
-import { goalBoard, timeLeft, progressView, stuckReason, STUCK_ANSWERS, STUCK_ACTION, STAKES } from "./core/goals.js";
+import { goalBoard, timeLeft, progressView, stuckReason, STUCK_ANSWERS, STUCK_ACTION, STAKES, linkedTasks, linkSuggestions, goalsOfTask, allLinked } from "./core/goals.js";
 import { goalArt } from "./goalart.js";
 import { createFx } from "./fx.js";
 import { orbitOffset, panBasis, turn, clamp } from "./core/orbit.js";
@@ -32,7 +32,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.11.0";
+export const VERSION = "0.12.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -212,14 +212,20 @@ const TYPE_ICON = {
 };
 const svgIcon = (t) => `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-top:3px;color:var(--muted)"><path d="${TYPE_ICON[t] || TYPE_ICON.note}"/></svg>`;
 let sheetFor = null;
-function itemHtml(n, { bag = false, where = "" } = {}) {
+function itemHtml(n, { bag = false, where = "", goals = null } = {}) {
   const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? t("doneReopen") : t("markDone")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
   const meta = [n.type !== "task" ? t("type_" + n.type) : "", n.due ? `<span style="font-weight:700;color:${isLate(n.due) ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}${n.time ? " " + n.time : ""}${n.time && n.remind === "alarm" ? " ⏰" : ""}</span>` : "", n.repeat ? `↻ ${repeatText(n.repeat)}` : "", n.effort > 1 ? t("effortN", { n: n.effort }) : "", where ? esc(where) : "", n.tags.includes("example") ? t("example") : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
   const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">${esc(t("openLink", { u: n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32) }))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
-  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="${esc(t("editX", { t: n.title }))}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="${t("edit")}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
+  return `<div class="item ${n.done ? "done" : ""}">${lead}<div class="main"><button class="t" data-act="edit" data-id="${n.id}" aria-label="${esc(t("editX", { t: n.title }))}">${esc(n.title)}</button>${meta ? `<div class="meta" data-act="edit" data-id="${n.id}">${meta}</div>` : ""}${goalBadges(n, goals)}${steps}${link}${sug}</div><button class="x ghost edit" data-act="edit" data-id="${n.id}" aria-label="${t("edit")}"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM14 6l4 4"/></svg></button></div>`;
+}
+// R60 · a task that serves a goal says so; red when missing it has a price.
+function goalBadges(n, goals) {
+  if (n.type !== "task" || n.done) return "";
+  const list = goals || goalsOfTask(store, n.id).map((g) => ({ id: g.id, title: g.title, stakes: g.goal.stakes, due: g.due, time: g.goal.time }));
+  return list.map((g) => `<button class="gaff ${g.stakes === "hard" ? "hard" : ""}" data-act="gopen" data-id="${g.id}" dir="auto">${esc(g.stakes === "hard" ? t("affectsHard", { g: g.title, t: `${dueText(g.due)}${g.time ? " " + g.time : ""}` }) : t("affects", { g: g.title }))}</button>`).join("");
 }
 // R36 · the shop: coins buy decorations that appear in the district.
 function openShop(district) {
@@ -273,7 +279,7 @@ function openToday() {
   $("sheetDot").innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4"/></svg>`;
   $("sheetSub").textContent = n ? [L.overdue.length ? t("nOverdue", { n: L.overdue.length }) : "", L.today.length ? t("nToday", { n: L.today.length }) : "", L.week.length ? t("nThisWeek", { n: L.week.length }) : ""].filter(Boolean).join(" · ") : t("nothingDue");
   $("sheetTabs").hidden = true;
-  const sec = (label, list, cls) => list.length ? `<div class="sec ${cls}">${label}</div>` + list.map((x) => { const node = store.get(x.id); return itemHtml(node, { where: x.path.map(title).join(t("sep")) }); }).join("") : "";
+  const sec = (label, list, cls) => list.length ? `<div class="sec ${cls}">${label}</div>` + list.map((x) => { const node = store.get(x.id); return itemHtml(node, { where: x.path.map(title).join(t("sep")), goals: x.goals }); }).join("") : "";
   $("sheetBody").innerHTML = (L.empty ? `<div class="empty">${t("nothingDueEvening")}</div>` : sec(t("overdue"), L.overdue, "late") + sec(t("today"), L.today, "") + sec(t("thisWeek"), L.week, ""))
     + (!bridge.canBackup && store.all().filter((x) => !x.system).length > 3 && exportReminderDue(lsGet("life-backup-last")) ? `<button class="item bagline" data-act="backup"><span class="sec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M8 11l4 4 4-4M5 19h14"/></svg></span><div class="main"><div class="t">${t("backupLine")}</div><div class="meta">${lsGet("life-backup-last") ? t("lastBackup", { d: lsGet("life-backup-last") }) : t("noBackup")} ${t("tapToSave")}</div></div></button>` : "")
     + (L.bag ? `<button class="item bagline" data-act="openbag"><span class="sec-ic">${pIcon("bag")}</span><div class="main"><div class="t">${t(L.bag === 1 ? "bagWaiting" : "bagWaitingN", { n: L.bag })}</div><div class="meta">${L.bagDays > 3 ? `<span style="color:var(--bad);font-weight:700">${t("bagOldest", { n: L.bagDays })}</span> ` : ""}${t(L.bag === 1 ? "tapToFileIt" : "tapToFileThem")}</div></div></button>` : "");
@@ -290,9 +296,12 @@ function goalCard(n) {
   const st = n.goal.step, left = leftText(n);
   const step = st ? `<div class="gstep"><div class="gmain"><small>${t("firstStep")}</small><span dir="auto">${esc(st.title)}</span>${st.at ? ` <em>· ${esc(st.at)}</em>` : ""}</div>${n.goal.started ? `<span class="gstarted">✓ ${t("startedOn")}</span>` : `<button class="gb1" data-act="gstart" data-id="${n.id}">${t("started")}</button>`}<button class="gb2" data-act="gdone" data-id="${n.id}">${t("goalDone")}</button></div>`
     : `<form class="gstep gstepform" data-goal="${n.id}"><div class="gmain"><small>${t("firstStep")}</small><input name="t" dir="auto" placeholder="${esc(t("firstStepPh"))}" maxlength="120"></div><input name="at" type="time" aria-label="${esc(t("stepAt"))}"><button class="gb1">${t("setStep")}</button></form>`;
-  const stuck = stuckReason(n), pv = progressView(n);
+  const stuck = stuckReason(n);
   const banner = stuck ? `<button class="gstuck" data-act="gstuck" data-id="${n.id}">${esc(st ? t("stuckBanner", { s: st.title }) : t("stuckBannerNoStep"))}</button>` : "";
-  const more = `<div class="gmore"><button class="chip" data-act="gopen" data-id="${n.id}">${t("planBack")}${n.goal.path.length ? ` · ${n.goal.path.length}` : ""}</button>${pv ? `<span class="gprog">${progText(pv)}</span>` : ""}</div>`;
+  const L = linkedTasks(store, n.id);
+  const pv2 = progressView(n, L);
+  const links = L.length ? `<div class="glinks">${L.map((x) => `<div class="glink ${x.done ? "done" : ""}"><button class="gtick sm" data-act="gltoggle" data-id="${x.id}" aria-label="${esc(t("markDone"))}">${x.done ? "✓" : ""}</button><span dir="auto">${esc(x.title)}</span>${x.due ? `<em>${esc(dueText(x.due))}${x.time ? " " + x.time : ""}</em>` : ""}</div>`).join("")}</div>` : "";
+  const more = `${links}<div class="gmore"><button class="chip" data-act="gopen" data-id="${n.id}">${t("planBack")}${n.goal.path.length ? ` · ${n.goal.path.length}` : ""}</button><button class="chip" data-act="glink" data-id="${n.id}">${t("linkTask")}</button>${pv2 ? `<span class="gprog">${progText(pv2)}</span>` : ""}</div>`;
   return `<div class="gcard" data-goal="${n.id}"><div class="gtop"><div class="gimg">${goalArt(n.goal.object, n.goal.scene)}</div><div><b dir="auto">${esc(n.title)}</b><span class="gdue ${left.cls}">${left.text}</span></div></div>${banner}${step}${more}</div>`;
 }
 const progText = (pv) => pv.kind === "done" ? t("progDone", { n: pv.done, t: pv.total }) : t("progLeft", { n: pv.left });
@@ -322,10 +331,108 @@ function openGoal(id, { stuck = false } = {}) {
   $("sheetBody").innerHTML = `<div class="gnav"><button class="chip" data-act="gback">‹ ${t("backToBoard")}</button>${stuckFor === id ? "" : `<button class="chip" data-act="gstuck" data-id="${id}">${t("imStuck")}</button>`}</div>` + stuckHtml
     + `<div class="gpath"><div class="gst goal"><div class="gsimg big">${goalArt(g.object, g.scene)}</div><div class="gstx"><b dir="auto">${esc(n.title)}</b><span class="gdue ${left.cls}">${left.text}</span></div><span class="gflag">${FLAG}</span></div>`
     + g.path.map((x, i) => ({ x, i })).reverse().map(({ x, i }) => station(x, i)).join("") + now + `</div>`
+    + (() => { const L = linkedTasks(store, id); return `<div class="gplan"><label>${t("linked")}</label>${L.length ? L.map((x) => `<div class="glink ${x.done ? "done" : ""}"><button class="gtick sm" data-act="gltoggle" data-id="${x.id}" aria-label="${esc(t("markDone"))}">${x.done ? "✓" : ""}</button><span dir="auto">${esc(x.title)}</span><button class="grm" data-act="gunlink" data-g="${id}" data-id="${x.id}" aria-label="×">×</button></div>`).join("") : `<span class="muted" style="font-size:13px">${t("noLinked")}</span>`}<div class="row" style="gap:6px;flex-wrap:wrap"><button class="chip" data-act="glink" data-id="${id}">${t("linkTask")}</button><button class="chip" data-act="gmap">⇄ ${t("mapOpen")}</button></div><label style="margin-top:6px">${t("leadQ")}</label><div class="gchips">${[30, 60, 120, 1440].map((m) => `<button class="chip ${g.lead === m ? "on" : ""}" data-act="glead" data-m="${m}">${t("lead_" + m)}</button>`).join("")}</div></div>`; })()
     + `<form class="gplan" id="gPlanForm"><label dir="auto">${esc(t("justBefore", { x: earliest }))}</label><div class="addrow"><input name="v" dir="auto" maxlength="120" placeholder="${esc(t("justBeforePh"))}"><button class="btn primary" style="padding:10px 14px" name="add">${t("addBefore")}</button></div><button class="chip" name="now" value="1">${t("canDoNow")}</button></form>`
     + `<form class="gplan" id="gObstForm"><label>${t("obstacleT")}</label><input name="a" dir="auto" maxlength="120" placeholder="${esc(t("obstacleIf"))}" value="${esc(g.obstacle?.if || "")}"><input name="b" dir="auto" maxlength="120" placeholder="${esc(t("obstacleThen"))}" value="${esc(g.obstacle?.then || "")}"><button class="chip">${t("saveIfThen")}</button></form>`;
   if (stuckFor === id && g.asked !== isoDate(new Date())) store.markAsked(id);
 }
+// ---------- R60 · link tasks to a goal: a picker, and a map where lines connect goals and tasks ----------
+let linkPick = new Set();
+function openLinkPicker(gid, keep = false) {
+  const g = store.get(gid); if (!g) return openGoals();
+  sheetFor = "goallink:" + gid; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open"); $("sheetTabs").hidden = true;
+  $("sheetTitle").textContent = t("linkTitle"); $("sheetSub").textContent = g.title; $("sheetDot").style.background = "#ffc94d"; $("sheetDot").innerHTML = FLAG;
+  const linked = new Set(g.goal.links), sug = linkSuggestions(store, gid);
+  if (!keep) linkPick = new Set(sug.slice(0, 3).map((x) => x.id));
+  const others = store.all().filter((n) => n.type === "task" && !n.done && !linked.has(n.id) && !sug.some((x) => x.id === n.id)).sort((a, b) => (a.due || "9").localeCompare(b.due || "9"));
+  const row = (n, why) => `<button class="lrow ${linkPick.has(n.id) ? "on" : ""}" data-act="lpick" data-id="${n.id}"><span class="ck">${linkPick.has(n.id) ? "✓" : ""}</span><span class="lt"><b dir="auto">${esc(n.title)}</b><small>${esc([n.parent && n.parent !== "bag" ? title(islandOf(n.id) || n.parent) : t("inBag"), n.due ? dueText(n.due) + (n.time ? " " + n.time : "") : ""].filter(Boolean).join(" · "))}</small></span>${why ? `<span class="why">${esc([...why.words.map((w) => t("why_words", { w })), why.sameDay ? t("why_day") : ""].filter(Boolean).join(" · "))}</span>` : ""}</button>`;
+  $("sheetBody").innerHTML = (sug.length ? `<div class="sec">${t("linkSuggested")}</div>` + sug.map((x) => row(store.get(x.id), x.why)).join("") : "")
+    + (others.length ? `<div class="sec">${t("linkAll")}</div>` + others.map((n) => row(n)).join("") : "")
+    + `<div class="lbar"><button class="btn primary" data-act="ldo" ${linkPick.size ? "" : "disabled"}>${t("linkN", { n: linkPick.size })}</button><button class="chip" data-act="gback">‹ ${t("backToBoard")}</button></div>`;
+}
+const MAP_COLORS = ["#ff7a6b", "#6aa9ff", "#5fe09a", "#ffcc3d", "#c79bff", "#ff9fd0", "#5fd4c4"];
+let mapFrom = null;
+function openGoalMap() {
+  sheetFor = "goalmap"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open"); $("sheetTabs").hidden = true;
+  $("sheetTitle").textContent = t("mapTitle"); $("sheetSub").textContent = t("mapSub"); $("sheetDot").style.background = "#ffc94d"; $("sheetDot").innerHTML = FLAG;
+  const goals = goalBoard(store).open;
+  if (!goals.length) { $("sheetBody").innerHTML = `<div class="empty">${t("mapNoGoals")}</div>`; return; }
+  const color = new Map(goals.map((g, i) => [g.id, MAP_COLORS[i % MAP_COLORS.length]]));
+  const linkedIds = new Set(goals.flatMap((g) => g.goal.links));
+  const tasks = store.all().filter((n) => n.type === "task" && (!n.done || linkedIds.has(n.id))).sort((a, b) => (linkedIds.has(b.id) - linkedIds.has(a.id)) || (a.due || "9").localeCompare(b.due || "9")).slice(0, 40);
+  const sugg = goals.flatMap((g) => linkSuggestions(store, g.id).slice(0, 2).filter((x) => tasks.some((n) => n.id === x.id)).map((x) => [g.id, x.id]));
+  $("sheetBody").innerHTML = `<div class="gmap" id="gmap"><svg class="gmlines" id="gmlines"></svg><div class="gmcol goals">${goals.map((g) => `<div class="gmcard goal ${mapFrom === g.id ? "armed" : ""}" style="--c:${color.get(g.id)}" data-goal="${g.id}"><span class="gmdot" data-dot="g" data-id="${g.id}"></span><b dir="auto">${esc(g.title)}</b><small>${esc(leftText(g).text)}${g.goal.stakes === "hard" ? " · ⚑" : ""}</small></div>`).join("")}</div><div class="gmgap"></div>`
+    + `<div class="gmcol">${tasks.map((n) => { const gs = goals.filter((g) => g.goal.links.includes(n.id)); return `<div class="gmcard task ${n.done ? "done" : ""}" style="--c:${gs.length ? color.get(gs[0].id) : "#9b97a3"}" data-task="${n.id}"><span class="gmdot" data-dot="t" data-id="${n.id}"></span><b dir="auto">${esc(n.title)}</b><small>${esc([title(islandOf(n.id) || n.parent), n.due ? dueText(n.due) : ""].filter(Boolean).join(" · "))}</small></div>`; }).join("")}</div></div>`;
+  const draw = () => {
+    const svg = $("gmlines"), box = $("gmap")?.getBoundingClientRect(); if (!svg || !box) return;
+    svg.setAttribute("width", box.width); svg.setAttribute("height", box.height); svg.innerHTML = "";
+    const at = (sel) => { const e = $("gmap").querySelector(sel)?.getBoundingClientRect(); return e ? [e.left + e.width / 2 - box.left, e.top + e.height / 2 - box.top] : null; };
+    const line = (gid, tid, dashed) => {
+      const a = at(`[data-dot="g"][data-id="${gid}"]`), b = at(`[data-dot="t"][data-id="${tid}"]`); if (!a || !b) return;
+      const mx = (a[0] + b[0]) / 2, d = `M${a[0]} ${a[1]} C${mx} ${a[1]} ${mx} ${b[1]} ${b[0]} ${b[1]}`;
+      svg.insertAdjacentHTML("beforeend", `<path d="${d}" stroke="${color.get(gid)}" stroke-width="3.2" fill="none" ${dashed ? 'stroke-dasharray="6 6" opacity=".75"' : ""}/><path class="gmhit" d="${d}" data-g="${gid}" data-t="${tid}" data-sug="${dashed ? 1 : 0}" stroke="transparent" stroke-width="18" fill="none"/>`);
+    };
+    for (const g of goals) for (const tid of g.goal.links) line(g.id, tid, false);
+    for (const [gid, tid] of sugg) line(gid, tid, true);
+  };
+  requestAnimationFrame(draw);
+  mapDraw = draw;
+}
+let mapDraw = null;
+$("sheetBody").addEventListener("scroll", () => { if (sheetFor === "goalmap" && mapDraw) requestAnimationFrame(mapDraw); }, { passive: true });
+// Drag from a dot to a dot (or tap one dot, then the other) to connect; tap a line to remove it.
+{
+  let drag = null;
+  const dotAt = (x, y) => document.elementsFromPoint(x, y).map((e) => e.closest?.(".gmcard")).find(Boolean);
+  const connect = (gid, tid) => { if (gid && tid) { store.linkTask(gid, tid); mapFrom = null; } };
+  $("sheetBody").addEventListener("pointerdown", (e) => {
+    if (sheetFor !== "goalmap") return;
+    const c = e.target.closest(".gmcard"); if (!c) return;
+    drag = { c, x: e.clientX, y: e.clientY, moved: false }; e.preventDefault();
+  }, true);
+  addEventListener("pointermove", (e) => {
+    if (!drag || sheetFor !== "goalmap") return;
+    if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 8) drag.moved = true;
+    const svg = $("gmlines"), box = $("gmap").getBoundingClientRect();
+    svg.querySelector(".gmtemp")?.remove();
+    if (drag.moved) { const r = drag.c.querySelector(".gmdot").getBoundingClientRect(); svg.insertAdjacentHTML("beforeend", `<path class="gmtemp" d="M${r.left + r.width / 2 - box.left} ${r.top + r.height / 2 - box.top} L${e.clientX - box.left} ${e.clientY - box.top}" stroke="#fff" stroke-width="2.5" stroke-dasharray="4 5" fill="none"/>`); }
+  });
+  addEventListener("pointerup", (e) => {
+    if (!drag || sheetFor !== "goalmap") { drag = null; return; }
+    const from = drag.c, to = dotAt(e.clientX, e.clientY); const moved = drag.moved; drag = null;
+    $("gmlines")?.querySelector(".gmtemp")?.remove();
+    const gOf = (c) => c?.dataset.goal, tOf = (c) => c?.dataset.task;
+    if (moved && to && to !== from) { connect(gOf(from) || gOf(to), tOf(to) || tOf(from)); return; }
+    if (!moved) { // tap: arm a goal, then tap a task (or the other way round)
+      if (gOf(from)) { mapFrom = mapFrom === gOf(from) ? null : gOf(from); openGoalMap(); }
+      else if (tOf(from) && mapFrom) connect(mapFrom, tOf(from));
+    }
+  });
+  $("sheetBody").addEventListener("click", (e) => {
+    if (sheetFor !== "goalmap") return;
+    const h = e.target.closest(".gmhit"); if (!h) return;
+    e.stopImmediatePropagation();
+    if (h.dataset.sug === "1") store.linkTask(h.dataset.g, h.dataset.t); else store.unlinkTask(h.dataset.g, h.dataset.t);
+  }, true);
+}
+$("sheetBody").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-act=glink],[data-act=gmap],[data-act=lpick],[data-act=ldo],[data-act=gltoggle],[data-act=gunlink],[data-act=glead]"); if (!b) return;
+  e.stopImmediatePropagation();
+  const act = b.dataset.act;
+  if (act === "glink") return openLinkPicker(b.dataset.id);
+  if (act === "gmap") return openGoalMap();
+  if (act === "gunlink") return store.unlinkTask(b.dataset.g, b.dataset.id);
+  if (act === "glead") return store.setGoalLead(String(sheetFor).slice(5), +b.dataset.m);
+  if (act === "lpick") { const id = b.dataset.id; if (linkPick.has(id)) linkPick.delete(id); else linkPick.add(id); return openLinkPicker(sheetFor.slice(9), true); }
+  if (act === "ldo") { const gid = sheetFor.slice(9); for (const id of linkPick) store.linkTask(gid, id); linkPick = new Set(); return openGoals(); }
+  if (act === "gltoggle") { const n = store.get(b.dataset.id); if (!n) return; if (n.done) store.reopen(n.id); else finish(n.id, b.getBoundingClientRect(), () => store.complete(n.id)); }
+}, true);
+// When the last open task of a goal is finished, offer to mark the goal achieved.
+const askedAllDone = new Set();
+store.on(() => {
+  for (const g of goalBoard(store).open) if (allLinked(store, g.id) && !askedAllDone.has(g.id)) { askedAllDone.add(g.id); setTimeout(() => toast(t("allDoneQ")), 1400); }
+});
+
 // ---------- R52 · my week & memory ----------
 const DAYS = [0, 1, 2, 3, 4, 5, 6];
 const dayChips = (on, name) => `<span class="pfdays" data-name="${name}">${DAYS.map((d) => `<button type="button" class="chip ${on.includes(d) ? "on" : ""}" data-act="pfday" data-d="${d}">${t("day" + d)}</button>`).join("")}</span>`;
@@ -478,7 +585,7 @@ function openGoals() {
   $("sheetTitle").textContent = t("goals"); $("sheetDot").style.background = "#ffc94d"; $("sheetDot").innerHTML = FLAG;
   $("sheetSub").textContent = B.open.length ? t("goalsOpen", { n: B.open.length }) : t("goalsSub");
   $("sheetTabs").hidden = true;
-  $("sheetBody").innerHTML = `<form class="addrow" id="goalForm"><input placeholder="${esc(t("goalPh"))}" maxlength="200" aria-label="${esc(t("goalsSub"))}"><button class="btn primary" style="padding:10px 14px">${t("goalAdd")}</button></form>`
+  $("sheetBody").innerHTML = (B.open.length ? `<div class="gnav"><span></span><button class="chip" data-act="gmap">⇄ ${t("mapOpen")}</button></div>` : "") + `<form class="addrow" id="goalForm"><input placeholder="${esc(t("goalPh"))}" maxlength="200" aria-label="${esc(t("goalsSub"))}"><button class="btn primary" style="padding:10px 14px">${t("goalAdd")}</button></form>`
     + (B.open.length ? B.open.map(goalCard).join("") : `<div class="empty">${t("goalEmpty")}</div>`)
     + (B.open.length && B.suggestMore ? `<div class="gslot">+ ${t("roomForOne")}</div>` : "")
     + (B.done.length ? `<div class="sec">${t("achievedWeek")}</div><div class="gwon">${B.done.map((n) => `<span class="gth" title="${esc(n.title)}">${goalArt(n.goal?.object, n.goal?.scene)}</span>`).join("")}</div>` : "");
@@ -536,6 +643,8 @@ $("sheetBody").addEventListener("change", (e) => { const i = e.target.dataset?.s
 function openSheet(id) {
   if (id === "today") return openToday();
   if (id === "goals") return openGoals();
+  if (id === "goalmap") return openGoalMap();
+  if (String(id).startsWith("goallink:")) return openLinkPicker(id.slice(9), true);
   if (id === "profile") return openProfile();
   if (id === "devices") return openDevices();
   if (String(id).startsWith("journal:")) return openJournal(id.slice(8));

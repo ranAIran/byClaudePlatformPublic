@@ -42,6 +42,7 @@ const goalOf = (g) => g ? {
   path: (g.path || []).map((x) => ({ title: String(x.title), due: x.due ?? null, done: !!x.done, fixed: !!x.fixed, object: x.object || "star", scene: x.scene || "room" })), // R44, earliest first
   obstacle: g.obstacle?.if ? { if: String(g.obstacle.if), then: String(g.obstacle.then || "") } : null,
   asked: g.asked ?? null, stakes: STAKES.includes(g.stakes) ? g.stakes : null, released: g.released ?? null, // R45
+  links: Array.isArray(g.links) ? [...new Set(g.links.map(String))] : [], lead: Number.isInteger(g.lead) && g.lead >= 5 && g.lead <= 10080 ? g.lead : 120, // R60
 } : null;
 
 let counter = 0;
@@ -186,6 +187,10 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
       nodes.set(id, normalize({ ...n, goal: g, updated: stamp() })); if (action === "addBefore") respread(id); emit();
       return { ok: true, action };
     },
+    // R60 · connect tasks to a goal; how long before the goal's deadline its open tasks remind.
+    linkTask(gid, tid) { const n = nodes.get(gid); if (!n?.goal || !nodes.get(tid) || n.goal.links.includes(tid)) return; api.update(gid, { goal: { ...n.goal, links: [...n.goal.links, tid] } }); },
+    unlinkTask(gid, tid) { const n = nodes.get(gid); if (!n?.goal || !n.goal.links.includes(tid)) return; api.update(gid, { goal: { ...n.goal, links: n.goal.links.filter((x) => x !== tid) } }); },
+    setGoalLead(gid, minutes) { const n = nodes.get(gid); if (!n?.goal || !Number.isInteger(minutes) || minutes < 5 || minutes > 10080) return; api.update(gid, { goal: { ...n.goal, lead: minutes } }); },
     setStakes(id, v) { const n = nodes.get(id); if (n?.goal) api.update(id, { goal: { ...n.goal, stakes: v } }); },
     startGoal(id) { const n = nodes.get(id); if (!n?.goal) return; api.update(id, { goal: { ...n.goal, started: stamp() } }); },
     unplaced: () => api.children("bag"),
