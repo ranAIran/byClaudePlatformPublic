@@ -13,15 +13,5 @@ export function parseDeepLink(raw) {
   return null;
 }
 
-// R58 · the website has no lifearchipelago:// links, so it reads ?add=… and ?goal=… instead.
-// Like the phone links, these can only add, never change or delete.
-export function linkFromPage(search) {
-  const q = new URLSearchParams(search || "");
-  for (const action of ["add", "goal"]) {
-    const text = (q.get(action) || "").trim().slice(0, 500);
-    if (text) return { action, text };
-  }
-  return null;
-}
-export const pageLink = (base, action, text) => `${base}?${action}=${encodeURIComponent(text)}`;
+// R58 · a link Claude (or anyone) can write: lifearchipelago://add?text=… or ://goal?text=…
 export const appLink = (action, text) => `lifearchipelago://${action}?text=${encodeURIComponent(text)}`;

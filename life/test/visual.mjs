@@ -351,22 +351,6 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
     `R57 narrow Hebrew phone: top bar ${Math.round(box.hud[0])}–${Math.round(box.hud[1])} of ${box.vw}, menu ${Math.round(menu[0])}–${Math.round(menu[1])}, closes on an outside tap (${closed})`);
   await nctx.close();
 }
-// R58 · website links: ?goal=… and ?add=… add once, the address is cleaned, a reload adds nothing.
-{
-  const lctx = await b.newContext({ ...devices["Pixel 7"], deviceScaleFactor: 1, timezoneId: "Asia/Jerusalem" });
-  const l = await lctx.newPage(); l.on("pageerror", (e) => errs.push("links: " + e.message));
-  const g = encodeURIComponent("עד הערב בחרתי פריט מהרשימה של הכיתה"), a = encodeURIComponent("להתקשר לרופא עד יום ראשון");
-  await l.goto(base + "?notoday&goal=" + g); await l.waitForFunction(() => window.__life?.ready, null, { timeout: 180000 }); await l.waitForTimeout(2500);
-  const goals = await l.evaluate(() => window.__life.goals().open.map((x) => x.title)), url = await l.evaluate(() => location.search);
-  await l.screenshot({ path: `${out}/v-link-goal.png` });
-  await l.reload(); await l.waitForFunction(() => window.__life?.ready, null, { timeout: 180000 }); await l.waitForTimeout(2000);
-  const again = await l.evaluate(() => window.__life.goals().open.length);
-  await l.goto(base + "?notoday&add=" + a); await l.waitForFunction(() => window.__life?.ready, null, { timeout: 180000 }); await l.waitForTimeout(2500);
-  const bag = await l.evaluate(() => window.__life.store.unplaced().map((x) => x.title)), src = await l.evaluate(() => window.__life.store.inputs().slice(-1)[0]?.kind);
-  check(goals.includes("בחרתי פריט מהרשימה של הכיתה") && !url.includes("goal=") && again === 1 && bag.includes("להתקשר לרופא") && src === "link",
-    `R58 website links add a goal and a task once (${goals.join(", ")}; after reload ${again}; bag: ${bag.join(", ")})`);
-  await lctx.close();
-}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
   const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp(), j: window.__life.store.journal().length }; });

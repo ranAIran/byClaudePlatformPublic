@@ -16,7 +16,7 @@ import { applyEdit, placeChoices } from "../app/core/edit.js";
 import { todayList } from "../app/core/today.js";
 import { nextDue, parseRepeat, describeRepeat } from "../app/core/repeat.js";
 import { reminderList } from "../app/core/reminders.js";
-import { parseDeepLink, linkFromPage, pageLink, appLink } from "../app/core/links.js";
+import { parseDeepLink, appLink } from "../app/core/links.js";
 import { openSavedBackend } from "../app/storage.js";
 import { IDBFactory } from "fake-indexeddb";
 import { backupDue, backupName } from "../app/core/backup.js";
@@ -886,16 +886,10 @@ describe("R52 · the user profile (memory): week, rest, effective times, with hi
   });
 });
 
-describe("R58 · links that add a task or a goal, on the phone and on the website", () => {
+describe("R58 · phone links that add a task or a goal", () => {
   it("lifearchipelago://goal?text=… adds a goal (the phone)", () => {
     expect(parseDeepLink("lifearchipelago://goal?text=" + encodeURIComponent("עד הערב בחרתי פריט מהרשימה של הכיתה"))).toEqual({ action: "goal", text: "עד הערב בחרתי פריט מהרשימה של הכיתה" });
     expect(parseDeepLink("lifearchipelago://goal")).toEqual({ action: "goals" });
-  });
-  it("the website reads ?add= and ?goal= the same way, and nothing else", () => {
-    expect(linkFromPage("?add=" + encodeURIComponent("להתקשר לרופא עד יום ראשון"))).toEqual({ action: "add", text: "להתקשר לרופא עד יום ראשון" });
-    expect(linkFromPage("?goal=" + encodeURIComponent("by tomorrow morning there is chocolate in the fridge"))).toEqual({ action: "goal", text: "by tomorrow morning there is chocolate in the fridge" });
-    expect(linkFromPage("?notoday")).toBeNull(); expect(linkFromPage("?delete=1")).toBeNull(); expect(linkFromPage("?add=")).toBeNull();
-    expect(linkFromPage("?add=" + "x".repeat(900)).text.length).toBe(500);
   });
   it("Hebrew 'this evening / this morning / tonight' are today at that time", () => {
     const SAT = new Date(2026, 10, 28, 16, 0);
@@ -904,10 +898,8 @@ describe("R58 · links that add a task or a goal, on the phone and on the websit
     expect(parseGoal("עד הצהריים הטופס נשלח", SAT)).toMatchObject({ due: "2026-11-28", time: "12:00" });
     expect(parseGoal("by this evening the box is in the car", SAT)).toMatchObject({ ok: true, due: "2026-11-28", time: "18:00" });
   });
-  it("Claude can write both kinds of link for the same text", () => {
-    const base = "https://ranairan.github.io/byClaudePlatformPublic/life/app/";
-    expect(pageLink(base, "add", "לקנות חלב מחר")).toBe(base + "?add=" + encodeURIComponent("לקנות חלב מחר"));
+  it("Claude can write a link that adds a task or a goal on the phone", () => {
     expect(appLink("goal", "עד הערב בחרתי פריט")).toBe("lifearchipelago://goal?text=" + encodeURIComponent("עד הערב בחרתי פריט"));
-    expect(linkFromPage(new URL(pageLink(base, "goal", "עד הערב בחרתי")).search)).toEqual({ action: "goal", text: "עד הערב בחרתי" });
+    expect(parseDeepLink(appLink("add", "לקנות חלב מחר"))).toEqual({ action: "add", text: "לקנות חלב מחר" });
   });
 });
