@@ -122,6 +122,8 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
     nodes.set(id, normalize({ ...n, goal: { ...n.goal, path: n.goal.path.map((x, k) => (x.fixed ? x : { ...x, due: dates[k] })) } }));
   }
   function setPath(id, path) { const n = nodes.get(id); nodes.set(id, normalize({ ...n, goal: { ...n.goal, path }, updated: stamp() })); respread(id); emit(); }
+  // A built-in place nobody renamed or moved: its local time says nothing about which version is right.
+  const untouchedSeed = (n) => { const s = n?.system && SEED.find((x) => x.id === n.id); return !!s && n.title === s.title && n.parent === s.parent && (n.kind ?? null) === (s.kind ?? null); };
   const api = {
     on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
     get: (id) => nodes.get(id) || null,
@@ -276,6 +278,17 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
       if (out.inputs.length) pushed.inputs = Math.max(pushed.inputs, ...out.inputs.map((e) => e.seq));
       persist();
     },
+    // The first sync of a device sends everything it already has, except untouched built-in places
+    // and an untouched score or profile, so a new device's defaults never overwrite the vault.
+    syncMarkAll() {
+      for (const [id, n] of nodes) if (!untouchedSeed(n)) dirty.add(id);
+      for (const id of graves.keys()) dirty.add(id);
+      if (!profileAt && (Object.keys(profile).length || suggestions.length)) profileAt = stamp();
+      if (profileAt) metaDirty.add("profile");
+      if (!stateAt && (state.xp || state.coins || state.decor.length)) stateAt = stamp();
+      if (stateAt) metaDirty.add("state");
+      pushed = { journal: 0, inputs: 0 }; persist();
+    },
     syncCursor: () => ({ ...cursor }),
     setSyncCursor(c) { cursor = { ...cursor, ...c }; persist(); },
     syncPending: () => dirty.size + metaDirty.size + journal.filter((e) => e.device === device && e.seq > pushed.journal).length + inputs.filter((e) => e.device === device && e.seq > pushed.inputs).length,
@@ -286,7 +299,7 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
       for (const x of rn) {
         const local = nodes.get(x.id);
         if (x.deleted) { if (local && !local.system && local.updated <= x.updated) { nodes.delete(x.id); graves.set(x.id, x.updated); dirty.delete(x.id); changed++; } }
-        else if (!local || local.updated < x.updated) { if (graves.has(x.id) && graves.get(x.id) >= x.updated) continue; nodes.set(x.id, normalize(x.node)); graves.delete(x.id); dirty.delete(x.id); changed++; }
+        else if (!local || local.updated < x.updated || (untouchedSeed(local) && !untouchedSeed(normalize(x.node)))) { if (graves.has(x.id) && graves.get(x.id) >= x.updated) continue; nodes.set(x.id, normalize(x.node)); graves.delete(x.id); dirty.delete(x.id); changed++; }
       }
       if (rp && (!profileAt || rp.at > profileAt)) { profile = rp.profile || {}; suggestions = rp.suggestions || []; profileAt = rp.at; metaDirty.delete("profile"); changed++; }
       if (rs && (!stateAt || rs.at > stateAt)) { state = { ...state, ...rs.state }; stateAt = rs.at; metaDirty.delete("state"); changed++; }

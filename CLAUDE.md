@@ -33,7 +33,7 @@ Read this first. It carries the decisions and lessons from earlier sessions so a
 
 ```bash
 cd life && npm install
-npm test                 # Vitest: life/test/*.test.js, 118 tests (R1–R3, R7, R8, R11, R16, R19–R21, R26, R27, R29, R31–R45, R49, R51–R54, R56)
+npm test                 # Vitest: life/test/*.test.js, 122 tests (R1–R3, R7, R8, R11, R16, R19–R21, R26, R27, R29, R31–R45, R49, R51–R54, R56)
 npm run test:visual      # Playwright: life/test/visual.mjs, about 6 minutes (city, golden hour, signs, turning, middle-drag, walking, coins, edit, Today, repeats, deep links, shop, keys and swipe, Hebrew, IndexedDB, desktop quality)
 bash life/android/copy-web.sh   # copies life/app + quest engine into the APK assets (CI does this)
 ```
@@ -106,6 +106,8 @@ node quest/check.mjs           # Quest: Q1 bridges connect, Q2 reach the Gate ke
 - **Done (0.10.1):** R56 app icon, option A chosen by the owner (the city island at golden hour with a goal flag). Android: adaptive icon only in the `life` flavour (`src/life/res/mipmap-anydpi-v26/ic_launcher.xml` + background/foreground PNGs in every density, legacy `ic_launcher.png`); the quest keeps its own. Web: `life/app/icons/` (icon.svg, favicon-32, icon-180, icon-512). The art source is `life/app/icons/icon.svg`.
 - **Done (0.10.2):** R57 phone top bar and menu (owner's screenshot: in Hebrew the bar ran off the left edge and the menu button was cut). The bar now shrinks (`.hud-mid` grid column `minmax(0,1fr)`, the date truncates, tighter sizes under 430 px); in right-to-left the menu opens under its button on the left; a tap outside the open menu closes it and is swallowed. Visual check R57 at 360 px in Hebrew.
 - **Done (0.10.3):** installing the website as an app uses the new icon: `life/app/manifest.webmanifest` (standalone, icons 192/512 + maskable 512, dark theme colour); Chrome reports no installability errors. No service worker on purpose (see the network-first lessons); add one only with a network-first strategy.
+- **Done (0.10.4):** sync fixes found on the owner's real vault (only 1 of the computer's items had gone up): a device's first sync now sends everything it already had (`store.syncMarkAll()`, once per vault, flag `fullPush:<vault>` in the key store), except untouched built-in places and an untouched score/profile, so a new device's defaults never overwrite the vault; untouched built-in places always accept the vault's version; each sync pulls before it pushes; the server keeps the newest version (`records_keep_newest` trigger, migration 3). A read-only device (the agent) never does the full send.
+- **Pending (owner approved, "later"):** fast-forward `claude/latent-archipelago` to the current quest (it is quest v1.3.4 and fully contained in `claude/life-archipelago`, which has quest 1.4.2).
 - **Lesson (0.10.2):** a layout check that measures `getBoundingClientRect()` must also check the element is visible: a hidden element measures 0–0 and passes "inside the screen".
 - **Open issues to handle later (owner asked to note them):**
   - The first commit `397f4e7` "Initial commit" (4 Nov 2026) carries the owner's personal email as author; it is public in the history. Options: GitHub setting "Keep my email addresses private" for future commits; rewriting history needs a force-push and the owner's explicit approval.

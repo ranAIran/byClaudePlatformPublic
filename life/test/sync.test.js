@@ -36,7 +36,7 @@ function fakeServer() {
       upsert: async (table, rows) => {
         for (const r of rows) {
           if (!member(r.vault_id, true)) deny();
-          if (table === "records") t.records.set(r.kind + "|" + r.id, { ...r, synced_at: now() });
+          if (table === "records") { const old = t.records.get(r.kind + "|" + r.id); if (!old || old.updated_at <= r.updated_at) t.records.set(r.kind + "|" + r.id, { ...r, synced_at: now() }); }
           else if (!t[table].some((x) => x.device === r.device && x.seq === r.seq)) t[table].push({ ...r, received_at: now() });
         }
       },
@@ -114,6 +114,58 @@ describe("R53/R54 · pairing and sync between the phone and the computer", () =>
 
     const raw = JSON.stringify([...server.t.records.values(), ...server.t.journal, ...server.t.inputs]);
     for (const secret of ["arnona", "Computer note", "ארנונה", "08:30"]) expect(raw).not.toContain(secret);
+  });
+  it("turning sync on uploads everything already on the device, not only later changes", async () => {
+    const server = fakeServer();
+    const before = createStore(memoryBackend(), { now: clock, device: "web-1" });
+    const a = before.add({ type: "task", title: "Written before sync", parent: "home" });
+    before.setProfile("workWeek", { days: [0, 1, 2, 3], from: "07:00", to: "15:00" });
+    const saved = before.snapshot();
+    const keys = memKeys();
+    const pc = { store: createStore({ load: () => saved, save() {} }, { now: clock, device: "web-1" }) }; // reopened: nothing marked as changed
+    pc.sync = createSync({ store: pc.store, remote: server.client(), keys });
+    expect(pc.store.syncOutbox().nodes.length).toBe(0);
+    await pc.sync.start(); await pc.sync.enable({ name: "pc", kind: "web" });
+    const phone = device(server, "phone-1");
+    await phone.sync.requestJoin({ name: "phone", kind: "phone" }); const [r] = await pc.sync.pending(); await pc.sync.approve(r);
+    await phone.sync.start(); await phone.sync.syncNow();
+    expect(phone.store.get(a)?.title).toBe("Written before sync");
+    expect(phone.store.profile().workWeek.from).toBe("07:00");
+    const ids = [...server.t.records.values()].filter((x) => x.kind === "node").map((x) => x.id);
+    expect(ids).toContain(a); expect(ids).not.toContain("home"); // untouched built-in places are not sent
+  });
+  it("a new device's untouched defaults never overwrite the vault (renamed places, score, my week)", async () => {
+    const server = fakeServer(), pc = device(server, "web-1");
+    await pc.sync.start(); pc.store.update("work", { title: "Job" }); pc.store.award(50, "test"); pc.store.setProfile("workWeek", { days: [0, 1, 2], from: "06:00", to: "14:00" });
+    await pc.sync.enable({ name: "pc", kind: "web" });
+    const phone = device(server, "phone-1"); // made later: its untouched "Work" place is newer than the rename
+    await phone.sync.requestJoin({ name: "phone", kind: "phone" }); const [r] = await pc.sync.pending(); await pc.sync.approve(r);
+    await phone.sync.start(); await phone.sync.syncNow(); await pc.sync.syncNow();
+    expect(phone.store.get("work").title).toBe("Job"); expect(pc.store.get("work").title).toBe("Job");
+    expect(phone.store.xp()).toBe(50); expect(pc.store.xp()).toBe(50);
+    expect(phone.store.profile().workWeek.from).toBe("06:00");
+  });
+  it("an older edit that arrives late does not replace a newer one", async () => {
+    const server = fakeServer(), pc = device(server, "web-1"), phone = device(server, "phone-1");
+    await pc.sync.start(); const id = pc.store.add({ type: "task", title: "v1", parent: "home" }); await pc.sync.enable({ name: "pc", kind: "web" });
+    await phone.sync.requestJoin({ name: "phone", kind: "phone" }); const [r] = await pc.sync.pending(); await pc.sync.approve(r);
+    await phone.sync.start(); await phone.sync.syncNow();
+    phone.store.update(id, { title: "older edit, made offline" });   // earlier clock tick
+    pc.store.update(id, { title: "newer edit" }); await pc.sync.syncNow(); // later tick, reaches the server first
+    await phone.sync.syncNow(); await pc.sync.syncNow();
+    expect(phone.store.get(id).title).toBe("newer edit"); expect(pc.store.get(id).title).toBe("newer edit");
+  });
+  it("a device that joins uploads what it already had", async () => {
+    const server = fakeServer(), pc = device(server, "web-1");
+    await pc.sync.start(); await pc.sync.enable({ name: "pc", kind: "web" });
+    const local = createStore(memoryBackend(), { now: clock, device: "phone-1" });
+    const b = local.add({ type: "note", title: "Phone note from before", parent: "home" });
+    const saved = local.snapshot();
+    const phone = { store: createStore({ load: () => saved, save() {} }, { now: clock, device: "phone-1" }) };
+    phone.sync = createSync({ store: phone.store, remote: server.client(), keys: memKeys() });
+    await phone.sync.requestJoin({ name: "phone", kind: "phone" }); const [r] = await pc.sync.pending(); await pc.sync.approve(r);
+    await phone.sync.start(); await phone.sync.syncNow(); await pc.sync.syncNow();
+    expect(pc.store.get(b)?.title).toBe("Phone note from before");
   });
   it("the approving device refuses a request whose code does not match its key", async () => {
     const server = fakeServer(), phone = device(server, "phone-1"), pc = device(server, "web-1");

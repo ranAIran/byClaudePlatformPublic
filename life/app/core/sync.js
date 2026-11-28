@@ -91,18 +91,8 @@ export function createSync({ store, remote, keys }) {
   async function run() {
     if (state === "pending") await start();
     if (state !== "on") return { pushed: 0, pulled: 0, state };
-    const out = store.syncOutbox(), dev = store.device();
-    const rec = [];
-    for (const x of out.nodes) rec.push({ vault_id: vault, kind: "node", id: x.id, updated_at: x.updated, device: dev, deleted: x.deleted, ...(await encryptJSON(dataKey, x.deleted ? {} : x.node)) });
-    if (out.profile) rec.push({ vault_id: vault, kind: "profile", id: "main", updated_at: out.profile.at, device: dev, deleted: false, ...(await encryptJSON(dataKey, out.profile)) });
-    if (out.state) rec.push({ vault_id: vault, kind: "state", id: "main", updated_at: out.state.at, device: dev, deleted: false, ...(await encryptJSON(dataKey, out.state)) });
-    const jr = []; for (const e of out.journal) jr.push({ vault_id: vault, device: e.device, seq: e.seq, at: e.at, op: e.op, record_id: e.id || e.key || null, by_who: e.by, ...(await encryptJSON(dataKey, e)) });
-    const ir = []; for (const e of out.inputs) ir.push({ vault_id: vault, device: e.device, seq: e.seq, at: e.at, ...(await encryptJSON(dataKey, e)) });
-    if (rec.length) await remote.upsert("records", rec);
-    if (jr.length) await remote.upsert("journal", jr);
-    if (ir.length) await remote.upsert("inputs", ir);
-    store.syncSent(out);
-
+    const dev = store.device();
+    // Pull first, so a newer version from another device is taken in before anything is sent.
     const c = store.syncCursor();
     const [rr, rj, ri] = await Promise.all([remote.pull("records", vault, "synced_at", c.records), remote.pull("journal", vault, "received_at", c.journal), remote.pull("inputs", vault, "received_at", c.inputs)]);
     const inbound = { nodes: [], profile: null, state: null, journal: [], inputs: [] };
@@ -117,6 +107,21 @@ export function createSync({ store, remote, keys }) {
     for (const r of ri) if (r.device !== dev) inbound.inputs.push(await decryptJSON(dataKey, r));
     const pulled = store.applyRemote(inbound);
     store.setSyncCursor({ records: maxOf(rr, "synced_at", c.records), journal: maxOf(rj, "received_at", c.journal), inputs: maxOf(ri, "received_at", c.inputs) });
+    const fullKey = "fullPush:" + vault;
+    if (!(await keys.get(fullKey)) && me?.can_write !== false) store.syncMarkAll(); // a read-only device (the agent) sends nothing
+    const out = store.syncOutbox();
+    const rec = [];
+    for (const x of out.nodes) rec.push({ vault_id: vault, kind: "node", id: x.id, updated_at: x.updated, device: dev, deleted: x.deleted, ...(await encryptJSON(dataKey, x.deleted ? {} : x.node)) });
+    if (out.profile) rec.push({ vault_id: vault, kind: "profile", id: "main", updated_at: out.profile.at, device: dev, deleted: false, ...(await encryptJSON(dataKey, out.profile)) });
+    if (out.state) rec.push({ vault_id: vault, kind: "state", id: "main", updated_at: out.state.at, device: dev, deleted: false, ...(await encryptJSON(dataKey, out.state)) });
+    const jr = []; for (const e of out.journal) jr.push({ vault_id: vault, device: e.device, seq: e.seq, at: e.at, op: e.op, record_id: e.id || e.key || null, by_who: e.by, ...(await encryptJSON(dataKey, e)) });
+    const ir = []; for (const e of out.inputs) ir.push({ vault_id: vault, device: e.device, seq: e.seq, at: e.at, ...(await encryptJSON(dataKey, e)) });
+    if (rec.length) await remote.upsert("records", rec);
+    if (jr.length) await remote.upsert("journal", jr);
+    if (ir.length) await remote.upsert("inputs", ir);
+    store.syncSent(out);
+
+    await keys.set(fullKey, true);
     return { pushed: rec.length + jr.length + ir.length, pulled, state };
   }
 
