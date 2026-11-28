@@ -278,6 +278,22 @@ button.item{align-items:center}
 .jrow .jt{overflow-wrap:anywhere}
 .jrow .jt em{font-style:normal;color:var(--muted);font-size:12px}
 .jrow .jby{grid-column:1/-1;color:var(--faint);font-size:11px}
+/* R53 · R54 · sync & devices */
+.dvcard{display:flex;flex-direction:column;gap:9px;padding:12px 14px;border-radius:16px;background:var(--well);border:1px solid var(--line)}
+.dvcard p{margin:0;font-size:13.5px;line-height:1.5;color:var(--muted)}
+.dvcard b small{color:var(--muted);font-weight:600;font-size:12px}
+.dvcard>.btn{align-self:flex-start}
+.dvrow{flex-direction:row;align-items:center;justify-content:space-between}
+.dvrow small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.dvcode{font:700 22px/1.3 var(--mono);letter-spacing:.06em;text-align:center;padding:12px 8px;border-radius:12px;background:rgba(0,0,0,.3);border:1.5px dashed var(--gold);color:var(--gold);word-break:break-all}
+.dvcode.small{font-size:20px;padding:6px}
+.dvdev{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:14px;background:var(--well);border:1px solid var(--line)}
+.dvdev.off{opacity:.5}
+.dvdev>div{flex:1;min-width:0}
+.dvdev b{display:block;font-size:14px} .dvdev small{color:var(--muted);font-size:12px}
+.dvic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--well-2);font-size:17px;flex:none}
+.dvlost{margin-top:4px;font-size:13px;color:var(--muted)}
+.dvlost summary{cursor:pointer;padding:6px 2px}
 /* R34 · today */
 .pill.today{background:linear-gradient(180deg,#ffd76a,#ffb93a);color:var(--gold-ink);border-color:#ffe39a;font-weight:700}
 .pill.today b{background:rgba(42,26,0,.18);border-radius:99px;padding:0 7px}
@@ -423,6 +439,7 @@ button.item{align-items:center}
   <button data-act="examples"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg><span data-i18n="m_examples">Remove example items</span></button>
   <button data-act="categories"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z"/></svg><span data-i18n="m_categories">Categories…</span></button>
   <button data-act="quality" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 3-3 6 5M3 5h18v14H3z"/></svg><span>Graphics</span></button>
+  <button data-act="devices"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="11" height="8" rx="1.5"/><rect x="15" y="8" width="6" height="12" rx="1.5"/><path d="M6 16h6M9 12v4"/></svg><span data-i18n="m_devices">Sync & devices…</span></button>
   <button data-act="profile"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"/></svg><span data-i18n="m_profile">My week & memory…</span></button>
   <button data-act="journal"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg><span data-i18n="m_journal">Activity log…</span></button>
   <button data-act="theme"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg><span>Colours</span></button>

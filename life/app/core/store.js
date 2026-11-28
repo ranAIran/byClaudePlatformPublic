@@ -71,6 +71,8 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
   // node with how it looked at the last save, so no way of changing things can skip the log.
   let journal = [], inputs = [], seq = 0, actor = "me", shadow = new Map(), stateShadow = {};
   let profile = {}, suggestions = []; // R52
+  // R54 · what still has to go to the server, and how far this device has read from it.
+  let dirty = new Set(), metaDirty = new Set(), pushed = { journal: 0, inputs: 0 }, cursor = { records: null, journal: null, inputs: null }, profileAt = null, stateAt = null;
   const STATE_KEYS = ["xp", "coins", "decor"], SKIP = new Set(["id", "created", "updated"]);
   const stateNow = () => Object.fromEntries(STATE_KEYS.map((k) => [k, JSON.stringify(state[k])]));
   const resetShadow = () => { shadow = new Map([...nodes].map(([id, n]) => [id, JSON.stringify(n)])); stateShadow = stateNow(); };
@@ -78,19 +80,23 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
   function record() {
     for (const [id, n] of nodes) {
       const was = shadow.get(id), is = JSON.stringify(n); if (was === is) continue;
+      dirty.add(id);
       if (!was) { const after = {}; for (const [k, v] of Object.entries(n)) if (!SKIP.has(k)) after[k] = v; entry({ op: "add", id, type: n.type, fields: Object.keys(after), after }); }
       else {
         const prev = JSON.parse(was), fields = Object.keys(n).filter((k) => !SKIP.has(k) && JSON.stringify(n[k]) !== JSON.stringify(prev[k]));
         if (fields.length) entry({ op: "update", id, type: n.type, fields, after: Object.fromEntries(fields.map((k) => [k, n[k]])) });
       }
     }
-    for (const [id, was] of shadow) if (!nodes.has(id)) { const p = JSON.parse(was); entry({ op: "remove", id, type: p.type, after: { title: p.title } }); }
+    for (const [id, was] of shadow) if (!nodes.has(id)) { dirty.add(id); const p = JSON.parse(was); entry({ op: "remove", id, type: p.type, after: { title: p.title } }); }
     const st = stateNow(), sf = STATE_KEYS.filter((k) => st[k] !== stateShadow[k]);
+    if (sf.length) { metaDirty.add("state"); stateAt = stamp(); }
     if (sf.length) entry({ op: "state", fields: sf, after: Object.fromEntries(sf.map((k) => [k, state[k]])) });
     resetShadow();
   }
   const graveList = () => [...graves].map(([id, at]) => ({ id, at }));
-  const persist = () => backend.save({ version: 3, nodes: [...nodes.values()], deleted: graveList(), state, profile, suggestions, journal, inputs });
+  const syncState = () => ({ dirty: [...dirty], metaDirty: [...metaDirty], pushed, cursor, profileAt, stateAt });
+  const persist = () => backend.save({ version: 3, nodes: [...nodes.values()], deleted: graveList(), state, profile, suggestions, journal, inputs, sync: syncState() });
+  const profileChanged = () => { metaDirty.add("profile"); profileAt = stamp(); };
   const keepGraves = (list) => { graves = new Map(); const cut = now().getTime() - 30 * 864e5; for (const g of list || []) if (Date.parse(g.at) > cut) graves.set(g.id, g.at); };
   const emit = () => { record(); persist(); listeners.forEach((f) => f()); };
 
@@ -101,7 +107,8 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
     keepGraves(loaded.deleted);
     for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
     profile = loaded.profile || {}; suggestions = loaded.suggestions || []; journal = loaded.journal || []; inputs = loaded.inputs || [];
-    seq = Math.max(0, ...journal.map((e) => e.seq || 0), ...inputs.map((e) => e.seq || 0));
+    seq = Math.max(0, ...journal.filter((e) => e.device === device).map((e) => e.seq || 0), ...inputs.filter((e) => e.device === device).map((e) => e.seq || 0));
+    const sy = loaded.sync || {}; dirty = new Set(sy.dirty || []); metaDirty = new Set(sy.metaDirty || []); pushed = { journal: 0, inputs: 0, ...(sy.pushed || {}) }; cursor = { records: null, journal: null, inputs: null, ...(sy.cursor || {}) }; profileAt = sy.profileAt || null; stateAt = sy.stateAt || null;
     resetShadow();
     if ((loaded.version || 1) < 3) entry({ op: "migrate", from: loaded.version || 1 });
   } else { seed(); resetShadow(); persist(); }
@@ -242,13 +249,56 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
       if (!validProfile(key, value)) return { ok: false, error: "invalid" };
       const was = profile[key], v = JSON.parse(JSON.stringify(value));
       profile[key] = { value: v, source, at: stamp(), history: was ? [...was.history, { value: was.value, source: was.source, at: was.at }] : [] };
-      entry({ op: "profile", key, source, after: { [key]: v } }); persist(); listeners.forEach((f) => f());
+      entry({ op: "profile", key, source, after: { [key]: v } }); profileChanged(); persist(); listeners.forEach((f) => f());
       return { ok: true };
     },
     suggestions: () => JSON.parse(JSON.stringify(suggestions)),
-    suggestProfile(key, value, reason = "") { if (!validProfile(key, value)) return null; const id = newId(); suggestions.push({ id, key, value, reason, at: stamp() }); persist(); return id; },
+    suggestProfile(key, value, reason = "") { if (!validProfile(key, value)) return null; const id = newId(); suggestions.push({ id, key, value, reason, at: stamp() }); profileChanged(); persist(); return id; },
     acceptSuggestion(id) { const x = suggestions.find((s) => s.id === id); if (!x) return; suggestions = suggestions.filter((s) => s.id !== id); api.setProfile(x.key, x.value, { source: "learned" }); },
-    rejectSuggestion(id) { suggestions = suggestions.filter((s) => s.id !== id); persist(); },
+    rejectSuggestion(id) { suggestions = suggestions.filter((s) => s.id !== id); profileChanged(); persist(); },
+    // R54 · sync: what this device has to send, marking it sent, and taking in what others sent.
+    syncOutbox() {
+      const graveAt = new Map(graves);
+      const nodesOut = [...dirty].map((id) => nodes.has(id) ? { id, updated: nodes.get(id).updated, deleted: false, node: JSON.parse(JSON.stringify(nodes.get(id))) } : { id, updated: graveAt.get(id) || stamp(), deleted: true, node: null });
+      return {
+        nodes: nodesOut,
+        profile: metaDirty.has("profile") ? { at: profileAt || stamp(), profile: JSON.parse(JSON.stringify(profile)), suggestions: JSON.parse(JSON.stringify(suggestions)) } : null,
+        state: metaDirty.has("state") ? { at: stateAt || stamp(), state: JSON.parse(JSON.stringify({ xp: state.xp, coins: state.coins, decor: state.decor, log: state.log })) } : null,
+        journal: journal.filter((e) => e.device === device && e.seq > pushed.journal).map((e) => ({ ...e })),
+        inputs: inputs.filter((e) => e.device === device && e.seq > pushed.inputs).map((e) => ({ ...e })),
+      };
+    },
+    syncSent(out) {
+      for (const x of out.nodes) { const n = nodes.get(x.id); if (x.deleted ? !n : n && n.updated === x.updated) dirty.delete(x.id); }
+      if (out.profile && profileAt === out.profile.at) metaDirty.delete("profile");
+      if (out.state && stateAt === out.state.at) metaDirty.delete("state");
+      if (out.journal.length) pushed.journal = Math.max(pushed.journal, ...out.journal.map((e) => e.seq));
+      if (out.inputs.length) pushed.inputs = Math.max(pushed.inputs, ...out.inputs.map((e) => e.seq));
+      persist();
+    },
+    syncCursor: () => ({ ...cursor }),
+    setSyncCursor(c) { cursor = { ...cursor, ...c }; persist(); },
+    syncPending: () => dirty.size + metaDirty.size + journal.filter((e) => e.device === device && e.seq > pushed.journal).length + inputs.filter((e) => e.device === device && e.seq > pushed.inputs).length,
+    // Newest wins per record. The log and inputs are merged by (device, seq). Taking in remote changes
+    // adds nothing to this device's own log: the device that made them already logged them.
+    applyRemote({ nodes: rn = [], profile: rp = null, state: rs = null, journal: rj = [], inputs: ri = [] } = {}) {
+      let changed = 0;
+      for (const x of rn) {
+        const local = nodes.get(x.id);
+        if (x.deleted) { if (local && !local.system && local.updated <= x.updated) { nodes.delete(x.id); graves.set(x.id, x.updated); dirty.delete(x.id); changed++; } }
+        else if (!local || local.updated < x.updated) { if (graves.has(x.id) && graves.get(x.id) >= x.updated) continue; nodes.set(x.id, normalize(x.node)); graves.delete(x.id); dirty.delete(x.id); changed++; }
+      }
+      if (rp && (!profileAt || rp.at > profileAt)) { profile = rp.profile || {}; suggestions = rp.suggestions || []; profileAt = rp.at; metaDirty.delete("profile"); changed++; }
+      if (rs && (!stateAt || rs.at > stateAt)) { state = { ...state, ...rs.state }; stateAt = rs.at; metaDirty.delete("state"); changed++; }
+      const key = (e) => e.device + "#" + e.seq;
+      const haveJ = new Set(journal.map(key)), haveI = new Set(inputs.map(key));
+      for (const e of rj) if (!haveJ.has(key(e))) { journal.push(e); haveJ.add(key(e)); changed++; }
+      for (const e of ri) if (!haveI.has(key(e))) { inputs.push(e); haveI.add(key(e)); changed++; }
+      const byTime = (a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : a.device === b.device ? a.seq - b.seq : a.device < b.device ? -1 : 1);
+      journal.sort(byTime); inputs.sort(byTime);
+      resetShadow(); persist(); if (changed) listeners.forEach((f) => f());
+      return changed;
+    },
   };
   return api;
 }

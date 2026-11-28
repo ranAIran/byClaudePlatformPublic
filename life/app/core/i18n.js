@@ -74,6 +74,20 @@ const en = {
   op_add: "added", op_update: "changed", op_remove: "deleted", op_state: "score", op_profile: "profile", op_migrate: "data moved to v3", op_restore: "backup restored", op_reset: "reset",
   by_me: "you", by_claude: "Claude", by_app: "app",
   day0: "Sun", day1: "Mon", day2: "Tue", day3: "Wed", day4: "Thu", day5: "Fri", day6: "Sat",
+  // R53 · R54 · sync and devices
+  m_devices: "Sync & devices…", dv_title: "Sync & devices", dv_offSub: "Your life stays on this device until you turn sync on.",
+  dv_intro: "Sync keeps your phone and computer the same. Everything is encrypted here before it leaves; the server only sees locked boxes.",
+  dv_turnOn: "Turn on sync", dv_starting: "Connecting…", dv_noNet: "Can't reach the sync server. Check the connection and try again.",
+  dv_firstTitle: "Your recovery code", dv_firstSub: "Write it on paper and keep it safe. It's shown only once. If every device is lost, only this code can open your data, not even Claude can.",
+  dv_copy: "Copy", dv_saveFile: "Save as a file", dv_wrote: "I wrote it down", dv_copied: "Copied",
+  dv_joinTitle: "Join your other devices", dv_joinSub: "Sync is already on on another device. Ask to join, then approve this device there.", dv_join: "Ask to join",
+  dv_waitTitle: "Waiting for approval", dv_waitSub: "On your approved phone or computer open Sync & devices and approve the request with this code:",
+  dv_lost: "Lost every device? Use the recovery code", dv_recoverPh: "Recovery code", dv_recover: "Recover", dv_badCode: "That recovery code doesn't open the data",
+  dv_onSub: "Sync is on · {n} devices", dv_thisDevice: "this device", dv_requests: "Waiting for approval", dv_checkCode: "Approve only if the other screen shows {c}",
+  dv_approve: "Approve", dv_approveAgent: "Approve read-only for 24 h", dv_reject: "Reject", dv_revoke: "Revoke", dv_revoked: "revoked", dv_expires: "until {d}",
+  dv_role_owner: "owner", dv_role_member: "approved", dv_role_agent: "Claude, read-only",
+  dv_syncNow: "Sync now", dv_synced: "Synced {t}", dv_pending: "{n} changes waiting", dv_never: "not synced yet", dv_revokedSub: "This device was revoked. Ask to join again from Sync & devices.",
+  dv_approved: "{name} approved", dv_rejected: "Request rejected", dv_revokedOk: "{name} revoked", dv_onOk: "Sync is on",
 };
 
 const he = {
@@ -143,6 +157,19 @@ const he = {
   op_add: "נוסף", op_update: "שונה", op_remove: "נמחק", op_state: "ניקוד", op_profile: "פרופיל", op_migrate: "הנתונים הועברו ל-v3", op_restore: "גיבוי שוחזר", op_reset: "איפוס",
   by_me: "אתה", by_claude: "Claude", by_app: "האפליקציה",
   day0: "א׳", day1: "ב׳", day2: "ג׳", day3: "ד׳", day4: "ה׳", day5: "ו׳", day6: "ש׳",
+  m_devices: "סנכרון ומכשירים…", dv_title: "סנכרון ומכשירים", dv_offSub: "הנתונים נשארים במכשיר הזה עד שתפעיל סנכרון.",
+  dv_intro: "סנכרון שומר את הטלפון והמחשב זהים. הכל מוצפן כאן לפני שהוא יוצא; השרת רואה רק קופסאות נעולות.",
+  dv_turnOn: "הפעל סנכרון", dv_starting: "מתחבר…", dv_noNet: "אין חיבור לשרת הסנכרון. בדוק את החיבור ונסה שוב.",
+  dv_firstTitle: "קוד השחזור שלך", dv_firstSub: "כתוב אותו על נייר ושמור במקום בטוח. הוא מוצג פעם אחת בלבד. אם כל המכשירים יאבדו, רק הקוד הזה יפתח את הנתונים, גם לא Claude.",
+  dv_copy: "העתק", dv_saveFile: "שמור כקובץ", dv_wrote: "רשמתי אותו", dv_copied: "הועתק",
+  dv_joinTitle: "הצטרפות למכשירים האחרים", dv_joinSub: "הסנכרון כבר פועל במכשיר אחר. בקש להצטרף, ואשר את המכשיר הזה שם.", dv_join: "בקש להצטרף",
+  dv_waitTitle: "מחכה לאישור", dv_waitSub: "בטלפון או במחשב המאושרים פתח ״סנכרון ומכשירים״ ואשר את הבקשה עם הקוד הזה:",
+  dv_lost: "איבדת את כל המכשירים? השתמש בקוד השחזור", dv_recoverPh: "קוד שחזור", dv_recover: "שחזר", dv_badCode: "קוד השחזור הזה לא פותח את הנתונים",
+  dv_onSub: "הסנכרון פועל · {n} מכשירים", dv_thisDevice: "המכשיר הזה", dv_requests: "מחכים לאישור", dv_checkCode: "אשר רק אם במסך השני מופיע {c}",
+  dv_approve: "אשר", dv_approveAgent: "אשר לקריאה בלבד ל-24 שעות", dv_reject: "דחה", dv_revoke: "בטל", dv_revoked: "בוטל", dv_expires: "עד {d}",
+  dv_role_owner: "בעלים", dv_role_member: "מאושר", dv_role_agent: "Claude, קריאה בלבד",
+  dv_syncNow: "סנכרן עכשיו", dv_synced: "סונכרן {t}", dv_pending: "{n} שינויים ממתינים", dv_never: "עוד לא סונכרן", dv_revokedSub: "המכשיר הזה בוטל. אפשר לבקש להצטרף שוב מ״סנכרון ומכשירים״.",
+  dv_approved: "{name} אושר", dv_rejected: "הבקשה נדחתה", dv_revokedOk: "{name} בוטל", dv_onOk: "הסנכרון פועל",
 };
 
 // Built-in places, translated while the owner hasn't renamed them.

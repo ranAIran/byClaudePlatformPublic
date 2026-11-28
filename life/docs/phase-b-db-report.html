@@ -119,6 +119,23 @@ th{background:var(--code)}
 </ul>
 </div>
 
+<h2>המשך שלב ב': צד האפליקציה (Life 0.10.0)</h2>
+<div class="box"><ul class="tree"><li><span class="s">תוספות לשרת: מיגרציה 2</span> <code>supabase/migrations/20261128000002_sync_recovery.sql</code>
+ <ul><li><code>records.synced_at</code>: שעון שרת לסנכרון, כך ששעון שגוי בטלפון לא מסתיר שינויים.</li>
+ <li><code>recovery_check</code>, <code>recovery_blob()</code>, <code>recover_device()</code>: שחזור עם קוד הנייר.</li>
+ <li>בדיקת האבטחה הורצה שוב: 15/15 <span class="tag ok">✓</span></li></ul></li>
+<li><span class="s">במכשיר</span>
+ <ul><li>הצפנה: מפתח נתונים AES-GCM. מפתח מכשיר RSA, והמפתח הפרטי לא יכול לצאת מהמכשיר. קוד צימוד של 6 ספרות. קוד שחזור על נייר.</li>
+ <li>מסך "סנכרון ומכשירים": הפעלה, בקשת הצטרפות, אישור לפי קוד, ביטול ושחזור.</li>
+ <li>המפתחות נשמרים במסד נפרד במכשיר, ולעולם לא בגיבוי.</li></ul></li>
+<li><span class="s">בדיקות מול הפרויקט האמיתי (כל אחת מנקה אחריה)</span>
+ <ul><li>בדיקה מ-Node עם שני מכשירים: 12/12 <span class="tag ok">✓</span></li>
+ <li>שני דפדפנים, טלפון ומחשב, דרך המסכים עצמם: 9/9 <span class="tag ok">✓</span></li>
+ <li>אחרי הבדיקות: 0 כספות, 0 משתמשים <span class="tag ok">✓</span></li></ul></li>
+<li><span class="s">עוד לא</span>
+ <ul><li>החלפת מפתח הנתונים אחרי ביטול מכשיר. מכשיר שבוטל נחסם בשרת, אבל מה שכבר היה אצלו נשאר אצלו.</li>
+ <li>התראות Web Push במחשב.</li></ul></li></ul></div>
+
 <h2>מה השרת רואה ומה לא</h2>
 <table>
 <tr><th>גלוי לשרת</th><th>נעול (רק המכשירים שלך פותחים)</th></tr>

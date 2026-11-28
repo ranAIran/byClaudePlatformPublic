@@ -324,6 +324,15 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
     `R51/R52 my week saves, every action is time-tagged with device and who, raw inputs kept (${J.n} actions, device ${J.dev})`);
   await p.evaluate(() => window.__life.ui.closeSheet());
 }
+// R53/R54 · "Sync & devices" opens; nothing talks to the sync server until the owner turns sync on.
+{
+  const calls = []; p.on("request", (r) => { if (r.url().includes("supabase")) calls.push(r.url()); });
+  await p.evaluate(() => window.__life.ui.closeSheet()); await p.click("#menuBtn"); await p.click('#menu [data-act="devices"]'); await p.waitForTimeout(400);
+  const on = await p.isVisible('[data-act="dvon"]'), lost = await p.isVisible(".dvlost");
+  await p.screenshot({ path: `${out}/v-sync-off.png` });
+  check(on && lost && calls.length === 0, `R53/R54 Sync & devices offers "Turn on sync" and contacts no server before that (${calls.length} calls)`);
+  await p.evaluate(() => window.__life.ui.closeSheet());
+}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
   const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp(), j: window.__life.store.journal().length }; });

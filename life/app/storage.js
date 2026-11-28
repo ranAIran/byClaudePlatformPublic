@@ -33,3 +33,20 @@ export async function openSavedBackend({ idb = globalThis.indexedDB, ls = global
     save: (d) => { pending = JSON.parse(JSON.stringify(d)); clearTimeout(timer); timer = setTimeout(flush, 250); },
   };
 }
+
+// R53 · where this device keeps its keys: its own private key (which can never be exported), the
+// data key and the sync sign-in. A separate IndexedDB database, so a backup file never contains them.
+export async function openKeyStore({ idb = globalThis.indexedDB, name = "life-archipelago-keys" } = {}) {
+  const mem = new Map(), memory = { kind: "memory", get: async (k) => mem.get(k) ?? null, set: async (k, v) => { mem.set(k, v); } };
+  if (!idb) return memory;
+  try {
+    const open = idb.open(name, 1);
+    open.onupgradeneeded = () => open.result.createObjectStore("keys");
+    const db = await req(open);
+    return {
+      kind: "indexeddb",
+      get: async (k) => (await req(db.transaction("keys").objectStore("keys").get(k))) ?? null,
+      set: (k, v) => new Promise((ok, fail) => { const tx = db.transaction("keys", "readwrite"); tx.objectStore("keys").put(v, k); tx.oncomplete = ok; tx.onerror = () => fail(tx.error); }),
+    };
+  } catch (e) { return memory; }
+}

@@ -4,7 +4,9 @@ import { pass, renderOutput } from "three/tsl";
 import { bloom } from "../../quest/vendor/BloomNode.js";
 import { buildMap, buildHome, fitCamera, projectTo } from "./scenes.js";
 import { createStore } from "./core/store.js";
-import { openSavedBackend } from "./storage.js";
+import { openSavedBackend, openKeyStore } from "./storage.js";
+import { createSync } from "./core/sync.js";
+import { createSupabaseRemote } from "./supa.js";
 import { backupDue, backupName, exportReminderDue } from "./core/backup.js";
 import { exportJSON, importJSON, exportDigest } from "./core/exporter.js";
 import { shareToNode } from "./core/share.js";
@@ -30,13 +32,16 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.9.0";
+export const VERSION = "0.10.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
 // R51 · one id per device, made on first start and kept; the log records which device did what.
 const deviceId = (() => { try { let d = localStorage.getItem("life-device"); if (!d) { d = (/; wv\)|Android.*Version\//.test(navigator.userAgent) ? "phone-" : "web-") + Math.random().toString(36).slice(2, 8); localStorage.setItem("life-device", d); } return d; } catch (e) { return "web-unknown"; } })();
 const store = createStore(saved, { device: deviceId });
+// R53/R54 · sync: nothing talks to the server until the owner turns sync on in "Sync & devices".
+const keyStore = await openKeyStore();
+const sync = createSync({ store, remote: createSupabaseRemote({ keys: keyStore }), keys: keyStore });
 // R37 · language: follows the device unless chosen in the menu.
 let lang = pickLang((() => { try { return localStorage.getItem("life-lang"); } catch (e) { return null; } })(), navigator.language);
 let t = makeT(lang);
@@ -381,6 +386,92 @@ function openJournal(tab = "actions") {
 }
 $("sheetTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-jtab]"); if (b) { e.stopImmediatePropagation(); openJournal(b.dataset.jtab); } }, true);
 
+// ---------- R53 · R54 · sync & devices ----------
+// A device that joins an existing vault drops its own example items first, so they don't pile on
+// top of the examples (or the real life) already in the vault.
+const dropExamples = () => { store.as("app"); try { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); } finally { store.as("me"); } };
+let dvView = null, shownCode = null, dvRequests = [], dvBusy = false;
+const syncFlag = () => lsGet("life-sync"); // null | "on" | "pending" | "revoked"
+const devName = () => (bridge.android ? "Phone" : /Mac/.test(navigator.platform) ? "Mac" : /Win/.test(navigator.platform) ? "Windows computer" : "Computer");
+const devKind = () => (bridge.android ? "phone" : "web");
+const whenText = (iso) => (iso ? new Date(iso).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
+function dvShell(sub) {
+  sheetFor = "devices"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
+  $("sheetTitle").textContent = t("dv_title"); $("sheetSub").textContent = sub; $("sheetDot").style.background = "#3ee88a"; $("sheetTabs").hidden = true;
+  $("sheetDot").innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="11" height="8" rx="1.5"/><rect x="15" y="8" width="6" height="12" rx="1.5"/><path d="M6 16h6M9 12v4"/></svg>`;
+}
+const recoverForm = () => `<details class="dvlost"><summary>${t("dv_lost")}</summary><form class="addrow" id="dvRecover"><input name="c" autocomplete="off" spellcheck="false" placeholder="${esc(t("dv_recoverPh"))}"><button class="btn primary" style="padding:10px 14px">${t("dv_recover")}</button></form></details>`;
+async function openDevices() {
+  if (shownCode) {
+    dvShell(t("dv_onOk"));
+    $("sheetBody").innerHTML = `<div class="dvcard"><b>${t("dv_firstTitle")}</b><p>${t("dv_firstSub")}</p><div class="dvcode" dir="ltr">${esc(shownCode)}</div><div class="row" style="flex-wrap:wrap"><button class="chip" data-act="dvcopy">${t("dv_copy")}</button><button class="chip" data-act="dvsave">${t("dv_saveFile")}</button></div><button class="btn primary" data-act="dvwrote">${t("dv_wrote")}</button></div>`;
+    return;
+  }
+  const flag = syncFlag();
+  if (!flag && dvView !== "join") {
+    dvShell(t("dv_offSub"));
+    $("sheetBody").innerHTML = `<div class="dvcard"><p>${t("dv_intro")}</p><button class="btn primary" data-act="dvon">${t("dv_turnOn")}</button></div>` + recoverForm();
+    return;
+  }
+  dvShell(t("dv_starting")); $("sheetBody").innerHTML = `<div class="empty">${t("dv_starting")}</div>`;
+  let st;
+  try { st = await sync.start(); } catch (e) { $("sheetBody").innerHTML = `<div class="empty">${t("dv_noNet")}</div>`; return; }
+  if (sheetFor !== "devices") return;
+  if (st === "on" && flag !== "on") lsSet("life-sync", "on");
+  if (st === "revoked") { lsSet("life-sync", "revoked"); dvShell(t("dv_revoked")); $("sheetBody").innerHTML = `<div class="dvcard"><p>${t("dv_revokedSub")}</p><button class="btn primary" data-act="dvjoin">${t("dv_join")}</button></div>`; return; }
+  if (st === "join") { dvShell(t("dv_joinTitle")); $("sheetBody").innerHTML = `<div class="dvcard"><b>${t("dv_joinTitle")}</b><p>${t("dv_joinSub")}</p><button class="btn primary" data-act="dvjoin">${t("dv_join")}</button></div>` + recoverForm(); return; }
+  if (st === "pending") { const code = await sync.myCode(); dvShell(t("dv_waitTitle")); $("sheetBody").innerHTML = `<div class="dvcard"><b>${t("dv_waitTitle")}</b><p>${t("dv_waitSub")}</p><div class="dvcode" dir="ltr">${code}</div></div>` + recoverForm(); return; }
+  if (st === "off") { lsSet("life-sync", ""); dvView = null; return openDevices(); }
+  const [list, reqs] = await Promise.all([sync.devices(), sync.pending()]); dvRequests = reqs;
+  const meId = (await keyStore.get("session"))?.uid;
+  const DVI = { phone: '<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>', web: '<rect x="3" y="5" width="18" height="11" rx="1.5"/><path d="M8 20h8M12 16v4"/>', agent: '<path d="M12 3l2.200 6.800L21 12l-6.800 2.200L12 21l-2.200-6.800L3 12l6.800-2.200z"/>' };
+  dvShell(t("dv_onSub", { n: list.filter((d) => !d.revoked_at).length }));
+  const pend = store.syncPending(), at = lsGet("life-sync-at");
+  $("sheetBody").innerHTML = `<div class="dvcard dvrow"><div><b>${at ? t("dv_synced", { t: whenText(at) }) : t("dv_never")}</b>${pend ? `<small>${t("dv_pending", { n: pend })}</small>` : ""}</div><button class="btn primary" data-act="dvsync">${t("dv_syncNow")}</button></div>`
+    + (reqs.length ? `<div class="sec">${t("dv_requests")}</div>` + reqs.map((r) => `<div class="dvcard"><b>${esc(r.name)} <small>${esc(r.kind)}</small></b><div class="dvcode small" dir="ltr">${r.check}</div><p>${t("dv_checkCode", { c: r.check })}</p><div class="row" style="flex-wrap:wrap"><button class="btn primary" data-act="dvok" data-id="${r.id}">${r.kind === "agent" ? t("dv_approveAgent") : t("dv_approve")}</button><button class="chip" data-act="dvno" data-id="${r.id}">${t("dv_reject")}</button></div></div>`).join("") : "")
+    + `<div class="sec">${t("dv_title")}</div>` + list.map((d) => `<div class="dvdev ${d.revoked_at ? "off" : ""}"><span class="dvic"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">${DVI[d.kind] || DVI.web}</svg></span><div><b>${esc(d.name)}${d.id === meId ? ` · ${t("dv_thisDevice")}` : ""}</b><small>${t("dv_role_" + d.role)}${d.revoked_at ? " · " + t("dv_revoked") : ""}${d.expires_at && !d.revoked_at ? " · " + t("dv_expires", { d: whenText(d.expires_at) }) : ""}</small></div>${d.id !== meId && !d.revoked_at ? `<button class="chip" data-act="dvrevoke" data-id="${d.id}" data-name="${esc(d.name)}">${t("dv_revoke")}</button>` : ""}</div>`).join("");
+}
+async function doSync(manual = false) {
+  try {
+    const r = await sync.syncNow();
+    if (r.state === "on") lsSet("life-sync-at", new Date().toISOString());
+    if (r.state === "revoked") lsSet("life-sync", "revoked");
+    if (manual) toast(t("dv_synced", { t: whenText(new Date().toISOString()) }));
+    return r;
+  } catch (e) { if (manual) toast(t("dv_noNet")); return null; }
+}
+$("sheetBody").addEventListener("click", async (e) => {
+  if (sheetFor !== "devices") return;
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  e.stopImmediatePropagation(); if (dvBusy) return; dvBusy = true;
+  try {
+    const a = b.dataset.act;
+    if (a === "dvon") {
+      toast(t("dv_starting"));
+      const st = await sync.start();
+      if (st === "off") { const { recoveryCode } = await sync.enable({ name: devName(), kind: devKind() }); lsSet("life-sync", "on"); lsSet("life-sync-at", new Date().toISOString()); shownCode = recoveryCode; }
+      else if (st === "on") lsSet("life-sync", "on");
+      else dvView = "join";
+    }
+    if (a === "dvjoin") { dropExamples(); await sync.requestJoin({ name: devName(), kind: devKind() }); lsSet("life-sync", "pending"); }
+    if (a === "dvcopy") { try { await navigator.clipboard.writeText(shownCode); toast(t("dv_copied")); } catch (err) { /* no clipboard */ } dvBusy = false; return; }
+    if (a === "dvsave") { bridge.saveFile("life-archipelago-recovery-code.txt", "text/plain", `Life Archipelago recovery code\n${shownCode}\n\nKeep it on paper or in a password manager.\n`); dvBusy = false; return; }
+    if (a === "dvwrote") shownCode = null;
+    if (a === "dvsync") await doSync(true);
+    if (a === "dvok") { const r = dvRequests.find((x) => x.id === b.dataset.id); await sync.approve(r, { agent: r.kind === "agent", hours: 24 }); toast(t("dv_approved", { name: r.name })); }
+    if (a === "dvno") { const r = dvRequests.find((x) => x.id === b.dataset.id); await sync.reject(r); toast(t("dv_rejected")); }
+    if (a === "dvrevoke") { await sync.revoke(b.dataset.id); toast(t("dv_revokedOk", { name: b.dataset.name })); }
+  } catch (err) { toast(err.message === "permission denied" ? t("dv_noNet") : err.message || t("dv_noNet")); }
+  dvBusy = false; openDevices();
+}, true);
+$("sheetBody").addEventListener("submit", async (e) => {
+  if (sheetFor !== "devices" || e.target.id !== "dvRecover") return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  try { dropExamples(); await sync.recover({ code: e.target.elements.c.value, name: devName(), kind: devKind() }); lsSet("life-sync", "on"); lsSet("life-sync-at", new Date().toISOString()); toast(t("dv_onOk")); }
+  catch (err) { toast(t("dv_badCode")); }
+  openDevices();
+}, true);
+
 function openGoals() {
   sheetFor = "goals"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
   const B = goalBoard(store);
@@ -446,6 +537,7 @@ function openSheet(id) {
   if (id === "today") return openToday();
   if (id === "goals") return openGoals();
   if (id === "profile") return openProfile();
+  if (id === "devices") return openDevices();
   if (String(id).startsWith("journal:")) return openJournal(id.slice(8));
   if (String(id).startsWith("goal:")) return openGoal(id.slice(5));
   if (id === "categories") return openCategories();
@@ -860,6 +952,7 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "import") $("importInput").click();
   if (act === "categories") openCategories();
   if (act === "profile") openProfile();
+  if (act === "devices") openDevices();
   if (act === "journal") openJournal("actions");
   if (act === "quality") { lsSet("life-quality", quality === "enhanced" ? "light" : "enhanced"); location.reload(); }
   if (act === "theme") { const next = document.documentElement.dataset.theme === "faded" ? "contrast" : "faded"; document.documentElement.dataset.theme = next; lsSet("life-theme", next); applyLang(); }
@@ -974,7 +1067,7 @@ renderer.setAnimationLoop(() => {
     setTimeout(autoBackup, 4000);
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
-  if (++frames === 20) { window.__life = { ready: true, store, openProfile, openJournal, goals: () => goalBoard(store), openGoals, openGoal, theme: () => document.documentElement.dataset.theme, view: () => view, backendName,
+  if (++frames === 20) { window.__life = { ready: true, store, sync, doSync, openDevices, openProfile, openJournal, goals: () => goalBoard(store), openGoals, openGoal, theme: () => document.documentElement.dataset.theme, view: () => view, backendName,
     quality: () => quality,
     today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },
@@ -989,3 +1082,13 @@ renderer.setAnimationLoop(() => {
     moods: () => Object.fromEntries(map.isles.map((d) => [d.id, { state: districtMood(store, d.id).state, signs: map.moodSigns(d.id) }])),
     terrariums: () => { const out = []; home.scene.traverse((o) => { if (o.name === "terrarium") { const { w, h, d } = o.userData.size; const lz = o.getObjectByName("lizard"); out.push([w, h, d].map((v) => Math.round(v * 80)).concat(lz ? [`lizard ${Math.round(lz.userData.length * 80)}cm`] : [])); } }); return out; } }; }
 });
+
+// R54 · keep devices in step: a few seconds after a change, every minute, and when the app comes back.
+{
+  let soon = 0;
+  const active = () => syncFlag() === "on" || syncFlag() === "pending";
+  store.on(() => { if (syncFlag() === "on") { clearTimeout(soon); soon = setTimeout(() => doSync(), 4000); } });
+  setInterval(() => { if (active() && document.visibilityState === "visible") doSync().then(() => { if (sheetFor === "devices" && syncFlag() === "on") openDevices(); }); }, 60000);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && active()) doSync(); });
+  if (active()) setTimeout(() => doSync(), 2500);
+}
