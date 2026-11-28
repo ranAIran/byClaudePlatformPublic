@@ -257,6 +257,27 @@ button.item{align-items:center}
 .gplan label{font-weight:800;font-size:13.5px}
 .gplan>input{background:rgba(0,0,0,.2);border:1px solid var(--line);border-radius:11px;color:var(--ink);font:inherit;padding:9px 11px;outline:none}
 .gplan>.chip{align-self:flex-start}
+/* R51 · activity log, R52 · my week */
+.pfbox{display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:15px;background:var(--well);border:1px solid var(--line)}
+.pfdays{display:flex;flex-wrap:wrap;gap:5px}
+.pfdays .chip{min-width:38px;justify-content:center}
+.pftimes{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pftimes input{background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:9px;color:var(--ink);font:inherit;font-size:13.5px;padding:6px;color-scheme:dark}
+.pfmeta{color:var(--muted);font-size:11.5px}
+.pfrow{display:flex;align-items:center;gap:10px;font-size:13.5px}
+.pfrow em{font-style:normal;color:var(--muted)}
+.pfrow .grm{margin-inline-start:auto}
+.pfnone{font-size:13px}
+.pferr{flex-direction:row;flex-wrap:wrap;align-items:center;gap:16px}
+.pferr label{display:flex;align-items:center;gap:6px;font-size:14px}
+.pferr input{width:18px;height:18px;accent-color:var(--gold)}
+.jrow{display:grid;grid-template-columns:auto auto 1fr;gap:2px 10px;padding:8px 10px;border-radius:12px;background:var(--well);border:1px solid var(--line);font-size:13px;align-items:baseline}
+.jrow time{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums}
+.jrow .jop{font-weight:800;font-size:12px;color:var(--gold)}
+.jrow.remove .jop{color:var(--bad)} .jrow.add .jop{color:var(--ok)}
+.jrow .jt{overflow-wrap:anywhere}
+.jrow .jt em{font-style:normal;color:var(--muted);font-size:12px}
+.jrow .jby{grid-column:1/-1;color:var(--faint);font-size:11px}
 /* R34 · today */
 .pill.today{background:linear-gradient(180deg,#ffd76a,#ffb93a);color:var(--gold-ink);border-color:#ffe39a;font-weight:700}
 .pill.today b{background:rgba(42,26,0,.18);border-radius:99px;padding:0 7px}
@@ -402,6 +423,8 @@ button.item{align-items:center}
   <button data-act="examples"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13"/></svg><span data-i18n="m_examples">Remove example items</span></button>
   <button data-act="categories"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h7v6H4zM13 5h7v6h-7zM4 13h7v6H4zM13 13h7v6h-7z"/></svg><span data-i18n="m_categories">Categories…</span></button>
   <button data-act="quality" hidden><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 17l5-6 4 4 3-3 6 5M3 5h18v14H3z"/></svg><span>Graphics</span></button>
+  <button data-act="profile"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16v14H4zM4 10h16M9 3v4M15 3v4M8 14h3M8 17h6"/></svg><span data-i18n="m_profile">My week & memory…</span></button>
+  <button data-act="journal"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8v4l3 2M3 12a9 9 0 1 0 3-6.7M3 4v4h4"/></svg><span data-i18n="m_journal">Activity log…</span></button>
   <button data-act="theme"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18z" fill="currentColor"/><circle cx="12" cy="12" r="9"/></svg><span>Colours</span></button>
   <button data-act="lang"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18zM3.600 9h16.800M3.600 15h16.800M12 3c2.500 2.500 3.600 5.500 3.600 9s-1.100 6.500-3.600 9c-2.500-2.500-3.600-5.500-3.600-9S9.500 5.500 12 3z"/></svg><span>Language: English</span></button>
   <button data-act="about"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 11v6M12 7.500v.01M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18z"/></svg><span data-i18n="m_about">About this version</span></button>

@@ -302,12 +302,34 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   const theme2 = await p.evaluate(() => window.__life.theme()); await p.keyboard.press("Escape");
   check(theme0 === "contrast" && theme1[0] === "faded" && theme1[1] === "faded" && theme1[2] === "#fff7ec" && theme2 === "contrast", `colours: dark high contrast by default, "faded" from the menu and back (${theme0} → ${theme1[0]} → ${theme2})`);
 }
+// R51 · the activity log and raw inputs; R52 · my week & memory, from the menu.
+{
+  await p.evaluate(() => window.__life.ui.closeSheet());
+  await p.fill("#capInput", "לשלם ארנונה עד יום ראשון"); await p.press("#capInput", "Enter"); await p.waitForTimeout(250);
+  await p.click("#menuBtn"); await p.click('#menu [data-act="profile"]'); await p.waitForTimeout(300);
+  const f = p.locator('.pfadd[data-k="focusTimes"]');
+  for (const d of ["0", "1", "2"]) await f.locator(`[data-d="${d}"]`).click();
+  await f.locator("input[name=from]").fill("07:00"); await f.locator("input[name=to]").fill("10:00"); await f.locator("button.chip:not([data-act])").click(); await p.waitForTimeout(300);
+  await p.locator("#pfWork input[name=from]").fill("08:30"); await p.locator("#pfWork button.chip:not([data-act])").click(); await p.waitForTimeout(300);
+  await p.screenshot({ path: `${out}/v-profile.png` });
+  const prof = await p.evaluate(() => window.__life.store.profile());
+  await p.evaluate(() => window.__life.ui.closeSheet()); await p.click("#menuBtn"); await p.click('#menu [data-act="journal"]'); await p.waitForTimeout(300);
+  const rows = await p.evaluate(() => document.querySelectorAll(".jrow").length);
+  await p.click('[data-jtab="inputs"]'); await p.waitForTimeout(250);
+  const inputs = await p.evaluate(() => [...document.querySelectorAll(".jrow .jt")].map((x) => x.textContent));
+  await p.screenshot({ path: `${out}/v-journal.png` });
+  const J = await p.evaluate(() => { const j = window.__life.store.journal(); return { n: j.length, prof: j.filter((e) => e.op === "profile").length, dev: window.__life.store.device(), allTagged: j.every((e) => e.at && e.device && e.by) }; });
+  const saved = await p.evaluate(async () => { await window.__life.flush(); return true; });
+  check(prof.focusTimes[0]?.from === "07:00" && prof.workWeek.from === "08:30" && rows > 5 && inputs.includes("לשלם ארנונה עד יום ראשון") && J.prof >= 2 && J.allTagged && /^(web|phone)-/.test(J.dev) && saved,
+    `R51/R52 my week saves, every action is time-tagged with device and who, raw inputs kept (${J.n} actions, device ${J.dev})`);
+  await p.evaluate(() => window.__life.ui.closeSheet());
+}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
-  const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp() }; });
+  const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp(), j: window.__life.store.journal().length }; });
   await p.reload(); await p.waitForFunction(() => window.__life?.ready, null, { timeout: 120000 });
-  const afterR = await p.evaluate(() => ({ n: window.__life.store.all().length, xp: window.__life.store.xp() }));
-  check(before.st.kind === "indexeddb" && afterR.n === before.n && afterR.xp === before.xp, `R19 data is in IndexedDB and survives a reload (${before.st.kind}, ${before.n} → ${afterR.n} items, XP ${before.xp} → ${afterR.xp})`);
+  const afterR = await p.evaluate(() => ({ n: window.__life.store.all().length, xp: window.__life.store.xp(), j: window.__life.store.journal().length }));
+  check(before.st.kind === "indexeddb" && afterR.n === before.n && afterR.xp === before.xp && afterR.j === before.j, `R19 data is in IndexedDB and survives a reload (${before.st.kind}, ${before.n} → ${afterR.n} items, log ${before.j} → ${afterR.j}, XP ${before.xp} → ${afterR.xp})`);
 }
 // R39 · a computer opens with enhanced graphics (not blank, state signs still work); a phone stays light.
 {

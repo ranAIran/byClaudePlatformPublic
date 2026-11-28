@@ -64,6 +64,16 @@ const en = {
   stakesQ: "What happens if this isn't done in time?", stakes_none: "Nothing, I can let it go", stakes_soft: "It moves a week, fine", stakes_hard: "It has a price",
   notNow: "Not now", released: "Let go. That's a fine outcome too.", stepAdded: "New first step added", rescheduled: "Moved to {t}",
   m_theme: "Colours: {c}", th_contrast: "dark, high contrast", th_faded: "faded",
+  // R51 · action log, R52 · profile
+  m_profile: "My week & memory…", m_journal: "Activity log…",
+  pf_title: "My week & memory", pf_sub: "Kept on this device. Goals and reminders will plan around it.", pf_work: "Work week", pf_days: "Days", pf_from: "From", pf_to: "To",
+  pf_rest: "Rest times", pf_focus: "Effective times (best for hard things)", pf_low: "Low times (not effective)", pf_errands: "Errands on", pf_friday: "Friday", pf_saturday: "Saturday",
+  pf_add: "Add", pf_none: "None yet", pf_byMe: "set by you · {d}", pf_learned: "learned, you approved · {d}", pf_default: "default", pf_saved: "Saved", pf_bad: "Check the days and times (from must be before to)",
+  pf_suggest: "Suggestions", pf_noSuggest: "No suggestions yet. Later the app will suggest times it learns from you; nothing changes until you approve.", pf_accept: "Accept", pf_reject: "Reject",
+  jr_title: "Activity log", jr_sub: "{n} actions · {i} inputs · device {d}", jr_actions: "Actions", jr_inputs: "Raw inputs", jr_empty: "Nothing yet", jr_more: "Showing the latest {n}",
+  op_add: "added", op_update: "changed", op_remove: "deleted", op_state: "score", op_profile: "profile", op_migrate: "data moved to v3", op_restore: "backup restored", op_reset: "reset",
+  by_me: "you", by_claude: "Claude", by_app: "app",
+  day0: "Sun", day1: "Mon", day2: "Tue", day3: "Wed", day4: "Thu", day5: "Fri", day6: "Sat",
 };
 
 const he = {
@@ -124,6 +134,15 @@ const he = {
   stakesQ: "מה קורה אם זה לא נעשה בזמן?", stakes_none: "כלום, אפשר לשחרר", stakes_soft: "יידחה בשבוע, זה בסדר", stakes_hard: "יש מחיר",
   notNow: "לא עכשיו", released: "שוחרר. גם זו תוצאה טובה.", stepAdded: "נוסף צעד ראשון חדש", rescheduled: "הועבר ל-{t}",
   m_theme: "צבעים: {c}", th_contrast: "כהה, ניגודיות גבוהה", th_faded: "צבע דהוי",
+  m_profile: "השבוע שלי והזיכרון…", m_journal: "יומן פעולות…",
+  pf_title: "השבוע שלי והזיכרון", pf_sub: "נשמר במכשיר הזה. המטרות והתזכורות יתוכננו לפיו.", pf_work: "שבוע עבודה", pf_days: "ימים", pf_from: "מ-", pf_to: "עד",
+  pf_rest: "זמני מנוחה", pf_focus: "זמנים יעילים (טובים לדברים קשים)", pf_low: "זמנים חלשים (לא יעילים)", pf_errands: "סידורים ביום", pf_friday: "שישי", pf_saturday: "שבת",
+  pf_add: "הוסף", pf_none: "עוד אין", pf_byMe: "הוגדר על ידך · {d}", pf_learned: "נלמד ואושר על ידך · {d}", pf_default: "ברירת מחדל", pf_saved: "נשמר", pf_bad: "בדוק את הימים והשעות (ההתחלה לפני הסוף)",
+  pf_suggest: "הצעות", pf_noSuggest: "עוד אין הצעות. בהמשך האפליקציה תציע זמנים שלמדה ממך; שום דבר לא משתנה בלי אישורך.", pf_accept: "אשר", pf_reject: "דחה",
+  jr_title: "יומן פעולות", jr_sub: "{n} פעולות · {i} קלטים · מכשיר {d}", jr_actions: "פעולות", jr_inputs: "קלט גולמי", jr_empty: "עוד אין כלום", jr_more: "מוצגות {n} האחרונות",
+  op_add: "נוסף", op_update: "שונה", op_remove: "נמחק", op_state: "ניקוד", op_profile: "פרופיל", op_migrate: "הנתונים הועברו ל-v3", op_restore: "גיבוי שוחזר", op_reset: "איפוס",
+  by_me: "אתה", by_claude: "Claude", by_app: "האפליקציה",
+  day0: "א׳", day1: "ב׳", day2: "ג׳", day3: "ד׳", day4: "ה׳", day5: "ו׳", day6: "ש׳",
 };
 
 // Built-in places, translated while the owner hasn't renamed them.

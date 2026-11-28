@@ -6,6 +6,7 @@ import { suggestPlaces } from "./places.js";
 import { XP, levelFor } from "./xp.js";
 import { validRepeat, nextDue, parseRepeat } from "./repeat.js";
 import { isoDate } from "./capture.js";
+import { DEFAULT_PROFILE, validProfile } from "./profile.js";
 import { parseGoal, artFor, spreadDates, STUCK_ACTION, STAKES } from "./goals.js";
 
 export const SEED = [
@@ -46,7 +47,7 @@ const goalOf = (g) => g ? {
 let counter = 0;
 const newId = () => (globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().slice(0, 12) : Date.now().toString(36) + (counter++).toString(36));
 
-export function createStore(backend, { now = () => new Date() } = {}) {
+export function createStore(backend, { now = () => new Date(), device = "dev-" + newId() } = {}) {
   let nodes = new Map();
   let graves = new Map(); // id → when it was deleted (R19 tombstones, kept 30 days for a later sync)
   let state = { xp: 0, log: [], coins: 0, decor: [] };
@@ -66,10 +67,32 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), goal: goalOf(n.goal), created: n.created || stamp(), updated: n.updated || stamp(),
     };
   }
+  // R51 · the action log and the raw inputs. Every add, update and delete is found by comparing each
+  // node with how it looked at the last save, so no way of changing things can skip the log.
+  let journal = [], inputs = [], seq = 0, actor = "me", shadow = new Map(), stateShadow = {};
+  let profile = {}, suggestions = []; // R52
+  const STATE_KEYS = ["xp", "coins", "decor"], SKIP = new Set(["id", "created", "updated"]);
+  const stateNow = () => Object.fromEntries(STATE_KEYS.map((k) => [k, JSON.stringify(state[k])]));
+  const resetShadow = () => { shadow = new Map([...nodes].map(([id, n]) => [id, JSON.stringify(n)])); stateShadow = stateNow(); };
+  const entry = (e) => { journal.push({ seq: ++seq, at: stamp(), by: actor, device, ...e }); };
+  function record() {
+    for (const [id, n] of nodes) {
+      const was = shadow.get(id), is = JSON.stringify(n); if (was === is) continue;
+      if (!was) { const after = {}; for (const [k, v] of Object.entries(n)) if (!SKIP.has(k)) after[k] = v; entry({ op: "add", id, type: n.type, fields: Object.keys(after), after }); }
+      else {
+        const prev = JSON.parse(was), fields = Object.keys(n).filter((k) => !SKIP.has(k) && JSON.stringify(n[k]) !== JSON.stringify(prev[k]));
+        if (fields.length) entry({ op: "update", id, type: n.type, fields, after: Object.fromEntries(fields.map((k) => [k, n[k]])) });
+      }
+    }
+    for (const [id, was] of shadow) if (!nodes.has(id)) { const p = JSON.parse(was); entry({ op: "remove", id, type: p.type, after: { title: p.title } }); }
+    const st = stateNow(), sf = STATE_KEYS.filter((k) => st[k] !== stateShadow[k]);
+    if (sf.length) entry({ op: "state", fields: sf, after: Object.fromEntries(sf.map((k) => [k, state[k]])) });
+    resetShadow();
+  }
   const graveList = () => [...graves].map(([id, at]) => ({ id, at }));
-  const persist = () => backend.save({ version: 2, nodes: [...nodes.values()], deleted: graveList(), state });
+  const persist = () => backend.save({ version: 3, nodes: [...nodes.values()], deleted: graveList(), state, profile, suggestions, journal, inputs });
   const keepGraves = (list) => { graves = new Map(); const cut = now().getTime() - 30 * 864e5; for (const g of list || []) if (Date.parse(g.at) > cut) graves.set(g.id, g.at); };
-  const emit = () => { persist(); listeners.forEach((f) => f()); };
+  const emit = () => { record(); persist(); listeners.forEach((f) => f()); };
 
   const loaded = backend.load();
   if (loaded && Array.isArray(loaded.nodes)) {
@@ -77,7 +100,11 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     state = { xp: loaded.state?.xp || 0, log: loaded.state?.log || [], coins: loaded.state?.coins || 0, decor: loaded.state?.decor || [] };
     keepGraves(loaded.deleted);
     for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
-  } else { seed(); persist(); }
+    profile = loaded.profile || {}; suggestions = loaded.suggestions || []; journal = loaded.journal || []; inputs = loaded.inputs || [];
+    seq = Math.max(0, ...journal.map((e) => e.seq || 0), ...inputs.map((e) => e.seq || 0));
+    resetShadow();
+    if ((loaded.version || 1) < 3) entry({ op: "migrate", from: loaded.version || 1 });
+  } else { seed(); resetShadow(); persist(); }
 
   // The next occurrence of a repeating task: open, unpaid, steps undone, next date.
   const again = (n) => ({ ...n, done: false, awarded: false, bossAwarded: false, due: nextDue(n.due, n.repeat, isoDate(now())), steps: n.steps ? n.steps.map((st) => ({ ...st, done: false })) : null, updated: stamp() });
@@ -98,7 +125,10 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     add(partial) { const n = normalize({ ...partial, id: partial.id || newId(), created: partial.created || stamp(), updated: stamp() }); nodes.set(n.id, n); graves.delete(n.id); emit(); return n.id; },
     update(id, patch) { const n = nodes.get(id); if (!n) return; nodes.set(id, normalize({ ...n, ...patch, id, updated: stamp() })); emit(); },
     remove(id) { const n = nodes.get(id); if (!n || n.system) return; for (const c of api.children(id)) api.remove(c.id); nodes.delete(id); graves.set(id, stamp()); emit(); },
-    capture(text) {
+    capture(text, { source = "text" } = {}) {
+      const id = api.captureNode(text); api.input(source, text, id); return id;
+    },
+    captureNode(text) {
       const { repeat, text: rest } = parseRepeat(text);
       const c = parseCapture(rest, now());
       if (repeat) { c.type = "task"; if (!c.due) c.due = nextDue(isoDate(now()), repeat, isoDate(now())); }
@@ -106,14 +136,16 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     },
     // R43 · Goals Board
     addGoal(text) {
-      const g = parseGoal(text, now()); if (!g.ok) return g;
+      const g = parseGoal(text, now()); if (!g.ok) { api.input("goal", text, null); return g; }
       const id = api.add({ type: "goal", title: g.title, due: g.due, parent: null, goal: { time: g.time, object: g.object, scene: g.scene } });
+      api.input("goal", text, id);
       return { ok: true, id };
     },
-    setGoalStep(id, title, at = null) { const n = nodes.get(id); if (!n?.goal) return; const t = String(title || "").trim(); api.update(id, { goal: { ...n.goal, step: t ? { title: t, at: at || null, day: isoDate(now()) } : null, started: null } }); },
+    setGoalStep(id, title, at = null) { const n = nodes.get(id); if (!n?.goal) return; if (String(title || "").trim()) api.input("step", title, id); const t = String(title || "").trim(); api.update(id, { goal: { ...n.goal, step: t ? { title: t, at: at || null, day: isoDate(now()) } : null, started: null } }); },
     // R44 · plan backward: each answer to "what must be true just before?" goes in front.
     planBefore(id, text) {
       const n = nodes.get(id), t = String(text || "").trim(); if (!n?.goal || !t) return;
+      api.input("plan", text, id);
       setPath(id, [{ title: t, done: false, ...artFor(t) }, ...n.goal.path]);
     },
     setStationDue(id, i, due) { const n = nodes.get(id); if (!n?.goal?.path[i]) return; setPath(id, n.goal.path.map((x, k) => (k === i ? { ...x, due, fixed: !!due } : x))); },
@@ -125,11 +157,12 @@ export function createStore(backend, { now = () => new Date() } = {}) {
       return gained;
     },
     nowStep(id, text) { api.setGoalStep(id, text, null); },
-    setObstacle(id, ifText, thenText) { const n = nodes.get(id); if (!n?.goal) return; const a = String(ifText || "").trim(); api.update(id, { goal: { ...n.goal, obstacle: a ? { if: a, then: String(thenText || "").trim() } : null } }); },
+    setObstacle(id, ifText, thenText) { const n = nodes.get(id); if (!n?.goal) return; api.input("obstacle", `${ifText || ""} → ${thenText || ""}`, id); const a = String(ifText || "").trim(); api.update(id, { goal: { ...n.goal, obstacle: a ? { if: a, then: String(thenText || "").trim() } : null } }); },
     // R45 · stuck questions: each answer is an action; asked at most once a day.
     markAsked(id) { const n = nodes.get(id); if (n?.goal) api.update(id, { goal: { ...n.goal, asked: isoDate(now()) } }); },
     answerStuck(id, answer, value = "") {
       const n = nodes.get(id), action = STUCK_ACTION[answer]; if (!n?.goal || !action) return { ok: false };
+      api.input("stuck", value ? `${answer}: ${value}` : answer, id);
       let g = { ...n.goal, asked: isoDate(now()) };
       const v = String(value || "").trim(), step = g.step;
       if (action === "addBefore" && v) { if (step) g.path = [{ title: step.title, done: false, ...artFor(step.title) }, ...g.path]; g.step = { title: v, at: null, day: isoDate(now()) }; g.started = null; }
@@ -179,13 +212,14 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     },
     openTasks(pid) { return api.descendants(pid).filter((n) => n.type === "task" && !n.done); },
     // Snapshot and restore, used by export/import.
-    snapshot: () => ({ version: 2, nodes: [...nodes.values()].map((n) => ({ ...n })), deleted: graveList(), state: { ...state, log: [...state.log], decor: state.decor.map((d) => ({ ...d })) } }),
+    snapshot: () => JSON.parse(JSON.stringify({ version: 3, nodes: [...nodes.values()], deleted: graveList(), state, profile, suggestions, journal, inputs })),
     restore(data, { merge = false } = {}) {
       if (!merge) { nodes = new Map(); }
       for (const n of data.nodes || []) nodes.set(n.id, normalize(n));
       for (const s of SEED) if (!nodes.has(s.id)) nodes.set(s.id, normalize({ ...s, system: true }));
       if (data.state && !merge) state = { xp: data.state.xp || 0, log: data.state.log || [], coins: data.state.coins || 0, decor: data.state.decor || [] };
-      if (!merge) keepGraves(data.deleted);
+      if (!merge) { keepGraves(data.deleted); profile = data.profile || {}; suggestions = data.suggestions || []; journal = data.journal ? [...data.journal] : journal; inputs = data.inputs ? [...data.inputs] : inputs; seq = Math.max(seq, ...journal.map((e) => e.seq || 0), ...inputs.map((e) => e.seq || 0)); }
+      resetShadow(); entry({ op: "restore", merge: !!merge, nodes: (data.nodes || []).length });
       emit();
     },
     // R36 · the wallet and the decorations bought with it.
@@ -194,7 +228,27 @@ export function createStore(backend, { now = () => new Date() } = {}) {
     spendCoins(n, why) { if (n > state.coins) return false; state.coins -= n; state.log.push({ at: stamp(), coins: -n, why }); emit(); return true; },
     decorations: () => state.decor.map((d) => ({ ...d })),
     decorate(d) { state.decor.push({ district: d.district, slot: d.slot, item: d.item }); emit(); },
-    reset() { seed(); state = { xp: 0, log: [], coins: 0, decor: [] }; emit(); },
+    reset() { seed(); state = { xp: 0, log: [], coins: 0, decor: [] }; profile = {}; suggestions = []; resetShadow(); entry({ op: "reset" }); emit(); },
+    // R51 · who is acting (me, claude, app), the log and the raw inputs.
+    as(who) { actor = String(who || "me"); },
+    device: () => device,
+    journal: () => journal.map((e) => ({ ...e })),
+    inputs: () => inputs.map((e) => ({ ...e })),
+    input(kind, text, result = null) { inputs.push({ seq: ++seq, at: stamp(), kind: String(kind), text: String(text ?? ""), result: result ?? null, device, by: actor }); persist(); },
+    // R52 · the profile: defaults until set; every earlier value kept; learned values wait for approval.
+    profile: () => JSON.parse(JSON.stringify(Object.fromEntries(Object.keys(DEFAULT_PROFILE).map((k) => [k, profile[k] ? profile[k].value : DEFAULT_PROFILE[k]])))),
+    profileEntry: (k) => profile[k] ? JSON.parse(JSON.stringify(profile[k])) : (k in DEFAULT_PROFILE ? { value: JSON.parse(JSON.stringify(DEFAULT_PROFILE[k])), source: "default", at: null, history: [] } : null),
+    setProfile(key, value, { source = "me" } = {}) {
+      if (!validProfile(key, value)) return { ok: false, error: "invalid" };
+      const was = profile[key], v = JSON.parse(JSON.stringify(value));
+      profile[key] = { value: v, source, at: stamp(), history: was ? [...was.history, { value: was.value, source: was.source, at: was.at }] : [] };
+      entry({ op: "profile", key, source, after: { [key]: v } }); persist(); listeners.forEach((f) => f());
+      return { ok: true };
+    },
+    suggestions: () => JSON.parse(JSON.stringify(suggestions)),
+    suggestProfile(key, value, reason = "") { if (!validProfile(key, value)) return null; const id = newId(); suggestions.push({ id, key, value, reason, at: stamp() }); persist(); return id; },
+    acceptSuggestion(id) { const x = suggestions.find((s) => s.id === id); if (!x) return; suggestions = suggestions.filter((s) => s.id !== id); api.setProfile(x.key, x.value, { source: "learned" }); },
+    rejectSuggestion(id) { suggestions = suggestions.filter((s) => s.id !== id); persist(); },
   };
   return api;
 }

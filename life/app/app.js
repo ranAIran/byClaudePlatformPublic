@@ -30,11 +30,13 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.8.0";
+export const VERSION = "0.9.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
-const store = createStore(saved);
+// R51 · one id per device, made on first start and kept; the log records which device did what.
+const deviceId = (() => { try { let d = localStorage.getItem("life-device"); if (!d) { d = (/; wv\)|Android.*Version\//.test(navigator.userAgent) ? "phone-" : "web-") + Math.random().toString(36).slice(2, 8); localStorage.setItem("life-device", d); } return d; } catch (e) { return "web-unknown"; } })();
+const store = createStore(saved, { device: deviceId });
 // R37 · language: follows the device unless chosen in the menu.
 let lang = pickLang((() => { try { return localStorage.getItem("life-lang"); } catch (e) { return null; } })(), navigator.language);
 let t = makeT(lang);
@@ -45,6 +47,9 @@ const islandOf = (id) => { const p = [id, ...store.path(id)].find((x) => ISL_COL
 
 // ---------- example content on first run ----------
 function seedExamples() {
+  store.as("app"); try { seedExamplesNow(); } finally { store.as("me"); }
+}
+function seedExamplesNow() {
   try { if (localStorage.getItem("life-seeded")) return; localStorage.setItem("life-seeded", "1"); } catch (e) { return; }
   const day = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return isoDate(d); };
   const ex = ["example"];
@@ -316,6 +321,66 @@ function openGoal(id, { stuck = false } = {}) {
     + `<form class="gplan" id="gObstForm"><label>${t("obstacleT")}</label><input name="a" dir="auto" maxlength="120" placeholder="${esc(t("obstacleIf"))}" value="${esc(g.obstacle?.if || "")}"><input name="b" dir="auto" maxlength="120" placeholder="${esc(t("obstacleThen"))}" value="${esc(g.obstacle?.then || "")}"><button class="chip">${t("saveIfThen")}</button></form>`;
   if (stuckFor === id && g.asked !== isoDate(new Date())) store.markAsked(id);
 }
+// ---------- R52 · my week & memory ----------
+const DAYS = [0, 1, 2, 3, 4, 5, 6];
+const dayChips = (on, name) => `<span class="pfdays" data-name="${name}">${DAYS.map((d) => `<button type="button" class="chip ${on.includes(d) ? "on" : ""}" data-act="pfday" data-d="${d}">${t("day" + d)}</button>`).join("")}</span>`;
+const daysText = (ds) => ds.map((d) => t("day" + d)).join(" ");
+const pickedDays = (el) => [...el.querySelectorAll('[data-act="pfday"].on')].map((b) => +b.dataset.d);
+const whenSet = (e) => e.source === "default" ? t("pf_default") : t(e.source === "learned" ? "pf_learned" : "pf_byMe", { d: new Date(e.at).toLocaleDateString(lang === "he" ? "he-IL" : undefined) });
+function openProfile() {
+  sheetFor = "profile"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
+  $("sheetTitle").textContent = t("pf_title"); $("sheetSub").textContent = t("pf_sub"); $("sheetDot").style.background = "#6aa9ff"; $("sheetDot").innerHTML = pIcon("custom"); $("sheetTabs").hidden = true;
+  const P = store.profile(), ww = store.profileEntry("workWeek"), er = store.profileEntry("errands");
+  const list = (key, label) => { const e = store.profileEntry(key), v = P[key];
+    return `<div class="sec">${t(label)}</div><div class="pfbox">${v.length ? v.map((r, i) => `<div class="pfrow"><b>${esc(daysText(r.days))}</b><span>${r.from}–${r.to}</span>${r.label ? `<em>${esc(r.label)}</em>` : ""}<button class="grm" data-act="pfrm" data-k="${key}" data-i="${i}" aria-label="×">×</button></div>`).join("") : `<div class="muted pfnone">${t("pf_none")}</div>`}`
+      + `<form class="pfadd" data-k="${key}">${dayChips([], key)}<span class="pftimes"><input type="time" name="from" required aria-label="${esc(t("pf_from"))}"><span>–</span><input type="time" name="to" required aria-label="${esc(t("pf_to"))}"><button class="chip">${t("pf_add")}</button></span></form>${v.length ? `<small class="pfmeta">${whenSet(e)}</small>` : ""}</div>`; };
+  const sugg = store.suggestions();
+  $("sheetBody").innerHTML = `<div class="sec">${t("pf_work")}</div><form class="pfbox" id="pfWork">${dayChips(P.workWeek.days, "work")}<span class="pftimes"><input type="time" name="from" value="${P.workWeek.from}" aria-label="${esc(t("pf_from"))}"><span>–</span><input type="time" name="to" value="${P.workWeek.to}" aria-label="${esc(t("pf_to"))}"><button class="chip">${t("saveIfThen")}</button></span><small class="pfmeta">${whenSet(ww)}</small></form>`
+    + list("restTimes", "pf_rest") + list("focusTimes", "pf_focus") + list("lowTimes", "pf_low")
+    + `<div class="sec">${t("pf_errands")}</div><div class="pfbox pferr"><label><input type="checkbox" data-pf="friday" ${P.errands.friday ? "checked" : ""}> ${t("pf_friday")}</label><label><input type="checkbox" data-pf="saturday" ${P.errands.saturday ? "checked" : ""}> ${t("pf_saturday")}</label><small class="pfmeta">${whenSet(er)}</small></div>`
+    + `<div class="sec">${t("pf_suggest")}</div>` + (sugg.length ? sugg.map((x) => `<div class="pfbox"><b>${esc(x.reason)}</b><div class="row"><button class="chip on" data-act="pfok" data-id="${x.id}">${t("pf_accept")}</button><button class="chip" data-act="pfno" data-id="${x.id}">${t("pf_reject")}</button></div></div>`).join("") : `<p class="muted" style="font-size:12.5px;margin:4px 2px">${t("pf_noSuggest")}</p>`);
+}
+$("sheetBody").addEventListener("submit", (e) => {
+  const f = e.target; if (sheetFor !== "profile") return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  const from = f.elements.from.value, to = f.elements.to.value, days = pickedDays(f);
+  let r;
+  if (f.id === "pfWork") r = store.setProfile("workWeek", { days, from, to });
+  else { const k = f.dataset.k; r = store.setProfile(k, [...store.profile()[k], { days, from, to }]); }
+  toast(t(r.ok ? "pf_saved" : "pf_bad"));
+}, true);
+$("sheetBody").addEventListener("click", (e) => {
+  if (sheetFor !== "profile") return;
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  if (b.dataset.act === "pfday") { e.preventDefault(); b.classList.toggle("on"); return; }
+  e.stopImmediatePropagation();
+  if (b.dataset.act === "pfrm") { const k = b.dataset.k, v = store.profile()[k]; v.splice(+b.dataset.i, 1); store.setProfile(k, v); }
+  if (b.dataset.act === "pfok") store.acceptSuggestion(b.dataset.id);
+  if (b.dataset.act === "pfno") { store.rejectSuggestion(b.dataset.id); openProfile(); }
+}, true);
+$("sheetBody").addEventListener("change", (e) => {
+  const k = e.target.dataset?.pf; if (sheetFor !== "profile" || !k) return;
+  e.stopImmediatePropagation(); const v = { ...store.profile().errands, [k]: e.target.checked }; store.setProfile("errands", v); toast(t("pf_saved"));
+}, true);
+
+// ---------- R51 · the activity log: every action with its time tag, and the raw inputs ----------
+const stampText = (iso) => { const d = new Date(iso); return d.toLocaleString(lang === "he" ? "he-IL" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }); };
+function openJournal(tab = "actions") {
+  sheetFor = "journal:" + tab; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
+  const J = store.journal(), I = store.inputs(), N = 200;
+  $("sheetTitle").textContent = t("jr_title"); $("sheetDot").style.background = "#b9a6ff"; $("sheetDot").innerHTML = pIcon("custom");
+  $("sheetSub").textContent = t("jr_sub", { n: J.length, i: I.length, d: store.device() });
+  const tabs = $("sheetTabs"); tabs.hidden = false;
+  tabs.innerHTML = `<button class="chip ${tab === "actions" ? "on" : ""}" data-jtab="actions">${t("jr_actions")} · ${J.length}</button><button class="chip ${tab === "inputs" ? "on" : ""}" data-jtab="inputs">${t("jr_inputs")} · ${I.length}</button>`;
+  const PF = { workWeek: "pf_work", restTimes: "pf_rest", focusTimes: "pf_focus", lowTimes: "pf_low", errands: "pf_errands" };
+  const nameOf = (e) => e.key ? (PF[e.key] ? t(PF[e.key]) : e.key) : e.after?.title || store.get(e.id)?.title || "";
+  const rows = tab === "inputs"
+    ? I.slice(-N).reverse().map((x) => `<div class="jrow"><time>${stampText(x.at)}</time><span class="jop">${esc(x.kind)}</span><span class="jt" dir="auto">${esc(x.text)}</span><span class="jby">${t("by_" + x.by) || esc(x.by)} · ${esc(x.device)}</span></div>`)
+    : J.slice(-N).reverse().map((x) => `<div class="jrow ${x.op}"><time>${stampText(x.at)}</time><span class="jop">${t("op_" + x.op)}</span><span class="jt" dir="auto">${esc(store.get(x.id)?.type === "place" ? title(x.id) : nameOf(x))}${x.op === "update" || x.op === "state" ? ` <em>${esc((x.fields || []).join(", "))}</em>` : ""}</span><span class="jby">${t("by_" + x.by) || esc(x.by)} · ${esc(x.device)}</span></div>`);
+  $("sheetBody").innerHTML = rows.length ? rows.join("") + ((tab === "inputs" ? I : J).length > N ? `<p class="muted" style="font-size:12px">${t("jr_more", { n: N })}</p>` : "") : `<div class="empty">${t("jr_empty")}</div>`;
+}
+$("sheetTabs").addEventListener("click", (e) => { const b = e.target.closest("[data-jtab]"); if (b) { e.stopImmediatePropagation(); openJournal(b.dataset.jtab); } }, true);
+
 function openGoals() {
   sheetFor = "goals"; $("sheet").hidden = false; $("menu").hidden = true; document.body.classList.add("sheet-open");
   const B = goalBoard(store);
@@ -380,6 +445,8 @@ $("sheetBody").addEventListener("change", (e) => { const i = e.target.dataset?.s
 function openSheet(id) {
   if (id === "today") return openToday();
   if (id === "goals") return openGoals();
+  if (id === "profile") return openProfile();
+  if (String(id).startsWith("journal:")) return openJournal(id.slice(8));
   if (String(id).startsWith("goal:")) return openGoal(id.slice(5));
   if (id === "categories") return openCategories();
   if (String(id).startsWith("shop:")) return openShop(id.slice(5));
@@ -691,14 +758,14 @@ function physicsTick(dt) {
 // ---------- capture: text, voice, photo, scan, share ----------
 $("capForm").addEventListener("submit", (e) => {
   e.preventDefault(); const v = $("capInput").value.trim(); if (!v) return;
-  const id = store.capture(v); $("capInput").value = "";
+  const id = store.capture(v, { source: viaVoice ? "voice" : "text" }); $("capInput").value = ""; viaVoice = false;
   const n = store.get(id); toast(`${n.due ? t("inBagDue", { d: dueText(n.due) }) : t("inBag")} · ${t("suggests", { place: title(n.suggest[0]) })}`);
   bounceBag();
 });
 const bounceBag = () => $("bagBtn").animate([{ transform: "translateX(-50%) scale(1)" }, { transform: "translateX(-50%) scale(1.18)" }, { transform: "translateX(-50%) scale(1)" }], { duration: 380 });
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 const speechLang = () => (/^he|^iw/.test(navigator.language) ? "he-IL" : "en-US");
-let rec = null;
+let rec = null, viaVoice = false;
 $("micBtn").addEventListener("click", () => {
   if (bridge.canNativeVoice) { bridge.voice(speechLang()); return; }
   if (!SR) { toast(t("noVoice")); return; }
@@ -706,29 +773,31 @@ $("micBtn").addEventListener("click", () => {
   rec = new SR(); rec.lang = speechLang(); rec.interimResults = true;
   $("micBtn").classList.add("live");
   rec.onresult = (ev) => { $("capInput").value = [...ev.results].map((r) => r[0].transcript).join(" "); };
-  rec.onend = () => { $("micBtn").classList.remove("live"); rec = null; if ($("capInput").value.trim()) $("capForm").requestSubmit(); };
+  rec.onend = () => { $("micBtn").classList.remove("live"); rec = null; if ($("capInput").value.trim()) { viaVoice = true; $("capForm").requestSubmit(); } };
   rec.start();
 });
 $("camBtn").addEventListener("click", () => $("photoInput").click());
 $("photoInput").addEventListener("change", async () => {
   const f = $("photoInput").files[0]; $("photoInput").value = ""; if (!f) return;
   const { images, thumb } = await media.storeImages([await media.fileToDataURL(f)]);
-  store.add({ type: "photo", title: t("photoOf", { d: new Date().toLocaleDateString(lang === "he" ? "he-IL" : undefined) }), images, thumb, parent: "bag", suggest: ["home", "paperwork", "living"] });
+  const pid = store.add({ type: "photo", title: t("photoOf", { d: new Date().toLocaleDateString(lang === "he" ? "he-IL" : undefined) }), images, thumb, parent: "bag", suggest: ["home", "paperwork", "living"] });
+  store.input("photo", f.name || "photo", pid);
   toast(t("photoInBag")); bounceBag();
 });
 $("scanBtn").addEventListener("click", () => bridge.scan());
 async function onScan(res) {
   const pages = res?.pages || []; if (!pages.length) return;
   const { images, thumb } = await media.storeImages(pages);
-  store.add({ type: "document", title: t("scannedDoc", { n: pages.length }), images, thumb, parent: "bag", suggest: ["paperwork", "home", "work"], notes: "" });
+  const sid = store.add({ type: "document", title: t("scannedDoc", { n: pages.length }), images, thumb, parent: "bag", suggest: ["paperwork", "home", "work"], notes: "" });
+  store.input("scan", `${pages.length} pages`, sid);
   toast(t("scanSaved")); openSheet("bag");
 }
 async function onShare(p) {
   const n = shareToNode(p || {});
   if (n.images?.length) Object.assign(n, await media.storeImages(n.images));
-  store.add(n); toast(t("sharedIn")); openSheet("bag");
+  const shid = store.add(n); store.input("share", [p?.title, p?.text, p?.url].filter(Boolean).join(" · ") || "(file)", shid); toast(t("sharedIn")); openSheet("bag");
 }
-function onVoice(text) { if (!text) return; $("capInput").value = text; $("capForm").requestSubmit(); }
+function onVoice(text) { if (!text) return; viaVoice = true; $("capInput").value = text; $("capForm").requestSubmit(); }
 function onBack() {
   if (!$("editor").hidden) { closeEditor(); return true; }
   if (!$("feedback").hidden) { $("feedback").hidden = true; return true; }
@@ -742,7 +811,7 @@ function onBack() {
 function onLink(url) {
   const a = parseDeepLink(url); if (!a) return;
   closeSheet(); $("searchBox").hidden = true; $("menu").hidden = true;
-  if (a.action === "add") { const id = store.capture(a.text); const n = store.get(id); toast(n.due ? t("inBagDue", { d: dueText(n.due) }) : t("inBag")); bounceBag(); }
+  if (a.action === "add") { const id = store.capture(a.text, { source: "link" }); const n = store.get(id); toast(n.due ? t("inBagDue", { d: dueText(n.due) }) : t("inBag")); bounceBag(); }
   if (a.action === "capture") setTimeout(() => $("capInput").focus(), 300);
   if (a.action === "open") { if (store.get(a.id)) openFor(a.id); else toast(t("gone")); }
   if (a.action === "place") { if (store.get(a.id)?.type === "place") openFor(a.id); }
@@ -790,6 +859,8 @@ $("menu").addEventListener("click", async (e) => {
   if (act === "exportmd") { bridge.saveFile(`life-summary-${stamp}.md`, "text/markdown", exportDigest(store)); toast(t("summaryExported")); }
   if (act === "import") $("importInput").click();
   if (act === "categories") openCategories();
+  if (act === "profile") openProfile();
+  if (act === "journal") openJournal("actions");
   if (act === "quality") { lsSet("life-quality", quality === "enhanced" ? "light" : "enhanced"); location.reload(); }
   if (act === "theme") { const next = document.documentElement.dataset.theme === "faded" ? "contrast" : "faded"; document.documentElement.dataset.theme = next; lsSet("life-theme", next); applyLang(); }
   if (act === "lang") { lang = lang === "he" ? "en" : "he"; lsSet("life-lang", lang); t = makeT(lang); applyLang(); }
@@ -903,7 +974,7 @@ renderer.setAnimationLoop(() => {
     setTimeout(autoBackup, 4000);
     try { const d = isoDate(new Date()); if (todayList(store).overdue.length && localStorage.getItem("life-today-shown") !== d && !params.has("notoday")) { localStorage.setItem("life-today-shown", d); setTimeout(openToday, 600); } } catch (e) { /* storage unavailable */ }
   }
-  if (++frames === 20) { window.__life = { ready: true, store, goals: () => goalBoard(store), openGoals, openGoal, theme: () => document.documentElement.dataset.theme, view: () => view, backendName,
+  if (++frames === 20) { window.__life = { ready: true, store, openProfile, openJournal, goals: () => goalBoard(store), openGoals, openGoal, theme: () => document.documentElement.dataset.theme, view: () => view, backendName,
     quality: () => quality,
     today: () => todayList(store), link: (u) => onLink(u), storage: () => ({ kind: saved.kind, migrated: saved.migrated }), flush: () => saved.flush(),
     ui: { openSheet: (id) => openSheet(id), openEditor: (id) => openEditor(id), closeSheet: () => closeSheet() },

@@ -23,6 +23,8 @@ import { backupDue, backupName } from "../app/core/backup.js";
 import { CATALOG, SLOTS, buy, decorationsFor } from "../app/core/shop.js";
 import { DICTS, makeT, pickLang, placeTitle } from "../app/core/i18n.js";
 import { pickQuality, canChooseQuality } from "../app/core/quality.js";
+import { PROFILE_KEYS, DEFAULT_PROFILE, validProfile } from "../app/core/profile.js";
+import { splitForSync } from "../app/core/sealable.js";
 import { parseGoal, goalDeadline, timeLeft, goalBoard, artFor, spreadDates, progressView, stuckReason, STUCK_ANSWERS } from "../app/core/goals.js";
 import { addCategory, renameCategory, removeCategory, categories } from "../app/core/categories.js";
 
@@ -465,7 +467,7 @@ describe("R21 · deep links open the app on an action", () => {
 
 describe("R19 · data is kept safely in IndexedDB", () => {
   const fakeLS = (init = {}) => { const m = { ...init }; return { getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; }, m }; };
-  it("moves version-1 data from localStorage on first start without losing an item, then saves version 2", async () => {
+  it("moves version-1 data from localStorage on first start without losing an item, then saves version 3", async () => {
     const old = fresh(); old.add({ id: "x1", type: "task", title: "Renew passport", parent: "paperwork" }); old.award(30, "test");
     const ls = fakeLS({ "life-archipelago-v1": JSON.stringify(old.snapshot()) }), idb = new IDBFactory();
     const b1 = await openSavedBackend({ idb, ls });
@@ -474,7 +476,7 @@ describe("R19 · data is kept safely in IndexedDB", () => {
     expect(s.get("x1").title).toBe("Renew passport"); expect(s.xp()).toBe(30);
     s.add({ id: "x2", type: "note", title: "New", parent: "work" }); await b1.flush();
     const b2 = await openSavedBackend({ idb, ls }); const data = b2.load();
-    expect(b2.migrated).toBe(false); expect(data.version).toBe(2); expect(data.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(["x1", "x2"]));
+    expect(b2.migrated).toBe(false); expect(data.version).toBe(3); expect(data.nodes.map((n) => n.id)).toEqual(expect.arrayContaining(["x1", "x2"]));
     expect(ls.getItem("life-archipelago-v1")).not.toBeNull();  // the old copy stays as a fallback
   });
   it("falls back to localStorage when IndexedDB is missing", async () => {
@@ -782,6 +784,104 @@ describe("R45 · when a step doesn't move: questions, not nagging", () => {
   });
   it("the interface words exist in both languages", () => {
     for (const k of ["planBack", "justBefore", "canDoNow", "obstacleIf", "obstacleThen", "progDone", "progLeft", "stuckBanner", "stuckQ", "ans_missing", "ans_unclear", "ans_energy", "ans_time", "ans_someone", "ans_unimportant", "stakesQ", "stakes_none", "stakes_soft", "stakes_hard", "notNow", "youAreHere", "released", "m_theme", "th_contrast", "th_faded"])
+      { expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy(); }
+  });
+});
+
+describe("R51 · an action log with a time tag for every add, update and delete, and the raw inputs", () => {
+  let clock; const at = (h, m = 0, sec = 0) => { clock = new Date(2026, 10, 28, h, m, sec); };
+  const mk = (opts = {}) => { at(9); return createStore(memoryBackend(), { now: () => clock, device: "phone-1", ...opts }); };
+  it("logs add, update and remove with time, fields, who and which device", () => {
+    const s = mk();
+    at(9, 0, 5); const id = s.add({ type: "task", title: "Pay arnona", parent: "paperwork" });
+    at(9, 1); s.update(id, { due: "2026-12-01" });
+    at(9, 2); s.as("claude"); s.update(id, { title: "Pay the arnona" }); s.as("me");
+    at(9, 3); s.remove(id);
+    const j = s.journal().filter((e) => e.id === id);
+    expect(j.map((e) => e.op)).toEqual(["add", "update", "update", "remove"]);
+    expect(j[0]).toMatchObject({ at: new Date(2026, 10, 28, 9, 0, 5).toISOString(), by: "me", device: "phone-1", type: "task" });
+    expect(j[1].fields).toEqual(["due"]); expect(j[1].after).toEqual({ due: "2026-12-01" });
+    expect(j[2]).toMatchObject({ by: "claude", fields: ["title"] });
+    expect(j.map((e) => e.seq)).toEqual([...j.map((e) => e.seq)].sort((a, b) => a - b));
+  });
+  it("catches every way of changing things: completing, goals, stations, stuck answers", () => {
+    const s = mk(); const id = s.addGoal("by Tuesday evening the box is in storage").id;
+    s.planBefore(id, "The box is in the car"); s.completeStation(id, 0); s.answerStuck(id, "unimportant");
+    const t = s.add({ type: "task", title: "Call", parent: "family" }); s.complete(t);
+    const ops = s.journal().map((e) => `${e.op}:${e.fields?.join("+") || ""}`);
+    expect(ops.filter((o) => o.startsWith("update")).length).toBeGreaterThanOrEqual(4);
+    expect(s.journal().some((e) => e.id === t && e.fields?.includes("done"))).toBe(true);
+    expect(s.journal().some((e) => e.op === "state" && e.fields.includes("coins"))).toBe(true);
+  });
+  it("keeps each raw input exactly as typed, with its source and what it became", () => {
+    const s = mk();
+    const a = s.capture("  לשלם ארנונה עד יום ראשון  ", { source: "voice" });
+    const g = s.addGoal("עד מחר בבוקר יש לי שוקולד חדש במקרר").id;
+    s.addGoal("no date here");
+    s.input("share", "https://example.com/article");
+    const ins = s.inputs();
+    expect(ins.map((x) => [x.kind, x.text, x.result ?? null])).toEqual([
+      ["voice", "  לשלם ארנונה עד יום ראשון  ", a], ["goal", "עד מחר בבוקר יש לי שוקולד חדש במקרר", g], ["goal", "no date here", null], ["share", "https://example.com/article", null]]);
+    expect(ins[0]).toMatchObject({ device: "phone-1", at: clock.toISOString() });
+  });
+  it("saves version 3 with the log, inputs and profile; version-2 data moves over and is logged", () => {
+    const back = memoryBackend(); const s = createStore(back, { now: () => new Date(2026, 10, 28), device: "pc-1" });
+    s.add({ id: "k", type: "note", title: "Keep", parent: "home" }); s.setProfile("workWeek", { days: [0, 1, 2, 3, 4], from: "08:30", to: "16:30" });
+    const saved = back.load();
+    expect(saved.version).toBe(3); expect(saved.journal.length).toBeGreaterThan(0); expect(saved.profile.workWeek.value.from).toBe("08:30");
+    const again = createStore(back, { now: () => new Date(2026, 10, 29) }); expect(again.journal().length).toBe(s.journal().length);
+    const v2 = { version: 2, nodes: [{ id: "old", type: "task", title: "Old", parent: "work" }], deleted: [], state: { xp: 5, log: [], coins: 1, decor: [] } };
+    const m = createStore({ load: () => v2, save() {} }, { now: () => new Date(2026, 10, 28) });
+    expect(m.get("old").title).toBe("Old"); expect(m.journal()[0]).toMatchObject({ op: "migrate", from: 2 });
+    const snap = s.snapshot(); expect(snap.journal.length).toBe(s.journal().length); expect(snap.profile.workWeek).toBeTruthy();
+    const r = createStore(memoryBackend(), { now: () => new Date(2026, 10, 30) }); r.restore(snap);
+    expect(r.profile().workWeek.from).toBe("08:30"); expect(r.journal().at(-1)).toMatchObject({ op: "restore" });
+  });
+  it("is ready to encrypt: what the server may see is split from the content", () => {
+    const s = mk(); const id = s.add({ type: "task", title: "Secret plan", parent: "work" });
+    const e = s.journal().find((x) => x.id === id);
+    const { meta, content } = splitForSync("journal", e);
+    expect(meta).toMatchObject({ kind: "journal", id, op: "add", at: e.at, device: "phone-1", seq: e.seq });
+    expect(JSON.stringify(meta)).not.toContain("Secret plan"); expect(JSON.parse(content).after.title).toBe("Secret plan");
+    const n = splitForSync("node", s.get(id)); expect(n.meta).toMatchObject({ kind: "node", id, updated: s.get(id).updated }); expect(JSON.stringify(n.meta)).not.toContain("Secret");
+  });
+});
+
+describe("R52 · the user profile (memory): week, rest, effective times, with history", () => {
+  const mk = () => { let t = new Date(2026, 10, 28, 9); const s = createStore(memoryBackend(), { now: () => t }); return { s, tick: (h) => { t = new Date(2026, 10, 28, h); } }; };
+  it("has sensible Israeli defaults until you set your own", () => {
+    const { s } = mk();
+    expect(s.profile().workWeek).toEqual(DEFAULT_PROFILE.workWeek);
+    expect(DEFAULT_PROFILE.workWeek.days).toEqual([0, 1, 2, 3, 4]);
+    expect(s.profileEntry("workWeek")).toMatchObject({ source: "default" });
+    expect(PROFILE_KEYS).toEqual(expect.arrayContaining(["workWeek", "restTimes", "focusTimes", "lowTimes", "errands", "placeHours", "people"]));
+  });
+  it("validates what you set and keeps every earlier value with its time", () => {
+    const { s, tick } = mk();
+    expect(s.setProfile("workWeek", { days: [0, 1, 2, 3], from: "08:00", to: "16:00" })).toMatchObject({ ok: true });
+    tick(10); s.setProfile("workWeek", { days: [0, 1, 2, 3, 4], from: "09:00", to: "18:00" });
+    const e = s.profileEntry("workWeek");
+    expect(e).toMatchObject({ source: "me", value: { from: "09:00" } }); expect(e.history.map((h) => h.value.from)).toEqual(["08:00"]);
+    expect(s.setProfile("workWeek", { days: [9], from: "18:00", to: "09:00" })).toMatchObject({ ok: false });
+    expect(s.setProfile("restTimes", [{ days: [5, 6], from: "14:00", to: "16:00", label: "nap" }]).ok).toBe(true);
+    expect(s.setProfile("focusTimes", [{ days: [0, 1, 2, 3, 4], from: "07:00", to: "10:00" }]).ok).toBe(true);
+    expect(s.setProfile("lowTimes", [{ days: [0], from: "25:00", to: "26:00" }]).ok).toBe(false);
+    expect(s.setProfile("errands", { friday: true, saturday: false }).ok).toBe(true);
+    expect(s.setProfile("favouriteColour", "blue").ok).toBe(false);
+    expect(validProfile("people", [{ name: "Dan", note: "brother, home Friday mornings" }])).toBe(true);
+    expect(s.journal().filter((x) => x.op === "profile").map((x) => x.key)).toEqual(["workWeek", "workWeek", "restTimes", "focusTimes", "errands"]);
+  });
+  it("learned values are only suggestions until you accept them", () => {
+    const { s } = mk();
+    const sid = s.suggestProfile("focusTimes", [{ days: [0, 1, 2, 3, 4], from: "06:30", to: "08:30" }], "You finish most goals before 08:30");
+    expect(s.profile().focusTimes).toEqual([]); expect(s.suggestions().length).toBe(1);
+    s.acceptSuggestion(sid);
+    expect(s.profile().focusTimes[0].from).toBe("06:30"); expect(s.profileEntry("focusTimes").source).toBe("learned"); expect(s.suggestions().length).toBe(0);
+    const s2 = s.suggestProfile("lowTimes", [{ days: [4], from: "15:00", to: "17:00" }], "x"); s.rejectSuggestion(s2);
+    expect(s.profile().lowTimes).toEqual([]); expect(s.suggestions().length).toBe(0);
+  });
+  it("the interface words exist in both languages", () => {
+    for (const k of ["m_profile", "m_journal", "pf_title", "pf_sub", "pf_work", "pf_days", "pf_from", "pf_to", "pf_rest", "pf_focus", "pf_low", "pf_errands", "pf_friday", "pf_saturday", "pf_add", "pf_none", "pf_byMe", "pf_learned", "pf_default", "pf_saved", "pf_bad", "pf_suggest", "pf_noSuggest", "jr_title", "jr_sub", "jr_actions", "jr_inputs", "op_add", "op_update", "op_remove", "op_state", "op_profile", "op_migrate", "op_restore", "op_reset", "by_me", "by_claude", "by_app", "jr_empty", "day0", "day6"])
       { expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy(); }
   });
 });
