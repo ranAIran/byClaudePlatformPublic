@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phase B Database Report</title>
+<style>
+:root{--bg:#fbfaf7;--ink:#17141f;--mute:#5c5668;--line:#d9d4e2;--card:#fff;--ok:#127a3e;--warn:#9a5b00;--acc:#3f5bd8;--code:#f1eef6}
+@media (prefers-color-scheme:dark){:root{--bg:#14111c;--ink:#f3f0f8;--mute:#b7b0c6;--line:#3a3448;--card:#1c1827;--ok:#5fe09a;--warn:#ffc94d;--acc:#8fa6ff;--code:#262134}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 "Segoe UI",Arial,"Liberation Sans",sans-serif}
+main{max-width:920px;margin:0 auto;padding:32px 16px 64px}
+h1{font-size:28px;margin:0 0 4px} h2{font-size:20px;margin:36px 0 10px;padding-top:12px;border-top:2px solid var(--line)}
+.sub{color:var(--mute);margin:0 0 18px}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13.5px;background:var(--code);padding:1px 5px;border-radius:5px;direction:ltr;unicode-bidi:isolate}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+.tree,.tree ul{list-style:none;margin:0;padding:0}
+.tree ul{padding-inline-start:26px;position:relative}
+.tree ul:before{content:"";position:absolute;inset-inline-start:9px;top:0;bottom:14px;border-inline-start:2px solid var(--line)}
+.tree li{position:relative;padding:4px 0}
+.tree ul>li:before{content:"";position:absolute;inset-inline-start:-17px;top:17px;width:13px;border-top:2px solid var(--line)}
+.tree .s{font-weight:700}
+.tag{display:inline-block;font-size:12px;font-weight:700;padding:1px 8px;border-radius:6px;margin-inline-start:6px;border:1px solid currentColor}
+.ok{color:var(--ok)} .warn{color:var(--warn)} .acc{color:var(--acc)}
+.who{font-size:12.5px;color:var(--mute)}
+table{border-collapse:collapse;width:100%;font-size:14.5px;margin:8px 0}
+th,td{border:1px solid var(--line);padding:6px 9px;text-align:start;vertical-align:top}
+th{background:var(--code)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat b{display:block;font-size:22px}
+.stat span{color:var(--mute);font-size:13px}
+</style>
+</head>
+<body>
+<main>
+<h1>דוח שלב ב': הקמת מסד הנתונים</h1>
+<p class="sub">Life Archipelago · פרויקט Supabase ‏"life app Project" · ‏28 בנובמבר 2026 · לתיעוד ולהבנה</p>
+
+<div class="grid">
+ <div class="stat"><b>6</b><span>טבלאות, כולן ריקות</span></div>
+ <div class="stat"><b>20</b><span>חוקי RLS (אבטחה ברמת השורה)</span></div>
+ <div class="stat"><b>15/15</b><span>בדיקות אבטחה עברו</span></div>
+ <div class="stat"><b>0</b><span>משתמשים ונתונים שמורים כרגע</span></div>
+</div>
+
+<h2>עץ הפעולות, לפי הסדר</h2>
+<div class="box">
+<ul class="tree">
+<li><span class="s">שלב ב': הקמת השרת</span>
+<ul>
+ <li><span class="s">1. הגדרות הפרויקט</span> <span class="who">· אתה, בדשבורד</span>
+  <ul>
+   <li>Enable Data API: מופעל <span class="tag ok">✓</span></li>
+   <li>Grant API access to new tables automatically: כבוי. כל טבלה נפתחת רק במפורש <span class="tag ok">✓</span></li>
+   <li>Enable RLS on new tables automatically: מופעל <span class="tag ok">✓</span></li>
+   <li>Allow anonymous sign-ins: מופעל. כל מכשיר מתחבר בלי סיסמה ומחכה לאישור <span class="tag ok">✓ נבדק</span></li>
+  </ul></li>
+ <li><span class="s">2. גישה לניהול מכאן</span> <span class="who">· אתה + Claude</span>
+  <ul>
+   <li>מפתח גישה אישי (<code>sbp_…</code>) מוגבל לפרויקט אחד, נשמר בטופס מאובטח. הוא מוזרק לבקשות בדרך, ואני לא רואה את ערכו.</li>
+   <li>ניסיון ראשון עם מפתח מסוג אחר נכשל (401) והוחלף <span class="tag warn">תוקן</span></li>
+   <li>למפתח אין הרשאה לקרוא או לשנות הגדרות התחברות. לכן הגדרות ההתחברות נשארות בידיים שלך.</li>
+   <li>הכתובת <code>uuamddvxaownewcfpczt.supabase.co</code> נפתחה ברשת של סביבת העבודה שלי, באישורך.</li>
+  </ul></li>
+ <li><span class="s">3. בדיקת מצב התחלתי</span> <span class="who">· Claude, קריאה בלבד</span>
+  <ul>
+   <li>הפרויקט: <code>uuamddvxaownewcfpczt</code>, אזור eu-central-1 (פרנקפורט), PostgreSQL 17, תקין.</li>
+   <li>הסכמה <code>public</code> הייתה ריקה, בלי טבלאות קודמות.</li>
+  </ul></li>
+ <li><span class="s">4. הקמת המבנה: קובץ מיגרציה אחד</span> <span class="who">· Claude, דרך ה-API הניהולי</span> <code>supabase/migrations/20261128000001_vault.sql</code>
+  <ul>
+   <li>הרחבה <code>pgcrypto</code> (מזהים אקראיים)</li>
+   <li><span class="s">טבלאות</span>
+    <ul>
+     <li><code>vaults</code>: כספת אחת בלבד, כי יש משתמש אחד. מכילה את מפתח הנתונים נעול במפתח השחזור.</li>
+     <li><code>devices</code>: מכשירים: בעלים, חבר או סוכן. הרשאת כתיבה, תוקף (לסוכן), מפתח נעול לכל מכשיר, ביטול.</li>
+     <li><code>pairing_requests</code>: בקשות צימוד עם קוד חד-פעמי, תקפות 15 דקות.</li>
+     <li><code>records</code>: הגרסה האחרונה של כל רשומה, מוצפנת.</li>
+     <li><code>journal</code>: יומן הפעולות. רק מוסיפים, לא עורכים. מוצפן.</li>
+     <li><code>inputs</code>: הקלט הגולמי. רק מוסיפים. מוצפן.</li>
+    </ul></li>
+   <li>3 אינדקסים לסנכרון לפי זמן</li>
+   <li><span class="s">3 פונקציות עזר</span>
+    <ul>
+     <li><code>is_member</code>: האם המכשיר מאושר, לא בוטל ולא פג תוקף (ואם צריך, גם רשאי לכתוב).</li>
+     <li><code>can_manage</code>: רק הטלפון או המחשב שלך מאשרים ומבטלים. הסוכן לעולם לא.</li>
+     <li><code>the_vault</code>: הכספת היחידה, שאליה מבקשים להצטרף.</li>
+    </ul></li>
+   <li><span class="s">RLS מופעל בכל 6 הטבלאות, 20 חוקים</span>
+    <ul>
+     <li>רק המכשיר הראשון יוצר את הכספת ונרשם כבעלים.</li>
+     <li>מכשיר חדש רואה רק את בקשת הצימוד שלו עצמו.</li>
+     <li>קריאה למכשירים מאושרים בלבד. כתיבה רק למי שמותר לו לכתוב. מחיקה רק לבעלים.</li>
+     <li>אין עריכה ביומן ובקלט הגולמי.</li>
+    </ul></li>
+   <li><span class="s">הרשאות</span>: לתפקיד <code>anon</code> (לא מחובר) אין כלום. למחוברים יש רק את מה שצריך, ו-RLS מסנן בנוסף.</li>
+  </ul></li>
+ <li><span class="s">5. בדיקת אבטחה מול השרת האמיתי</span> <code>life/test/supabase-rls.sh</code>
+  <ul>
+   <li>משחק ארבעה מכשירים: בעלים, טלפון חדש, זר, וסוכן Claude</li>
+   <li>15 בדיקות עברו <span class="tag ok">15/15</span></li>
+   <li>נתוני הבדיקה נמחקו. הטבלאות ריקות <span class="tag ok">0 שורות</span></li>
+  </ul></li>
+ <li><span class="s">6. בדיקת התחברות אנונימית</span> <span class="who">· עם המפתח הציבורי</span>
+  <ul>
+   <li>ההגדרה מופעלת, ומכשיר ניסיון התחבר בהצלחה <span class="tag ok">✓</span></li>
+   <li>המכשיר החדש קיבל רשימה ריקה בכל 6 הטבלאות <span class="tag ok">✓</span></li>
+   <li>ניסיון כתיבה נחסם (403) <span class="tag ok">✓</span></li>
+   <li>בלי התחברות בכלל: permission denied <span class="tag ok">✓</span></li>
+   <li>מכשיר הניסיון נמחק. משתמשים במערכת: 0 <span class="tag ok">✓</span></li>
+  </ul></li>
+ <li><span class="s">7. תיעוד במאגר</span>
+  <ul>
+   <li><code>supabase/migrations/…_vault.sql</code>, <code>supabase/tests/rls_check.sql</code>, <code>life/test/supabase-rls.sh</code></li>
+   <li><code>life/docs/DATA-PLAN.md</code>: פרק "Server", וגם הדוח הזה</li>
+  </ul></li>
+</ul></li>
+</ul>
+</div>
+
+<h2>מה השרת רואה ומה לא</h2>
+<table>
+<tr><th>גלוי לשרת</th><th>נעול (רק המכשירים שלך פותחים)</th></tr>
+<tr><td>מזהי רשומות, סוג רשומה, זמני יצירה ועדכון, איזה מכשיר, מי פעל, מספור ביומן, שמות מכשירים</td><td>כל התוכן: משימות, מטרות, משפטים, הגדרות, פרופיל, קלט גולמי, תמונות</td></tr>
+</table>
+
+<h2>המפתחות ומה מותר לעשות איתם</h2>
+<table>
+<tr><th>מפתח</th><th>סודי?</th><th>איפה הוא</th><th>מה לעשות</th></tr>
+<tr><td>Publishable key</td><td>לא</td><td>ייכנס לאפליקציה</td><td>להשאיר. ההגנה היא RLS וההצפנה.</td></tr>
+<tr><td>Personal access token (<code>sbp_</code>)</td><td>כן</td><td>בהגדרות סביבת העבודה שלי בלבד</td><td>למחוק בסיום סבב ההקמה, וליצור חדש כשצריך.</td></tr>
+<tr><td>Secret key</td><td>כן</td><td>לא בשימוש</td><td>אם הודבק בטופס הראשון: להחליף (Rotate).</td></tr>
+<tr><td>מפתח השחזור</td><td>כן</td><td>עוד לא קיים. ייווצר במכשיר בשלב ב'</td><td>להדפיס ולשמור על נייר.</td></tr>
+</table>
+
+<h2>פתוח ובא</h2>
+<ul>
+ <li>צד האפליקציה: הצפנה במכשיר, מסך "המכשירים שלי" (צימוד, אישור, ביטול), וסנכרון.</li>
+ <li>מחיקת מפתח הגישה האישי בסוף הסבב.</li>
+ <li>הפרדה של סביבת העבודה: המפתח והכתובת נשמרו כרגע בסביבה בשם "AndroidAnchor".</li>
+</ul>
+</main>
+</body>
+</html>
