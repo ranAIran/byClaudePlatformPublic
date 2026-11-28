@@ -17,6 +17,8 @@ export function applyEdit(store, id, form) {
   const patch = {};
   if ("title" in form) { const t = String(form.title ?? "").trim(); if (!t) return { ok: false, field: "title", error: "Give it a name." }; patch.title = t; }
   if ("due" in form) { const d = form.due || null; if (d && !realDate(d)) return { ok: false, field: "due", error: "That date doesn't exist." }; patch.due = d; }
+  if ("time" in form) { const v = form.time || null; if (v && !/^([01]\d|2[0-3]):[0-5]\d$/.test(v)) return { ok: false, field: "time", error: "That time doesn't exist." }; patch.time = v; } // R59
+  if ("remind" in form) { if (!["none", "notify", "alarm"].includes(form.remind)) return { ok: false, field: "remind", error: "Choose how to be reminded." }; patch.remind = form.remind; }
   if ("notes" in form) patch.notes = String(form.notes ?? "");
   if ("url" in form) patch.url = String(form.url ?? "").trim() || null;
   if ("effort" in form) patch.effort = Math.min(5, Math.max(1, Math.round(+form.effort || 1)));

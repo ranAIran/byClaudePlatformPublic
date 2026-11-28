@@ -32,7 +32,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.10.6";
+export const VERSION = "0.11.0";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -215,7 +215,7 @@ let sheetFor = null;
 function itemHtml(n, { bag = false, where = "" } = {}) {
   const lead = n.type === "task" ? `<button class="check ${n.done ? "on" : ""} ${n.id === justDone ? "pop" : ""}" data-act="toggle" data-id="${n.id}" aria-label="${n.done ? t("doneReopen") : t("markDone")}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.500l4.500 4.500L19 7.500"/></svg></button>`
     : n.thumb ? `<img class="thumb" src="${n.thumb}" alt="" data-act="photo" data-id="${n.id}">` : svgIcon(n.type);
-  const meta = [n.type !== "task" ? t("type_" + n.type) : "", n.due ? `<span style="font-weight:700;color:${isLate(n.due) ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}</span>` : "", n.repeat ? `↻ ${repeatText(n.repeat)}` : "", n.effort > 1 ? t("effortN", { n: n.effort }) : "", where ? esc(where) : "", n.tags.includes("example") ? t("example") : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
+  const meta = [n.type !== "task" ? t("type_" + n.type) : "", n.due ? `<span style="font-weight:700;color:${isLate(n.due) ? "var(--bad)" : "var(--soon)"}">${dueText(n.due)}${n.time ? " " + n.time : ""}${n.time && n.remind === "alarm" ? " ⏰" : ""}</span>` : "", n.repeat ? `↻ ${repeatText(n.repeat)}` : "", n.effort > 1 ? t("effortN", { n: n.effort }) : "", where ? esc(where) : "", n.tags.includes("example") ? t("example") : "", n.notes && !where ? esc(n.notes) : ""].filter(Boolean).join(" · ");
   const steps = n.steps ? `<div class="steps">${n.steps.map((s, i) => `<button class="step ${s.done ? "on" : ""}" data-act="step" data-id="${n.id}" data-i="${i}"><i></i><span>${esc(s.title)}</span></button>`).join("")}</div>` : "";
   const link = n.url ? `<button class="chip" data-act="open" data-url="${esc(n.url)}">${esc(t("openLink", { u: n.url.replace(/^https?:\/\/(www\.)?/, "").slice(0, 32) }))}</button>` : "";
   const sug = bag ? `<div class="row" style="gap:6px;flex-wrap:wrap">${(n.suggest.length ? n.suggest : ["home", "paperwork", "work"]).slice(0, 3).map((p, i) => `<button class="chip ${i === 0 ? "on" : ""}" data-act="place" data-id="${n.id}" data-to="${p}">→ ${esc(title(p))}</button>`).join("")}</div>` : "";
@@ -629,6 +629,7 @@ function openEditor(id) {
   const rv = n.repeat ? `${n.repeat.every}:${n.repeat.unit}` : "";
   if (rv && ![...$("edRepeat").options].some((o) => o.value === rv)) $("edRepeat").add(new Option(repeatText(n.repeat), rv));
   $("edRepeat").value = rv;
+  $("edTime").value = n.time || ""; $("edRemind").value = n.remind || "notify"; $("edAlarmHelp").hidden = $("edRemind").value !== "alarm" || !!bridge.canRemind;
   $("edError").textContent = ""; $("editor").hidden = false; editorTypeChanged();
 }
 function setEffort(v) { $("edEffort").dataset.v = v; for (const b of $("edEffort").children) b.classList.toggle("on", +b.dataset.v === v); }
@@ -636,9 +637,10 @@ function renderSteps(list) {
   $("edSteps").innerHTML = list.map((st, i) => `<div class="edstep" data-from="${st.from ?? ""}"><i class="${st.done ? "on" : ""}"></i><input value="${esc(st.title)}" aria-label="${t("stepN", { n: i + 1 })}"><button type="button" class="x ghost" data-act="rmstep" aria-label="${t("removeStep")}">✕</button></div>`).join("");
 }
 function readSteps() { return [...$("edSteps").children].map((r) => ({ from: r.dataset.from === "" ? null : +r.dataset.from, title: r.querySelector("input").value, done: r.querySelector("i").classList.contains("on") })); }
-function editorTypeChanged() { const task = $("edType").value === "task"; for (const id of ["edDueRow", "edEffortRow", "edStepsRow", "edRepeatRow"]) $(id).hidden = !task; $("edUrlRow").hidden = $("edType").value !== "link" && !$("edUrl").value; }
+function editorTypeChanged() { const task = $("edType").value === "task"; for (const id of ["edDueRow", "edTimeRow", "edEffortRow", "edStepsRow", "edRepeatRow"]) $(id).hidden = !task; $("edUrlRow").hidden = $("edType").value !== "link" && !$("edUrl").value; }
 function closeEditor() { $("editor").hidden = true; editing = null; }
 $("edType").addEventListener("change", editorTypeChanged);
+$("edRemind").addEventListener("change", () => { $("edAlarmHelp").hidden = $("edRemind").value !== "alarm" || !!bridge.canRemind; });
 $("edEffort").addEventListener("click", (e) => { const b = e.target.closest("[data-v]"); if (b) setEffort(+b.dataset.v); });
 $("edDueChips").addEventListener("click", (e) => { const b = e.target.closest("[data-days]"); if (b) $("edDue").value = b.dataset.days === "" ? "" : isoIn(+b.dataset.days); });
 $("edSteps").addEventListener("click", (e) => { if (e.target.closest('[data-act="rmstep"]')) e.target.closest(".edstep").remove(); });
@@ -649,10 +651,11 @@ $("editorForm").addEventListener("submit", (e) => {
   e.preventDefault(); if (!editing) return;
   const task = $("edType").value === "task", rp = $("edRepeat").value;
   const form = { title: $("edTitle").value, notes: $("edNotes").value, type: $("edType").value, parent: $("edPlace").value, url: $("edUrl").value };
-  if (task) Object.assign(form, { due: $("edDue").value, effort: +$("edEffort").dataset.v, steps: readSteps(), repeat: rp ? { every: +rp.split(":")[0], unit: rp.split(":")[1] } : null });
+  if (task) Object.assign(form, { time: $("edTime").value, remind: $("edRemind").value, due: $("edDue").value || ($("edTime").value ? isoIn(0) : ""), effort: +$("edEffort").dataset.v, steps: readSteps(), repeat: rp ? { every: +rp.split(":")[0], unit: rp.split(":")[1] } : null });
   const r = applyEdit(store, editing, form);
   if (!r.ok) { $("edError").textContent = t(r.field === "due" ? "errDate" : r.field === "parent" ? "errPlace" : "errTitle"); $(r.field === "due" ? "edDue" : r.field === "parent" ? "edPlace" : "edTitle")?.focus(); return; }
-  const moved = store.get(editing).parent; closeEditor(); toast(t("saved"));
+  const moved = store.get(editing).parent, saved1 = store.get(editing); closeEditor(); toast(t("saved"));
+  if (saved1.time && saved1.remind !== "none" && !bridge.canRemind && "Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
   if (sheetFor && moved !== sheetFor && sheetFor !== "home") toast(t("movedTo", { place: title(moved) }));
 });
 $("edDelete").addEventListener("click", () => { const n = store.get(editing); if (!n) return; const copy = { ...n }; closeEditor(); store.remove(copy.id); toast(t("deleted"), () => store.add(copy)); });
@@ -907,7 +910,7 @@ function onLink(url) {
   if (a.action === "capture") setTimeout(() => $("capInput").focus(), 300);
   if (a.action === "goal") { const r = store.addGoal(a.text); openGoals(); toast(r.ok ? t("goalAdded") : t(r.error === "when" ? "goalNeedsWhen" : "goalNeedsWhat")); }
   if (a.action === "goals") openGoals();
-  if (a.action === "open") { if (store.get(a.id)) openFor(a.id); else toast(t("gone")); }
+  if (a.action === "open") { const n = store.get(a.id); if (n?.type === "goal") openGoal(a.id); else if (n) openFor(a.id); else toast(t("gone")); }
   if (a.action === "place") { if (store.get(a.id)?.type === "place") openFor(a.id); }
   if (a.action === "today") openToday();
   if (a.action === "scan") bridge.scan();
@@ -1102,3 +1105,31 @@ renderer.setAnimationLoop(() => {
   if (active()) setTimeout(() => doSync(), 2500);
 }
 
+
+// R59 · on a computer there is no background alarm: while this page is open, reminders sound here at
+// their minute (notification with a chime; an alarm keeps chiming until stopped). The phone app rings
+// natively instead, even when closed.
+{
+  const fired = new Set(JSON.parse(lsGet("life-fired") || "[]"));
+  let ringing = null;
+  const ring = (r) => {
+    const key = `${r.id}@${r.due} ${r.time}`; if (fired.has(key)) return; fired.add(key); lsSet("life-fired", JSON.stringify([...fired].slice(-200)));
+    const alarm = r.kind === "alarm";
+    toast(t(alarm ? "alarmAt" : "remindAt", { t: r.time }) + " · " + r.title);
+    fx.chime([659.25, 880, 1046.5]);
+    try { if ("Notification" in window && Notification.permission === "granted") new Notification(r.title, { body: r.time, icon: "icons/icon-192.png", requireInteraction: alarm }); } catch (e) { /* not allowed */ }
+    if (alarm) {
+      clearInterval(ringing);
+      let left = 60; ringing = setInterval(() => { fx.chime([880, 1046.5, 880]); if (--left <= 0) clearInterval(ringing); }, 2000);
+      const stop = () => { clearInterval(ringing); ringing = null; removeEventListener("pointerdown", stop, true); removeEventListener("keydown", stop, true); };
+      addEventListener("pointerdown", stop, true); addEventListener("keydown", stop, true);
+    }
+  };
+  const tick = () => {
+    if (bridge.canRemind) return;
+    const now = new Date(), hm = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`, today = isoDate(now);
+    const soon = reminderList(store, new Date(now.getTime() - 60000));
+    for (const r of soon) if (r.due === today && r.time === hm) ring(r);
+  };
+  setInterval(tick, 15000);
+}

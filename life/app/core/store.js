@@ -64,7 +64,8 @@ export function createStore(backend, { now = () => new Date(), device = "dev-" +
       kind: n.kind ?? null, system: !!n.system, custom: !!n.custom, tags: n.tags ? [...n.tags] : [], due: n.due ?? null, done: !!n.done,
       effort: n.effort ?? 1, steps: n.steps ? n.steps.map((s) => ({ title: s.title, done: !!s.done })) : null,
       notes: n.notes ?? "", url: n.url ?? null, images: n.images ? [...n.images] : [], thumb: n.thumb ?? null, suggest: n.suggest ? [...n.suggest] : [],
-      awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), goal: goalOf(n.goal), created: n.created || stamp(), updated: n.updated || stamp(),
+      awarded: !!n.awarded, bossAwarded: !!n.bossAwarded, repeat: validRepeat(n.repeat), goal: goalOf(n.goal),
+      time: /^([01]\d|2[0-3]):[0-5]\d$/.test(n.time || "") ? n.time : null, remind: ["none", "notify", "alarm"].includes(n.remind) ? n.remind : "notify", /* R59 */ created: n.created || stamp(), updated: n.updated || stamp(),
     };
   }
   // R51 · the action log and the raw inputs. Every add, update and delete is found by comparing each

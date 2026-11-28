@@ -351,6 +351,25 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
     `R57 narrow Hebrew phone: top bar ${Math.round(box.hud[0])}–${Math.round(box.hud[1])} of ${box.vw}, menu ${Math.round(menu[0])}–${Math.round(menu[1])}, closes on an outside tap (${closed})`);
   await nctx.close();
 }
+// R59 · a task with a clock time; the edit form shows time and "alarm"; on a computer the page sounds it at that minute.
+{
+  await p.evaluate(() => window.__life.ui.closeSheet());
+  const hm = await p.evaluate(() => { const d = new Date(Date.now() + 60000); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); });
+  await p.fill("#capInput", `בדיקת שעון היום ב-${hm}`); await p.press("#capInput", "Enter"); await p.waitForTimeout(300);
+  const id = await p.evaluate(() => { const s = window.__life.store; const n = s.all().filter((x) => x.title === "בדיקת שעון").pop(); s.place(n.id, "home"); return n.id; });
+  await p.evaluate((id) => window.__life.ui.openEditor(id), id); await p.waitForTimeout(300);
+  await p.selectOption("#edRemind", "alarm"); await p.waitForTimeout(150);
+  const form = await p.evaluate(() => ({ time: document.getElementById("edTime").value, kind: document.getElementById("edRemind").value, help: !document.getElementById("edAlarmHelp").hidden }));
+  await p.screenshot({ path: `${out}/v-alarm-edit.png` });
+  await p.click("#edSave"); await p.waitForTimeout(300);
+  const saved = await p.evaluate((id) => { const n = window.__life.store.get(id); return [n.time, n.remind]; }, id);
+  await p.waitForFunction(() => /⏰|שעון מעורר|Alarm/.test(document.getElementById("toast")?.textContent || ""), null, { timeout: 140000 }).catch(() => {});
+  const rang = await p.evaluate(() => document.getElementById("toast")?.textContent || "");
+  await p.screenshot({ path: `${out}/v-alarm-ring.png` });
+  await p.mouse.click(200, 300); // stops the chimes
+  check(form.time === hm && form.kind === "alarm" && form.help && saved[0] === hm && saved[1] === "alarm" && /בדיקת שעון/.test(rang),
+    `R59 a task at ${hm} with an alarm: the form shows the time, and the page rings at that minute ("${rang}")`);
+}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
   const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp(), j: window.__life.store.journal().length }; });

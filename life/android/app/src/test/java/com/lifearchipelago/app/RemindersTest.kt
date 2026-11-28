@@ -24,6 +24,19 @@ class RemindersTest {
         assertNull(Reminders.triggerAt("not a date", now, tz))
     }
 
+    // R59: an exact time when the item has one; still 09:00 when it has none.
+    @Test fun ringsAtTheItemsOwnTime() {
+        val now = at("2026-11-28T16:30:00+02:00[Asia/Jerusalem]")
+        assertEquals(at("2026-11-28T17:03:00+02:00[Asia/Jerusalem]"), Reminders.triggerAt("2026-11-28", now, tz, "17:03"))
+        assertNull(Reminders.triggerAt("2026-11-28", now, tz, "16:00"))
+        assertEquals(at("2026-11-29T09:00:00+02:00[Asia/Jerusalem]"), Reminders.triggerAt("2026-11-29", now, tz, ""))
+        assertEquals(at("2026-11-29T09:00:00+02:00[Asia/Jerusalem]"), Reminders.triggerAt("2026-11-29", now, tz, "nonsense"))
+    }
+
+    @Test fun snoozeIsTenMinutesLater() {
+        assertEquals(1_000_000L + 600_000L, Reminders.snoozeAt(1_000_000L))
+    }
+
     @Test fun cancelsTasksThatLeftTheList() {
         assertEquals(setOf("b"), Reminders.stale(setOf("a", "b"), setOf("a", "c")))
     }

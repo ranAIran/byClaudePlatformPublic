@@ -438,7 +438,8 @@ describe("R11 · reminders: what the phone is asked to remind", () => {
     s.add({ id: "e", type: "task", title: "No date", parent: "work" });
     s.add({ id: "f", type: "note", title: "A note", parent: "work", due: "2026-11-09" });
     s.add({ id: "g", type: "task", title: "Next year", parent: "work", due: "2027-06-01" });
-    expect(reminderList(s, NOW)).toEqual([{ id: "b", title: "Today", due: "2026-11-06" }, { id: "c", title: "Next week", due: "2026-11-12" }]);
+    // "Today" rings at 09:00, which has already passed at NOW (10:00): only "Next week" is left (R59).
+    expect(reminderList(s, NOW).map((r) => [r.id, r.due, r.time, r.kind])).toEqual([["c", "2026-11-12", "09:00", "notify"]]);
   });
   it("keeps the list short for the phone", () => {
     const s = fresh(); for (let i = 0; i < 90; i++) s.add({ type: "task", title: "T" + i, parent: "work", due: "2026-11-20" });
@@ -901,5 +902,50 @@ describe("R58 · phone links that add a task or a goal", () => {
   it("Claude can write a link that adds a task or a goal on the phone", () => {
     expect(appLink("goal", "עד הערב בחרתי פריט")).toBe("lifearchipelago://goal?text=" + encodeURIComponent("עד הערב בחרתי פריט"));
     expect(parseDeepLink(appLink("add", "לקנות חלב מחר"))).toEqual({ action: "add", text: "לקנות חלב מחר" });
+  });
+});
+
+describe("R59 · a reminder or an alarm at an exact time", () => {
+  const SAT = new Date(2026, 10, 28, 16, 30);
+  it("reads a clock time in a task: Hebrew and English, and today when no day is given", () => {
+    expect(parseCapture("להתקשר לרופא היום ב-17:03", SAT)).toMatchObject({ title: "להתקשר לרופא", due: "2026-11-28", time: "17:03" });
+    expect(parseCapture("לקחת את הילד מחר בשעה 7:45", SAT)).toMatchObject({ title: "לקחת את הילד", due: "2026-11-29", time: "07:45" });
+    expect(parseCapture("call mom at 5:03pm", SAT)).toMatchObject({ title: "Call mom", due: "2026-11-28", time: "17:03" });
+    expect(parseCapture("call mom at 9am", SAT)).toMatchObject({ due: "2026-11-29", time: "09:00" }); // 9 am has passed: tomorrow
+    expect(parseCapture("לשלם ארנונה עד יום ראשון", SAT).time).toBe(null);
+    expect(parseCapture("buy 2 kg of apples", SAT).time).toBe(null);
+  });
+  it("a task keeps its time and its kind of reminder; the edit form changes them safely", () => {
+    const s = createStore(memoryBackend(), { now: () => SAT });
+    const id = s.capture("להתקשר לרופא היום ב-17:03"); s.place(id, "health");
+    expect(s.get(id)).toMatchObject({ time: "17:03", remind: "notify" });
+    expect(applyEdit(s, id, { time: "17:10", remind: "alarm" })).toEqual({ ok: true });
+    expect(s.get(id)).toMatchObject({ time: "17:10", remind: "alarm" });
+    expect(applyEdit(s, id, { time: "25:00" })).toMatchObject({ ok: false, field: "time" });
+    expect(applyEdit(s, id, { remind: "siren" })).toMatchObject({ ok: false, field: "remind" });
+    expect(applyEdit(s, id, { time: "", remind: "none" })).toEqual({ ok: true }); expect(s.get(id)).toMatchObject({ time: null, remind: "none" });
+  });
+  it("the phone gets each reminder with its time and kind: tasks, goals and a goal's first step", () => {
+    const s = createStore(memoryBackend(), { now: () => SAT });
+    const a = s.capture("להתקשר לרופא היום ב-17:03"); s.place(a, "health");
+    const b = s.capture("לשלם ארנונה מחר"); s.place(b, "paperwork");
+    const c = s.capture("להשקות עציצים מחר ב-08:00"); s.place(c, "home"); applyEdit(s, c, { remind: "none" });
+    const g = s.addGoal("עד הערב בחרתי פריט מהרשימה של הכיתה").id; s.setGoalStep(g, "לבדוק בוואטסאפ מה נשאר", "17:30");
+    const L = reminderList(s, SAT);
+    expect(L.find((x) => x.id === a)).toMatchObject({ title: "להתקשר לרופא", due: "2026-11-28", time: "17:03", kind: "notify" });
+    expect(L.find((x) => x.id === b)).toMatchObject({ due: "2026-11-29", time: "09:00", kind: "notify" });
+    expect(L.find((x) => x.id === c)).toBeUndefined();
+    expect(L.find((x) => x.id === g)).toMatchObject({ title: "בחרתי פריט מהרשימה של הכיתה", due: "2026-11-28", time: "18:00", kind: "notify" });
+    expect(L.find((x) => x.id === g + ":step")).toMatchObject({ title: "לבדוק בוואטסאפ מה נשאר", due: "2026-11-28", time: "17:30", open: g });
+  });
+  it("a time that already passed today is not sent; the list is sorted by moment", () => {
+    const s = createStore(memoryBackend(), { now: () => SAT });
+    const a = s.capture("משהו היום ב-16:00"); s.place(a, "home"); s.update(a, { due: "2026-11-28", time: "16:00" });
+    const b = s.capture("אחר כך היום ב-17:03"); s.place(b, "home");
+    const L = reminderList(s, SAT);
+    expect(L.find((x) => x.id === a)).toBeUndefined(); expect(L[0].id).toBe(b);
+  });
+  it("the interface words exist in both languages", () => {
+    for (const k of ["e_time", "e_remind", "rm_none", "rm_notify", "rm_alarm", "rm_alarmHelp", "remindAt", "alarmAt"]) { expect(DICTS.en[k], k).toBeTruthy(); expect(DICTS.he[k], k).toBeTruthy(); }
   });
 });

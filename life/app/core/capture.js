@@ -71,8 +71,28 @@ function startsWithVerb(t) {
   return VERBS_EN.includes(w) || VERBS_HE.some((v) => w === v || w === "ו" + v);
 }
 
+// R59 · a clock time: "ב-17:03", "בשעה 7:45", "at 5:03pm", "5pm", "17:03". A bare number is never a time.
+const TIME_RES = [
+  /(?:^|\s)(?:ב-?|בשעה\s+)(\d{1,2}):(\d{2})(?=$|[\s.,!?])/,
+  /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i,
+  /\bat\s+(\d{1,2}):(\d{2})\b/i,
+  /(?:^|\s)(\d{1,2}):(\d{2})(?=$|[\s.,!?])/,
+];
+function findTime(text) {
+  for (const re of TIME_RES) {
+    const m = re.exec(text); if (!m) continue;
+    let h = +m[1]; const min = m[2] ? +m[2] : 0, ap = (m[3] || "").toLowerCase();
+    if (ap === "pm" && h < 12) h += 12; if (ap === "am" && h === 12) h = 0;
+    if (h > 23 || min > 59) continue;
+    return { time: `${pad(h)}:${pad(min)}`, s: m.index, e: m.index + m[0].length };
+  }
+  return null;
+}
+
 export function parseCapture(raw, now = new Date()) {
-  const text = String(raw || "").trim();
+  const full = String(raw || "").trim();
+  const tm = findTime(full);
+  const text = tm ? (full.slice(0, tm.s) + " " + full.slice(tm.e)).replace(/\s{2,}/g, " ").trim() : full;
   const tags = [...text.matchAll(/#([\p{L}\p{N}_-]+)/gu)].map((m) => m[1]);
   const { due, spans } = findDue(text, now);
   let title = text;
@@ -80,6 +100,8 @@ export function parseCapture(raw, now = new Date()) {
   title = title.replace(/#[\p{L}\p{N}_-]+/gu, "").replace(/\s{2,}/g, " ").replace(/\s+([.,!?])/g, "$1").trim().replace(/[\s,;:-]+$/, "");
   if (/^[a-z]/.test(title)) title = title[0].toUpperCase() + title.slice(1);
   const isNote = /^(idea|note|thought|רעיון|הערה)\s*[:\-]/i.test(text);
-  const type = !isNote && (due || startsWithVerb(text)) ? "task" : "note";
-  return { title: title || text, type, due: due ? isoDate(due) : null, tags };
+  let dueIso = due ? isoDate(due) : null;
+  if (tm && !dueIso) { const [h, m] = tm.time.split(":").map(Number); dueIso = isoDate(h * 60 + m > now.getHours() * 60 + now.getMinutes() ? now : addDays(now, 1)); }
+  const type = !isNote && (dueIso || startsWithVerb(text)) ? "task" : "note";
+  return { title: title || text, type, due: dueIso, time: tm ? tm.time : null, tags };
 }
