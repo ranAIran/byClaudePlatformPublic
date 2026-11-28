@@ -31,4 +31,5 @@ Diagrams: `data-architecture.png`, `data-encryption-options.png`, `plan-tree.png
 - **B (original plan):** R53 end-to-end encryption + recovery key + device pairing (one-time code, owner approves, revoke); R54 sync phone ↔ computer (offline-first) + Web Push on the computer.
 - **C:** R55 Claude as an approved device (read-only, 24 h), guided clean-up, server backups and restore points.
 - **D:** R46 windows (time and place, last chance, cost of missing), R47 important vs. urgent, R48 wish shelf, learned suggestions.
+- **Ideas (owner: save, don't build yet):** website `?add=` link; a REST inbox on Supabase (secret token; plain text waiting briefly, or encrypted to an inbox public key); approving Claude for read and write (24 h).
 - **Later:** AI chat (OpenAI-compatible), R50, MCP server (R23/R25), more users.
