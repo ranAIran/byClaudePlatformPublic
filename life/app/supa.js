@@ -43,7 +43,7 @@ export function createSupabaseRemote({ url = SUPABASE.url, key = SUPABASE.key, k
     devices: (v) => rest(`devices?vault_id=eq.${q(v)}&select=*&order=created_at`),
     updateDevice: (id, patch) => rest(`devices?id=eq.${q(id)}`, { method: "PATCH", body: patch, prefer: "return=minimal" }),
     requestPairing: (row) => rest("pairing_requests", { method: "POST", body: row, prefer: "return=minimal" }),
-    myRequest: async () => one(await rest(`pairing_requests?device_uid=eq.${q(session.uid)}&status=eq.pending&select=*`)),
+    myRequest: async () => one(await rest(`pairing_requests?device_uid=eq.${q(session.uid)}&status=eq.pending&expires_at=gt.${q(new Date().toISOString())}&select=*`)), // an expired request no longer counts
     pairingRequests: (v) => rest(`pairing_requests?vault_id=eq.${q(v)}&status=eq.pending&select=*&order=created_at`),
     answerPairing: (id, status) => rest(`pairing_requests?id=eq.${q(id)}`, { method: "PATCH", body: { status }, prefer: "return=minimal" }),
     recoveryBlob: async () => one(await rpc("recovery_blob")),

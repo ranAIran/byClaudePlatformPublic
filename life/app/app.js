@@ -32,7 +32,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.12.0";
+export const VERSION = "0.12.1";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -499,7 +499,7 @@ $("sheetTabs").addEventListener("click", (e) => { const b = e.target.closest("[d
 const dropExamples = () => { store.as("app"); try { for (const n of store.all().filter((x) => x.tags.includes("example"))) store.remove(n.id); } finally { store.as("me"); } };
 let dvView = null, shownCode = null, dvRequests = [], dvBusy = false;
 const syncFlag = () => lsGet("life-sync"); // null | "on" | "pending" | "revoked"
-const devName = () => (bridge.android ? "Phone" : /Mac/.test(navigator.platform) ? "Mac" : /Win/.test(navigator.platform) ? "Windows computer" : "Computer");
+const devName = () => (bridge.android ? "Phone" : /Android|iPhone|iPad/.test(navigator.userAgent) ? "Phone (browser)" : /Mac/.test(navigator.platform) ? "Mac" : /Win/.test(navigator.platform) ? "Windows computer" : "Computer");
 const devKind = () => (bridge.android ? "phone" : "web");
 const whenText = (iso) => (iso ? new Date(iso).toLocaleString(lang === "he" ? "he-IL" : "en-GB", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 function dvShell(sub) {
@@ -1137,8 +1137,8 @@ $("fbShare").addEventListener("click", async () => {
 
 // ---------- toast ----------
 let toastT = 0;
-function toast(text, undo) {
-  const el = $("toast"); el.innerHTML = esc(text) + (undo ? ` <button class="chip" style="margin-inline-start:8px">${t("undo")}</button>` : ""); el.hidden = false;
+function toast(text, undo, label = t("undo")) {
+  const el = $("toast"); el.innerHTML = esc(text) + (undo ? ` <button class="chip" style="margin-inline-start:8px">${esc(label)}</button>` : ""); el.hidden = false;
   if (undo) el.querySelector("button").onclick = () => { undo(); el.hidden = true; };
   clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, undo ? 4500 : 2600);
 }
@@ -1212,6 +1212,21 @@ renderer.setAnimationLoop(() => {
   setInterval(() => { if (active() && document.visibilityState === "visible") doSync().then(() => { if (sheetFor === "devices" && syncFlag() === "on") openDevices(); }); }, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && active()) doSync(); });
   if (active()) setTimeout(() => doSync(), 2500);
+  // An approved device notices a new device asking to join (every minute, and every 10 s while the
+  // Sync & devices sheet is open), so a request never waits unseen.
+  const seenReq = new Set();
+  const lookForRequests = async () => {
+    if (syncFlag() !== "on" || sync.state() !== "on") return;
+    try {
+      const reqs = await sync.pending();
+      const fresh = reqs.filter((r) => !seenReq.has(r.id)); for (const r of reqs) seenReq.add(r.id);
+      if (fresh.length && sheetFor !== "devices") toast(t("dv_newReq", { name: fresh[0].name }), () => openDevices(), t("dv_open"));
+      if (fresh.length && sheetFor === "devices") openDevices();
+    } catch (e) { /* offline */ }
+  };
+  setInterval(() => { if (document.visibilityState === "visible") lookForRequests(); }, 60000);
+  setInterval(() => { if (sheetFor === "devices" && document.visibilityState === "visible") lookForRequests(); }, 10000);
+  if (syncFlag() === "on") setTimeout(lookForRequests, 6000);
 }
 
 

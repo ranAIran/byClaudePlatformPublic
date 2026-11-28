@@ -24,7 +24,7 @@ function fakeServer() {
       devices: async (v) => (member(v) ? t.devices.filter((d) => d.vault_id === v).map((d) => ({ ...d })) : []),
       updateDevice: async (id, p) => { const d = t.devices.find((x) => x.id === id); if (!manager(d.vault_id)) deny(); Object.assign(d, p); },
       requestPairing: async (row) => { t.pairing.push({ id: "req-" + t.pairing.length, device_uid: uid, status: "pending", expires_at: new Date(Date.now() + 9e5).toISOString(), ...row }); },
-      myRequest: async () => t.pairing.find((r) => r.device_uid === uid && r.status === "pending") || null,
+      myRequest: async () => t.pairing.find((r) => r.device_uid === uid && r.status === "pending" && r.expires_at > new Date().toISOString()) || null,
       pairingRequests: async (v) => (manager(v) ? t.pairing.filter((r) => r.vault_id === v).map((r) => ({ ...r })) : []),
       answerPairing: async (id, status) => { const r = t.pairing.find((x) => x.id === id); if (!manager(r.vault_id)) deny(); r.status = status; },
       recoveryBlob: async () => ({ vault_id: t.vaults[0].id, recovery_wrapped_key: t.vaults[0].recovery_wrapped_key }),
@@ -166,6 +166,17 @@ describe("R53/R54 · pairing and sync between the phone and the computer", () =>
     await phone.sync.requestJoin({ name: "phone", kind: "phone" }); const [r] = await pc.sync.pending(); await pc.sync.approve(r);
     await phone.sync.start(); await phone.sync.syncNow(); await pc.sync.syncNow();
     expect(pc.store.get(b)?.title).toBe("Phone note from before");
+  });
+  it("a request that expired before anyone approved it is not stuck: the device can ask again", async () => {
+    const server = fakeServer(), pc = device(server, "web-1"), phone = device(server, "phone-1");
+    await pc.sync.start(); await pc.sync.enable({ name: "pc", kind: "web" });
+    await phone.sync.requestJoin({ name: "phone", kind: "phone" });
+    server.t.pairing[0].expires_at = new Date(Date.now() - 1000).toISOString(); // waited too long
+    expect(await phone.sync.start()).toBe("join");
+    expect(await pc.sync.pending()).toEqual([]);
+    await phone.sync.requestJoin({ name: "phone", kind: "phone" });
+    const reqs = await pc.sync.pending(); expect(reqs.length).toBe(1);
+    await pc.sync.approve(reqs[0]); expect(await phone.sync.start()).toBe("on");
   });
   it("the approving device refuses a request whose code does not match its key", async () => {
     const server = fakeServer(), phone = device(server, "phone-1"), pc = device(server, "web-1");

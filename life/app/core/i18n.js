@@ -87,7 +87,7 @@ const en = {
   dv_approve: "Approve", dv_approveAgent: "Approve read-only for 24 h", dv_reject: "Reject", dv_revoke: "Revoke", dv_revoked: "revoked", dv_expires: "until {d}",
   dv_role_owner: "owner", dv_role_member: "approved", dv_role_agent: "Claude, read-only",
   dv_syncNow: "Sync now", dv_synced: "Synced {t}", dv_pending: "{n} changes waiting", dv_never: "not synced yet", dv_revokedSub: "This device was revoked. Ask to join again from Sync & devices.",
-  dv_approved: "{name} approved", dv_rejected: "Request rejected", dv_revokedOk: "{name} revoked", dv_onOk: "Sync is on",
+  dv_newReq: "{name} asks to join", dv_open: "Open", dv_approved: "{name} approved", dv_rejected: "Request rejected", dv_revokedOk: "{name} revoked", dv_onOk: "Sync is on",
   // R59 · exact-time reminders and alarms
   e_time: "Time", e_remind: "Remind me", rm_none: "No reminder", rm_notify: "Notification with sound", rm_alarm: "Alarm (rings until stopped)",
   rm_alarmHelp: "On the phone the alarm rings like an alarm clock. On a computer it sounds only while this page is open.", remindAt: "Reminder · {t}", alarmAt: "⏰ Alarm · {t}",
@@ -176,7 +176,7 @@ const he = {
   dv_approve: "אשר", dv_approveAgent: "אשר לקריאה בלבד ל-24 שעות", dv_reject: "דחה", dv_revoke: "בטל", dv_revoked: "בוטל", dv_expires: "עד {d}",
   dv_role_owner: "בעלים", dv_role_member: "מאושר", dv_role_agent: "Claude, קריאה בלבד",
   dv_syncNow: "סנכרן עכשיו", dv_synced: "סונכרן {t}", dv_pending: "{n} שינויים ממתינים", dv_never: "עוד לא סונכרן", dv_revokedSub: "המכשיר הזה בוטל. אפשר לבקש להצטרף שוב מ״סנכרון ומכשירים״.",
-  dv_approved: "{name} אושר", dv_rejected: "הבקשה נדחתה", dv_revokedOk: "{name} בוטל", dv_onOk: "הסנכרון פועל",
+  dv_newReq: "{name} מבקש להצטרף", dv_open: "פתח", dv_approved: "{name} אושר", dv_rejected: "הבקשה נדחתה", dv_revokedOk: "{name} בוטל", dv_onOk: "הסנכרון פועל",
   e_time: "שעה", e_remind: "תזכורת", rm_none: "בלי תזכורת", rm_notify: "התראה עם צליל", rm_alarm: "שעון מעורר (מצלצל עד שעוצרים)",
   rm_alarmHelp: "בטלפון השעון המעורר מצלצל כמו שעון מעורר. במחשב הוא נשמע רק כשהדף פתוח.", remindAt: "תזכורת · {t}", alarmAt: "⏰ שעון מעורר · {t}",
   linkTask: "+ חבר משימות", linkTitle: "חבר משימות למטרה", linkSuggested: "מוצעות", linkAll: "כל המשימות הפתוחות", linkN: "חבר {n}", linked: "משימות מחוברות", noLinked: "עוד אין משימות מחוברות",
