@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 700" width="960" height="700" font-family="Arial, 'Liberation Sans', sans-serif">
+  <title>Sync flow · Life Archipelago</title>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#333"/></marker>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#127a3e"/></marker>
+  </defs>
+  <style>
+    .h{font-size:17px;font-weight:700;fill:#17141f} .t{font-size:13.5px;fill:#333} .s{font-size:12.5px;fill:#5c5668} .k{font-size:13px;font-weight:700}
+  </style>
+  <rect width="960" height="700" fill="#fbfaf7"/>
+  <text x="480" y="32" text-anchor="middle" direction="rtl" font-size="22" font-weight="700" fill="#17141f">זרימת הסנכרון</text>
+
+  <!-- phone column (right) -->
+  <rect x="690" y="56" width="250" height="300" rx="16" fill="#e8f0ff" stroke="#3f5bd8" stroke-width="2.5"/>
+  <text x="815" y="84" text-anchor="middle" direction="rtl" class="h">טלפון</text>
+  <rect x="706" y="98" width="218" height="56" rx="10" fill="#fff" stroke="#9fb2ef"/>
+  <text x="815" y="120" text-anchor="middle" direction="rtl" class="t">1. אתה מוסיף או משנה משהו</text>
+  <text x="815" y="140" text-anchor="middle" direction="rtl" class="s">מזהה אקראי חדש, למשל 7f3a9c1e…</text>
+  <rect x="706" y="164" width="218" height="56" rx="10" fill="#fff" stroke="#9fb2ef"/>
+  <text x="815" y="186" text-anchor="middle" direction="rtl" class="t">2. נשמר מיד במכשיר</text>
+  <text x="815" y="206" text-anchor="middle" direction="rtl" class="s">עובד גם בלי אינטרנט</text>
+  <rect x="706" y="230" width="218" height="56" rx="10" fill="#fff" stroke="#9fb2ef"/>
+  <text x="815" y="252" text-anchor="middle" direction="rtl" class="t">3. נכנס לרשימת "לשליחה"</text>
+  <text x="815" y="272" text-anchor="middle" direction="rtl" class="s">+ שורה ביומן הפעולות</text>
+  <rect x="706" y="296" width="218" height="46" rx="10" fill="#fff8e6" stroke="#c9a24a"/>
+  <text x="815" y="324" text-anchor="middle" direction="rtl" class="t">4. בחיבור הראשון: מוצפן ונשלח</text>
+
+  <!-- computer column (left) -->
+  <rect x="20" y="56" width="250" height="300" rx="16" fill="#e8f0ff" stroke="#3f5bd8" stroke-width="2.5"/>
+  <text x="145" y="84" text-anchor="middle" direction="rtl" class="h">מחשב</text>
+  <rect x="36" y="98" width="218" height="56" rx="10" fill="#fff8e6" stroke="#c9a24a"/>
+  <text x="145" y="120" text-anchor="middle" direction="rtl" class="t">5. מושך "מה חדש מאז הפעם הקודמת"</text>
+  <text x="145" y="140" text-anchor="middle" direction="rtl" class="s">לפי שעון השרת</text>
+  <rect x="36" y="164" width="218" height="56" rx="10" fill="#fff" stroke="#9fb2ef"/>
+  <text x="145" y="186" text-anchor="middle" direction="rtl" class="t">6. מפענח במכשיר</text>
+  <text x="145" y="206" text-anchor="middle" direction="rtl" class="s">רק כאן יש מפתח</text>
+  <rect x="36" y="230" width="218" height="112" rx="10" fill="#fff" stroke="#9fb2ef"/>
+  <text x="145" y="252" text-anchor="middle" direction="rtl" class="t">7. ממזג לפי הכללים למטה</text>
+  <text x="145" y="276" text-anchor="middle" direction="rtl" class="s">גם המחשב שולח ומושך באותה דרך,</text>
+  <text x="145" y="296" text-anchor="middle" direction="rtl" class="s">כך שהזרימה פועלת בשני הכיוונים</text>
+  <text x="145" y="322" text-anchor="middle" direction="rtl" class="s">כל 4 שניות אחרי שינוי, וכל דקה</text>
+
+  <!-- server -->
+  <rect x="330" y="120" width="300" height="170" rx="16" fill="#e7f7ee" stroke="#127a3e" stroke-width="2.5"/>
+  <text x="480" y="150" text-anchor="middle" class="h">Supabase</text>
+  <text x="480" y="176" text-anchor="middle" direction="rtl" class="t">שורה אחת לכל מזהה (הגרסה האחרונה)</text>
+  <text x="480" y="200" text-anchor="middle" direction="rtl" class="t">יומן וקלט: רק מוסיפים, לא דורסים</text>
+  <text x="480" y="224" text-anchor="middle" direction="rtl" class="t">כל שורה מקבלת חותמת שעון שרת</text>
+  <text x="480" y="254" text-anchor="middle" direction="rtl" class="k" fill="#127a3e">🔒 התוכן נעול</text>
+  <text x="480" y="276" text-anchor="middle" direction="rtl" class="s">גלוי: מזהה, זמן ומכשיר</text>
+  <path d="M690 319 C640 319 640 260 632 250" stroke="#127a3e" stroke-width="2.4" fill="none" marker-end="url(#g)"/>
+  <text x="655" y="300" text-anchor="middle" direction="rtl" class="s" fill="#127a3e">שליחה</text>
+  <path d="M330 190 C300 170 290 130 272 126" stroke="#127a3e" stroke-width="2.4" fill="none" marker-end="url(#g)"/>
+  <text x="300" y="112" text-anchor="middle" direction="rtl" class="s" fill="#127a3e">משיכה</text>
+
+  <!-- merge rules -->
+  <rect x="20" y="380" width="920" height="300" rx="16" fill="#fff" stroke="#333" stroke-width="2"/>
+  <text x="920" y="408" direction="rtl" class="h">כללי המיזוג</text>
+  <g>
+    <rect x="40" y="422" width="430" height="80" rx="10" fill="#e7f7ee" stroke="#127a3e"/>
+    <text x="455" y="446" direction="rtl" class="k" fill="#127a3e">מזהה חדש ← מתווסף</text>
+    <text x="455" y="468" direction="rtl" class="t">שני מכשירים שמוסיפים דברים לא דורסים זה את זה.</text>
+    <text x="455" y="488" direction="rtl" class="t">כל פריט נוצר עם מזהה אקראי משלו.</text>
+
+    <rect x="490" y="422" width="430" height="80" rx="10" fill="#fff8e6" stroke="#c9a24a"/>
+    <text x="905" y="446" direction="rtl" class="k" fill="#9a5b00">אותו מזהה, שונה בשני מכשירים ← החדש גובר</text>
+    <text x="905" y="468" direction="rtl" class="t">הגרסה עם זמן העדכון המאוחר נשארת, כרשומה שלמה.</text>
+    <text x="905" y="488" direction="rtl" class="t">השינוי השני לא נעלם: הוא שמור ביומן הפעולות.</text>
+
+    <rect x="40" y="512" width="430" height="80" rx="10" fill="#fdecea" stroke="#c0453a"/>
+    <text x="455" y="536" direction="rtl" class="k" fill="#a8322a">מחיקה ← נמחק גם במכשיר השני</text>
+    <text x="455" y="558" direction="rtl" class="t">אלא אם הפריט נערך שם אחרי זמן המחיקה.</text>
+    <text x="455" y="578" direction="rtl" class="t">במקרה כזה העריכה החדשה גוברת והוא חוזר.</text>
+
+    <rect x="490" y="512" width="430" height="80" rx="10" fill="#f1ecff" stroke="#7a5cc7"/>
+    <text x="905" y="536" direction="rtl" class="k" fill="#5b3fb0">יומן פעולות וקלט גולמי ← הכל נשמר</text>
+    <text x="905" y="558" direction="rtl" class="t">כל רשומה מזוהה לפי מכשיר + מספר רץ.</text>
+    <text x="905" y="578" direction="rtl" class="t">שתי הרשימות מתאחדות, ושום דבר לא נמחק.</text>
+
+    <rect x="40" y="602" width="880" height="64" rx="10" fill="#f4f4f4" stroke="#9b97a3"/>
+    <text x="905" y="626" direction="rtl" class="k" fill="#333">פריטי הדוגמה: למה הייתה כפילות</text>
+    <text x="905" y="648" direction="rtl" class="t">כל מכשיר יצר דוגמאות משלו, עם מזהים שונים. לכן לא הייתה דריסה אלא שני עותקים. התיקון: מכשיר שמצטרף מוחק קודם את הדוגמאות שלו.</text>
+  </g>
+</svg>
