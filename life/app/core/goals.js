@@ -6,7 +6,9 @@ import { parseCapture } from "./capture.js";
 // Times of day become clock times; the reminder uses them (manual §3).
 const TIMES = { morning: "08:00", noon: "12:00", afternoon: "15:00", evening: "18:00", night: "21:00" };
 const TIME_EN = [[/\btonight\b/, "night", true], [/\b(?:in the |this )?(morning|noon|afternoon|evening|night)\b/, null, false]];
-const TIME_HE = [["אחר הצהריים", "afternoon"], ['אחה"צ', "afternoon"], ["בבוקר", "morning"], ["בצהריים", "noon"], ["בצהרים", "noon"], ["בערב", "evening"], ["בלילה", "night"]];
+// "הערב / הבוקר / הלילה / הצהריים" (this evening…) mean today; with no date the goal is due today anyway.
+const TIME_HE = [["אחר הצהריים", "afternoon"], ['אחה"צ', "afternoon"], ["בבוקר", "morning"], ["בצהריים", "noon"], ["בצהרים", "noon"], ["בערב", "evening"], ["בלילה", "night"],
+  ["הבוקר", "morning"], ["הצהריים", "noon"], ["הצהרים", "noon"], ["הערב", "evening"], ["הלילה", "night"]];
 const CLOCK = /(?:^|\s)(?:at\s+|בשעה\s+|ב-?)?(\d{1,2}):(\d{2})(?=$|[\s.,!?])/i;
 const pad = (n) => String(n).padStart(2, "0");
 

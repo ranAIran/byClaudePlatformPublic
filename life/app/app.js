@@ -22,7 +22,7 @@ import { CATALOG, SLOTS, buy, decorationsFor } from "./core/shop.js";
 import { LANGS, makeT, pickLang, placeTitle } from "./core/i18n.js";
 import { pickQuality, canChooseQuality } from "./core/quality.js";
 import { categories, addCategory, renameCategory, removeCategory } from "./core/categories.js";
-import { parseDeepLink } from "./core/links.js";
+import { parseDeepLink, linkFromPage } from "./core/links.js";
 import { celebrationFor } from "./core/reward.js";
 import { goalBoard, timeLeft, progressView, stuckReason, STUCK_ANSWERS, STUCK_ACTION, STAKES } from "./core/goals.js";
 import { goalArt } from "./goalart.js";
@@ -32,7 +32,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.10.4";
+export const VERSION = "0.10.5";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -905,6 +905,8 @@ function onLink(url) {
   closeSheet(); $("searchBox").hidden = true; $("menu").hidden = true;
   if (a.action === "add") { const id = store.capture(a.text, { source: "link" }); const n = store.get(id); toast(n.due ? t("inBagDue", { d: dueText(n.due) }) : t("inBag")); bounceBag(); }
   if (a.action === "capture") setTimeout(() => $("capInput").focus(), 300);
+  if (a.action === "goal") { const r = store.addGoal(a.text); openGoals(); toast(r.ok ? t("goalAdded") : t(r.error === "when" ? "goalNeedsWhen" : "goalNeedsWhat")); }
+  if (a.action === "goals") openGoals();
   if (a.action === "open") { if (store.get(a.id)) openFor(a.id); else toast(t("gone")); }
   if (a.action === "place") { if (store.get(a.id)?.type === "place") openFor(a.id); }
   if (a.action === "today") openToday();
@@ -1098,4 +1100,15 @@ renderer.setAnimationLoop(() => {
   setInterval(() => { if (active() && document.visibilityState === "visible") doSync().then(() => { if (sheetFor === "devices" && syncFlag() === "on") openDevices(); }); }, 60000);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && active()) doSync(); });
   if (active()) setTimeout(() => doSync(), 2500);
+}
+
+// R58 · a website link with ?add=… or ?goal=… adds it once, then the address is cleaned so a reload
+// does not add it again.
+{
+  const a = linkFromPage(location.search);
+  if (a) {
+    const clean = new URLSearchParams(location.search); clean.delete("add"); clean.delete("goal");
+    history.replaceState(null, "", location.pathname + (clean.toString() ? "?" + clean : "") + location.hash);
+    setTimeout(() => onLink(a.action === "add" ? "lifearchipelago://add?text=" + encodeURIComponent(a.text) : "lifearchipelago://goal?text=" + encodeURIComponent(a.text)), 1200);
+  }
 }
