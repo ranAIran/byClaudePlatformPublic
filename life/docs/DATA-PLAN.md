@@ -18,6 +18,13 @@ Diagrams: `data-architecture.png`, `data-encryption-options.png`, `plan-tree.png
 - **Reminders when the app is closed:** Android already schedules them on the phone (R11). The computer needs Web Push sent by Supabase at the right time, with the payload encrypted in advance by the device; or export to a calendar (.ics).
 - **Supabase key:** never paste it in chat; it is given through the secure credential form when phase B starts. The anon key may live in the app (rules are enforced on the server); the service_role key is secret.
 
+## Server (Supabase project "life app Project", ref `uuamddvxaownewcfpczt`, eu-central-1)
+- Schema: `supabase/migrations/20261128000001_vault.sql` (applied 28 Nov 2026 through the Management API). Tables: `vaults` (one only: single owner), `devices` (id = auth uid; role owner/member/agent; can_write; expires_at for the agent; wrapped_key = data key locked for that device; revoked_at), `pairing_requests` (one-time code, 15 min), `records` (latest encrypted version per record), `journal` and `inputs` (append-only, encrypted). The server stores only `iv` + `ciphertext` plus ids, kinds, time tags and device.
+- Row-level security on every table; nothing granted to the `anon` role; helpers `is_member`, `can_manage` (owner/member only, never the agent), `the_vault`.
+- Check: `bash life/test/supabase-rls.sh` plays owner, new phone, stranger and the Claude agent (`supabase/tests/rls_check.sql`) and removes its test data; 15 checks pass.
+- Anonymous sign-in must be on (Authentication → Sign In / Providers): every device signs in without a password and is let in only after approval.
+- The personal access token (Management API) has no `auth_config_write`; auth settings are changed by the owner in the dashboard.
+
 ## Phases
 - **A (done, life 0.9.0):** R51 action log + raw inputs, R52 user profile ("memory"), data version 3 ready for encryption (`core/sealable.js` splits each record into visible metadata and content), menu screens "My week & memory" and "Activity log".
 - **B:** R53 end-to-end encryption + recovery key + device pairing (one-time code, owner approves, revoke); R54 sync phone ↔ computer (offline-first) + Web Push on the computer.
