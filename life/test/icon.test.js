@@ -29,4 +29,13 @@ describe("R56 · the app icon", () => {
     expect(size(join(root, "app/icons/favicon-32.png"))).toEqual([32, 32]); expect(size(join(root, "app/icons/icon-180.png"))).toEqual([180, 180]); expect(size(join(root, "app/icons/icon-512.png"))).toEqual([512, 512]);
     expect(readFileSync(join(root, "app/icons/icon.svg"), "utf8")).toContain("<svg");
   });
+  it("installing the website as an app uses the same icon (web app manifest)", () => {
+    const html = readFileSync(join(root, "app/index.html"), "utf8");
+    expect(html).toContain('<link rel="manifest" href="manifest.webmanifest">');
+    const m = JSON.parse(readFileSync(join(root, "app/manifest.webmanifest"), "utf8"));
+    expect(m).toMatchObject({ name: "Life Archipelago", display: "standalone", start_url: "./" });
+    const icons = Object.fromEntries(m.icons.map((i) => [i.sizes + " " + (i.purpose || "any"), i.src]));
+    expect(icons["192x192 any"]).toBe("icons/icon-192.png"); expect(icons["512x512 any"]).toBe("icons/icon-512.png"); expect(icons["512x512 maskable"]).toBe("icons/icon-512.png");
+    expect(size(join(root, "app/icons/icon-192.png"))).toEqual([192, 192]);
+  });
 });
