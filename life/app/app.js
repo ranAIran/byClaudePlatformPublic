@@ -32,7 +32,7 @@ import { makeWalker } from "./core/walk.js";
 import { createPhysics } from "./core/physics.js";
 import * as media from "./media.js";
 
-export const VERSION = "0.10.1";
+export const VERSION = "0.10.2";
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
 const saved = await openSavedBackend(); // R19: IndexedDB, moved over from localStorage on first start
@@ -941,6 +941,13 @@ $("searchInput").addEventListener("input", () => {
 });
 $("searchRes").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) { $("searchBox").hidden = true; openFor(b.dataset.id); } });
 $("menuBtn").addEventListener("click", () => { $("menu").hidden = !$("menu").hidden; });
+// A tap anywhere outside the open menu closes it (and does nothing else).
+document.addEventListener("pointerdown", (e) => {
+  if ($("menu").hidden || e.target.closest("#menu, #menuBtn")) return;
+  $("menu").hidden = true; e.preventDefault(); e.stopPropagation(); swallowNextClick = true;
+}, true);
+let swallowNextClick = false;
+document.addEventListener("click", (e) => { if (swallowNextClick) { swallowNextClick = false; e.preventDefault(); e.stopPropagation(); } }, true);
 $("menu").addEventListener("click", async (e) => {
   const act = e.target.closest("[data-act]")?.dataset.act; if (!act) return; $("menu").hidden = true;
   const stamp = isoDate(new Date());

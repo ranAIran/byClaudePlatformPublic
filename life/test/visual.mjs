@@ -333,6 +333,24 @@ check(opened.startsWith("https://github.com/ranAIran/byClaudePlatformPublic/issu
   check(on && lost && calls.length === 0, `R53/R54 Sync & devices offers "Turn on sync" and contacts no server before that (${calls.length} calls)`);
   await p.evaluate(() => window.__life.ui.closeSheet());
 }
+// R57 · on a narrow phone in Hebrew the whole top bar fits on screen, the menu opens under its
+// button, and a tap outside the open menu closes it (without opening what was under the tap).
+{
+  const nctx = await b.newContext({ ...devices["Pixel 7"], viewport: { width: 360, height: 760 }, deviceScaleFactor: 1, timezoneId: "Asia/Jerusalem" });
+  await nctx.addInitScript(() => { try { localStorage.setItem("life-lang", "he"); } catch (e) {} });
+  const n = await nctx.newPage(); n.on("pageerror", (e) => errs.push("narrow: " + e.message));
+  await n.goto(base + "?notoday"); await n.waitForFunction(() => window.__life?.ready, null, { timeout: 180000 }); await n.waitForTimeout(500);
+  const box = await n.evaluate(() => { const r = (id) => document.getElementById(id).getBoundingClientRect(); return { hud: [r("hudMain").left, r("hudMain").right], btn: [r("menuBtn").left, r("menuBtn").right], vw: innerWidth }; });
+  await n.click("#menuBtn"); await n.waitForTimeout(400);
+  const opened = await n.isVisible("#menu");
+  const menu = await n.evaluate(() => { const r = document.getElementById("menu").getBoundingClientRect(); return [r.left, r.right]; });
+  await n.screenshot({ path: `${out}/v-narrow-menu.png` });
+  await n.mouse.click(180, 600); await n.waitForTimeout(400);
+  const closed = await n.isHidden("#menu"), sheetStayedClosed = await n.isHidden("#sheet");
+  check(opened && menu[1] - menu[0] > 150 && box.hud[0] >= 0 && box.hud[1] <= box.vw && box.btn[0] >= 0 && menu[0] >= 0 && menu[1] <= box.vw && closed && sheetStayedClosed,
+    `R57 narrow Hebrew phone: top bar ${Math.round(box.hud[0])}–${Math.round(box.hud[1])} of ${box.vw}, menu ${Math.round(menu[0])}–${Math.round(menu[1])}, closes on an outside tap (${closed})`);
+  await nctx.close();
+}
 // R19 · the data lives in IndexedDB and survives a reload.
 {
   const before = await p.evaluate(async () => { await window.__life.flush(); return { st: window.__life.storage(), n: window.__life.store.all().length, xp: window.__life.store.xp(), j: window.__life.store.journal().length }; });

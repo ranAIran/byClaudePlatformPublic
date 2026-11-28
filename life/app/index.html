@@ -82,13 +82,15 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 
 /* HUD */
 #hud{position:fixed;left:var(--side);right:var(--side);top:calc(10px + var(--top));display:grid;gap:8px;z-index:3}
-#hudMain{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 9px}
+#hudMain{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 9px;min-width:0}
+/* Narrow phones: tighter top bar so all three buttons always fit on screen. */
+@media (max-width:430px){#hudMain{gap:7px;padding:7px 7px 7px 8px}.hudbtn{width:36px;height:36px}#lvl{width:40px;height:40px;font-size:17px}.hud-bars{gap:7px}.stat .bar{min-width:14px}}
 #lvl{width:44px;height:44px;border-radius:15px;background:linear-gradient(160deg,#ffe08a,#ff9f1c);display:grid;place-items:center;color:var(--gold-ink);font-weight:800;font-size:19px;box-shadow:0 3px 0 var(--gold-edge),inset 0 1px 0 rgba(255,255,255,.6);flex:none}
-.hud-mid{flex:1;min-width:0;display:grid;gap:5px}
+.hud-mid{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:5px}
 .hud-top{display:flex;align-items:baseline;justify-content:space-between;gap:8px;min-width:0}
 #lvlName{font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#today{font-size:11px;color:var(--muted);white-space:nowrap;flex:none}
-.hud-bars{display:flex;gap:10px;align-items:center}
+#today{font-size:11px;color:var(--muted);white-space:nowrap;flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.hud-bars{display:flex;gap:10px;align-items:center;min-width:0}
 .stat{display:flex;align-items:center;gap:5px;min-width:0;font-size:10.5px;font-weight:600;color:var(--muted)}
 .stat svg{width:13px;height:13px;flex:none}
 .stat.xp{flex:1.5} .stat.hp{flex:1} .stat.coin{flex:none;color:var(--gold);font-weight:700}
@@ -188,7 +190,9 @@ button.item{align-items:center}
 .empty{color:var(--muted);text-align:center;padding:18px 14px;font-size:13.5px;line-height:1.5}
 #toast{position:fixed;left:50%;top:calc(118px + var(--top));transform:translateX(-50%);padding:9px 16px;border-radius:999px;background:var(--panel-solid);border:1px solid rgba(255,201,77,.65);font-weight:600;font-size:13.5px;z-index:9;box-shadow:0 10px 30px rgba(28,10,34,.45);white-space:nowrap;max-width:calc(100vw - 24px);overflow:hidden;text-overflow:ellipsis;animation:toastIn .28s cubic-bezier(.2,1.3,.4,1)}
 @keyframes toastIn{from{transform:translateX(-50%) translateY(-10px);opacity:0}}
-#menu{position:fixed;right:var(--side);top:calc(66px + var(--top));padding:6px;display:grid;gap:1px;z-index:6;min-width:232px;animation:menuIn .18s ease-out;transform-origin:top right}
+#menu{position:fixed;right:var(--side);top:calc(66px + var(--top));padding:6px;display:grid;gap:1px;z-index:6;min-width:232px;max-width:calc(100vw - 20px);max-height:calc(100vh - 90px - var(--top));overflow-y:auto;animation:menuIn .18s ease-out;transform-origin:top right}
+/* Right to left: the menu button sits on the left, so the menu opens under it. */
+[dir="rtl"] #menu{right:auto;left:var(--side);transform-origin:top left}
 @keyframes menuIn{from{transform:scale(.92);opacity:0}}
 #menu button{display:flex;align-items:center;gap:11px;background:none;border:0;text-align:start;padding:10px 12px;border-radius:11px;font-size:14px;font-weight:600}
 #menu button svg{width:18px;height:18px;color:var(--muted);flex:none}
